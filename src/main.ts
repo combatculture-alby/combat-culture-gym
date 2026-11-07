@@ -4,12 +4,12 @@ const W = 480, H = 270, CELL = 12;
 const UI_FONT = 'Arial, Helvetica, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[] };
 const SAVE_KEY = 'combat-culture-gym-v1';
 const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}] };
 function loadSave(): Save {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -23,7 +23,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -54,6 +54,7 @@ class GymScene extends Phaser.Scene {
   private shopLabel!: Phaser.GameObjects.Text;
   private modeLabel!: Phaser.GameObjects.Text;
   private classOverlay!: Phaser.GameObjects.Graphics;
+  private placingDecor = -1;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
@@ -82,7 +83,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 3.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 4.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -103,7 +104,7 @@ class GymScene extends Phaser.Scene {
     this.message = this.add.text(12,220,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
     this.timer = this.add.text(12,207,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.add.text(12,250,'Tap student to talk/help; tap floor to move',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.add.text(12,250,'M: Move decor | Tap destination to place',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,260,'E: Help   C: Class   T: Change   N: Close   R: Reset',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(340,149,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
     this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
@@ -124,7 +125,9 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-T',() => this.changeClass());
     this.input.keyboard!.on('keydown-B',() => this.buyDecor());
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
+    this.input.keyboard!.on('keydown-M',() => this.cycleDecorPlacement());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
+      if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
       if(p.worldX >= 330 || p.worldY >= 215) return;
       if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
@@ -194,21 +197,53 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0xd9bd80).fillRect(86,48,3,13);
     }
     const decor=this.saveData.decorLevel||0;
+    const pos=this.saveData.decorPositions||defaults.decorPositions!;
     if(decor>=1) {
-      this.decor.fillStyle(0xe8d4a1).fillRect(123,38,50,18);
-      this.decor.fillStyle(0x943f36).fillRect(127,42,42,10);
-      this.decor.fillStyle(0xf4e4c3).fillRect(131,46,34,2);
+      const p=pos[0];
+      this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
+      this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
+      this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
     }
     if(decor>=2) {
-      this.decor.fillStyle(0x866142).fillRect(218,39,47,18);
-      this.decor.fillStyle(0xd9bd80).fillRect(222,42,39,12);
-      this.decor.fillStyle(0x476d66).fillRect(226,46,31,4);
+      const p=pos[1];
+      this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
+      this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
+      this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
     }
     if(decor>=3) {
-      this.decor.fillStyle(0x355d45).fillRect(294,178,16,20);
-      this.decor.fillStyle(0x4d885c).fillCircle(302,173,12);
-      this.decor.fillStyle(0x7ca76d).fillCircle(297,170,5);
+      const p=pos[2];
+      this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
+      this.decor.fillStyle(0x4d885c).fillCircle(p.x,p.y-11,12);
+      this.decor.fillStyle(0x7ca76d).fillCircle(p.x-5,p.y-14,5);
     }
+    if(this.placingDecor>=0) {
+      const p=pos[this.placingDecor];
+      this.decor.lineStyle(2,0xffe08a).strokeRect(p.x-27,p.y-22,54,42);
+    }
+  }
+  private cycleDecorPlacement():void {
+    if(this.running) { this.say('Finish class before decorating.'); return; }
+    const owned=this.saveData.decorLevel||0;
+    if(!owned) { this.say('Buy a decoration first.'); return; }
+    this.placingDecor=this.placingDecor+1>=owned?-1:this.placingDecor+1;
+    this.route=[]; this.targetStudent=null;
+    this.drawEquipment();
+    this.say(this.placingDecor<0?'Decoration placement closed.':'Moving '+['Gym banner','Training poster','Indoor plant'][this.placingDecor]+'. Tap a free spot on the mat. Press M to switch or exit.');
+  }
+  private placeDecor(x:number,y:number):void {
+    if(this.running || this.placingDecor<0) return;
+    if(x<60 || x>290 || y<70 || y>192) { this.say('Place decorations inside the training area, away from the edges.'); return; }
+    if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<30) || Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<30) {
+      this.say('Too close to someone. Choose another spot.'); return;
+    }
+    const positions=this.saveData.decorPositions||defaults.decorPositions!.map(p=>({...p}));
+    if(positions.some((p,i)=>i!==this.placingDecor && i<(this.saveData.decorLevel||0) && Phaser.Math.Distance.Between(p.x,p.y,x,y)<44)) {
+      this.say('Too close to another decoration.'); return;
+    }
+    positions[this.placingDecor]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
+    this.saveData.decorPositions=positions;
+    this.persist(); this.drawEquipment();
+    this.say('Decoration moved and saved! Press M to choose another or exit.');
   }
   private buyDecor():void {
     if(this.running) { this.say('Shop after class.'); return; }
@@ -307,6 +342,7 @@ class GymScene extends Phaser.Scene {
     this.rosterPanel.setVisible(false);
     this.modeLabel.setText('CLASS RUSH');
     this.classOverlay.clear().lineStyle(3,0xe8bd6c).strokeRect(30,30,290,181);
+    this.placingDecor=-1;
     this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
@@ -359,7 +395,7 @@ class GymScene extends Phaser.Scene {
   }
   private reset():void {
     this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
+    this.running=false; this.placingDecor=-1; this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
   private findRoute(start:Point,end:Point):Point[] {
