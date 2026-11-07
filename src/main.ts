@@ -66,7 +66,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.8',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.9',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -169,8 +169,14 @@ class GymScene extends Phaser.Scene {
     } else {
       nearest.friendship++;
       this.persist();
-      const lines=['Working on my jab today!','I want better footwork.','This gym feels welcoming.','Ready to train, coach!'];
-      this.say(nearest.name+': '+lines[i]+' Friendship +1');
+      const dialogue: string[][]=[
+        ['Can we work on my jab? I keep dropping my other hand.','I stayed late to get another round on the bag.','One day I want to compete. No rush, though.'],
+        ['I brought snacks. Is that part of the training plan?','I think my footwork is improving. Maybe.','I like that everyone here helps each other.'],
+        ['I watched some fight footage last night. Want to break it down?','I am trying to stay relaxed when I throw combinations.','Training is starting to feel like part of my routine.'],
+        ['Is it normal to be this sore after boxing?','I finally remembered to breathe during combinations.','I might be slow, but I always show up.']
+      ];
+      const line=dialogue[i][(nearest.friendship-1)%dialogue[i].length];
+      this.say(nearest.name+': '+line+' Friendship '+nearest.friendship);
     }
   }
   private startClass():void {
