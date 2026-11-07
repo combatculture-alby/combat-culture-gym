@@ -92,7 +92,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 5.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 5.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -213,7 +213,14 @@ class GymScene extends Phaser.Scene {
       if(item.stored) return;
       const x=item.x,y=item.y,side=item.rotation%2===1;
       this.decor.fillStyle([0xf3d48b,0x735b48,0xb08b56,0x7cc2cc,0x9e5148][item.kind]);
-      if(item.kind===0) {this.decor.fillRect(x-3,y-17,6,30);this.decor.fillCircle(x,y-18,9);}
+      if(item.kind===0) { // Side-view lamp: the shade and base turn with the furniture.
+        const dx=[0,14,0,-14][item.rotation],dy=[-14,0,14,0][item.rotation];
+        this.decor.fillStyle(0x695447).fillCircle(x,y,5);
+        this.decor.fillStyle(0xf3d48b).fillRect(x-3,y-3,6,6);
+        this.decor.lineStyle(4,0xf3d48b).lineBetween(x,y,x+dx,y+dy);
+        this.decor.fillStyle(0xffdf84).fillCircle(x+dx,y+dy,9);
+        this.decor.fillStyle(0xe6a75c).fillRect(x+dx-7,y+dy+3,14,3);
+      }
       else if(item.kind===1) this.decor.fillRoundedRect(x-(side?7:20),y-(side?20:7),side?14:40,side?40:14,3);
       else if(item.kind===2) this.decor.fillRect(x-(side?9:16),y-(side?16:9),side?18:32,side?32:18);
       else if(item.kind===3) {this.decor.fillRect(x-9,y-17,18,30);this.decor.fillStyle(0xe4f7fa).fillRect(x-6,y-14,12,8);}
