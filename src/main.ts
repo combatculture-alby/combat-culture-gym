@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 
 const W = 480, H = 270, CELL = 12;
+const UI_FONT = 'Arial, Helvetica, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container };
 type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[] };
@@ -58,8 +59,8 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.2',{fontFamily:'monospace',fontSize:'11px',color:'#29383b'});
-    this.add.text(344,217,'RECEPTION',{fontFamily:'monospace',fontSize:'9px',color:'#493e33'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     this.player = this.add.container(170,150,[
       this.add.ellipse(0,14,22,6,0x203a3a,0.35),
       this.add.rectangle(0,0,22,26,0x292a2c).setStrokeStyle(2,0xb52427),
@@ -71,15 +72,15 @@ class GymScene extends Phaser.Scene {
         this.add.rectangle(0,0,17,20,s.color).setStrokeStyle(1,0x283638),
         this.add.circle(0,-13,9,0xe4b18d).setStrokeStyle(1,0x563e35),
       ]);
-      this.add.text(s.x,s.y-33,s.name,{fontFamily:'monospace',fontSize:'9px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
+      this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
     }
-    this.status = this.add.text(328,17,'',{fontFamily:'monospace',fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}});
-    this.message = this.add.text(12,16,'Welcome to the gym!',{fontFamily:'monospace',fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4},wordWrap:{width:295}}).setDepth(10);
-    this.timer = this.add.text(12,219,'',{fontFamily:'monospace',fontSize:'10px',color:'#29383b'});
-    this.add.text(12,250,'Tap student: Talk/Help   |   Tap floor: Move',{fontFamily:'monospace',fontSize:'9px',color:'#29383b'});
-    this.add.text(12,260,'E: Interact   C: Class   N: Close   R: Reset',{fontFamily:'monospace',fontSize:'9px',color:'#29383b'});
+    this.status = this.add.text(345,17,'',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}});
+    this.message = this.add.text(12,16,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4},wordWrap:{width:295}}).setDepth(10);
+    this.timer = this.add.text(12,219,'',{fontFamily:UI_FONT,fontSize:'12px',color:'#29383b'});
+    this.add.text(12,250,'Tap student to talk/help; tap floor to move',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
+    this.add.text(12,260,'E: Help   C: Class   N: Close   R: Reset',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.addButton(363,242,101,18,'START CLASS',() => this.startClass());
-    this.addButton(363,263,101,12,'CLOSE GYM',() => this.nextDay());
+    this.addButton(363,263,101,18,'CLOSE GYM',() => this.nextDay());
     this.refresh();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
@@ -98,7 +99,7 @@ class GymScene extends Phaser.Scene {
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):void {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
-    const t=this.add.text(x+w/2,y-h/2,label,{fontFamily:'monospace',fontSize:'9px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
+    const t=this.add.text(x+w/2,y-h/2,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
     b.on('pointerdown',fn); t.on('pointerdown',fn);
   }
   private persist():void {
