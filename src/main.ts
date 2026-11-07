@@ -696,7 +696,6 @@ class RushScene extends Phaser.Scene {
     this.add.rectangle(240,164,330,180,ink).setStrokeStyle(2,gold);
     this.add.text(240,112,'CLASS COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',fontStyle:'bold',color:cream}).setOrigin(0.5);
     this.add.text(240,155,'Earned $'+earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
-+earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,209,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
   private exit():void {
@@ -736,7 +735,6 @@ class RhythmScene extends Phaser.Scene {
     this.add.rectangle(240,165,345,168,ink).setStrokeStyle(2,gold);
     this.add.text(240,117,'PAD WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'20px',color:cream}).setOrigin(0.5);
     this.add.text(240,155,this.hits+'/12 accurate  |  +$'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
-+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,207,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
@@ -788,7 +786,6 @@ class MemoryScene extends Phaser.Scene {
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,115,won?'DRILL MASTERED':'DRILL ENDED',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
     this.add.text(240,153,'Round '+this.round+'/5   |   Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
-+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
