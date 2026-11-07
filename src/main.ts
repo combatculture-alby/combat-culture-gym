@@ -105,7 +105,6 @@ class GymScene extends Phaser.Scene {
     this.timer = this.add.text(12,207,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(12,250,'M: Move decor | Tap destination to place',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.add.text(12,250,'Tap student to talk/help; tap floor to move',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,260,'E: Help   C: Class   T: Change   N: Close   R: Reset',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(340,149,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
     this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
