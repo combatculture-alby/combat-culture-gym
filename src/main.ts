@@ -484,7 +484,7 @@ class GymScene extends Phaser.Scene {
       this.say(nearest.name+': '+lines[i][Math.max(0,nearest.friendship-1)%2]+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
-  private openArcade(mode:'Rhythm'|'Memory'):void {
+  private openArcade(mode:'Rhythm'|'Memory'|'Defense'):void {
     if(this.running) return;
     this.persist();
     this.scene.start(mode);
