@@ -4,12 +4,12 @@ const W = 480, H = 270, CELL = 12;
 const UI_FONT = 'Arial, Helvetica, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number };
 const SAVE_KEY = 'combat-culture-gym-v1';
 const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0 };
 function loadSave(): Save {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -23,7 +23,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0)))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -49,6 +49,9 @@ class GymScene extends Phaser.Scene {
   private walkingClock = 0;
   private decor!: Phaser.GameObjects.Graphics;
   private studentCard!: Phaser.GameObjects.Text;
+  private rosterPanel!: Phaser.GameObjects.Container;
+  private rosterText!: Phaser.GameObjects.Text;
+  private shopLabel!: Phaser.GameObjects.Text;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
@@ -77,8 +80,9 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 2.5',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 3.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
+    this.shopLabel=this.add.text(344,225,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.equipmentLabel=this.add.text(344,119,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
@@ -101,6 +105,11 @@ class GymScene extends Phaser.Scene {
     this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
     this.addButton(340,189,124,17,'START CLASS',() => this.startClass());
     this.addButton(340,209,124,17,'CLOSE GYM',() => this.nextDay());
+    this.addButton(340,245,60,16,'DECOR',() => this.buyDecor());
+    this.addButton(404,245,60,16,'ROSTER',() => this.toggleRoster());
+    const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
+    this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
     this.refresh();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
@@ -109,7 +118,10 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-N',() => this.nextDay());
     this.input.keyboard!.on('keydown-R',() => this.reset());
     this.input.keyboard!.on('keydown-T',() => this.changeClass());
+    this.input.keyboard!.on('keydown-B',() => this.buyDecor());
+    this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
+      if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
       if(p.worldX >= 330 || p.worldY >= 215) return;
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
@@ -151,9 +163,11 @@ class GymScene extends Phaser.Scene {
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
   }
   private refresh():void {
-    this.status.setText(['DAY '+this.saveData.day+'   $'+this.saveData.money,'REP '+this.saveData.reputation+'   CLASSES '+(this.saveData.classesTaught||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
+    this.status.setText(['DAY '+this.saveData.day+'   $'+this.saveData.money,'REP '+this.saveData.reputation+'   CLASSES '+(this.saveData.classesTaught||0),'EARNED $'+(this.saveData.lifetimeEarnings||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
     const level=this.saveData.equipment||0;
     this.equipmentLabel.setText('GEAR '+level+'/3 | '+(level===3?'MAXED':'$'+(40+level*35)));
+    const decor=this.saveData.decorLevel||0;
+    this.shopLabel.setText('DECOR '+decor+'/3 '+(decor===3?'MAX':'$'+(25+decor*25)));
     this.drawEquipment();
   }
   private drawEquipment():void {
@@ -175,6 +189,43 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
       this.decor.fillStyle(0xd9bd80).fillRect(86,48,3,13);
     }
+    const decor=this.saveData.decorLevel||0;
+    if(decor>=1) {
+      this.decor.fillStyle(0xe8d4a1).fillRect(123,38,50,18);
+      this.decor.fillStyle(0x943f36).fillRect(127,42,42,10);
+      this.decor.fillStyle(0xf4e4c3).fillRect(131,46,34,2);
+    }
+    if(decor>=2) {
+      this.decor.fillStyle(0x866142).fillRect(218,39,47,18);
+      this.decor.fillStyle(0xd9bd80).fillRect(222,42,39,12);
+      this.decor.fillStyle(0x476d66).fillRect(226,46,31,4);
+    }
+    if(decor>=3) {
+      this.decor.fillStyle(0x355d45).fillRect(294,178,16,20);
+      this.decor.fillStyle(0x4d885c).fillCircle(302,173,12);
+      this.decor.fillStyle(0x7ca76d).fillCircle(297,170,5);
+    }
+  }
+  private buyDecor():void {
+    if(this.running) { this.say('Shop after class.'); return; }
+    const level=this.saveData.decorLevel||0;
+    if(level>=3) { this.say('All decorations purchased.'); return; }
+    const cost=25+level*25;
+    if(this.saveData.money<cost) { this.say('Need $'+cost+' to decorate.'); return; }
+    this.saveData.money-=cost;
+    this.saveData.decorLevel=level+1;
+    this.persist(); this.refresh();
+    this.showFeedback('GYM DECOR +1');
+    this.say('Added '+['Gym banner','Training poster','Indoor plant'][level]+'! Your gym is growing.');
+  }
+  private toggleRoster():void {
+    if(this.running) { this.say('Check the roster after class.'); return; }
+    const lines=this.students.map(s=>{
+      const rank=s.skill>=10?'Advanced':s.skill>=5?'Intermediate':'Beginner';
+      return s.name+'  |  '+rank+'\n  Skill '+s.skill+'   Bond '+s.friendship;
+    });
+    this.rosterText.setText('STUDENT ROSTER  (tap to close)\n\n'+lines.join('\n'));
+    this.rosterPanel.setVisible(!this.rosterPanel.visible);
   }
   private showStudentCard(student:Student):void {
     const rank=student.skill>=10?'Advanced':student.skill>=5?'Intermediate':'Beginner';
@@ -249,6 +300,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
+    this.rosterPanel.setVisible(false);
     this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
@@ -278,6 +330,7 @@ class GymScene extends Phaser.Scene {
     const reward=20+classBonus+this.classHelped*5+this.friendshipBonus+this.quickBonus+gearBonus;
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
     this.saveData.money+=reward;
+    this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+reward;
     const oldRep=this.saveData.reputation;
     this.saveData.reputation+=1+this.classHelped;
     this.persist();
