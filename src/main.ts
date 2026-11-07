@@ -38,6 +38,7 @@ class GymScene extends Phaser.Scene {
   private seconds = 50;
   private requests: number[] = [];
   private classHelped = 0;
+  private friendshipBonus = 0;
   private pendingRequests: number[] = [];
   private nextRequestAt = 0;
   private tasks: Record<number,string> = {};
@@ -64,7 +65,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -156,9 +157,10 @@ class GymScene extends Phaser.Scene {
       this.requests.splice(at,1);
       this.updateIndicators();
       this.classHelped++;
+      if(nearest.friendship>=5) this.friendshipBonus+=2;
       nearest.skill++;
       const task = this.tasks[i] || 'Assistance';
-      this.showFeedback('+1 '+task+' | '+nearest.name);
+      this.showFeedback((nearest.friendship>=5?'TEAMWORK +$2 | ':'HELPED | ')+task+' | '+nearest.name);
       this.say(nearest.name+': Thanks for the '+task.toLowerCase()+' help, coach!');
       this.tweens.add({targets:nearest.body,y:nearest.y-7,duration:140,yoyo:true,repeat:1});
       if(!this.requests.length && !this.pendingRequests.length) this.finishClass();
@@ -172,7 +174,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.running=true; this.seconds=50; this.classHelped=0; this.nextRequestAt=5;
+    this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
     this.requests=[];
@@ -195,13 +197,13 @@ class GymScene extends Phaser.Scene {
     this.running=false;
     this.updateIndicators();
     this.saveData.completed=true;
-    const reward=20+this.classHelped*5;
+    const reward=20+this.classHelped*5+this.friendshipBonus;
     this.saveData.money+=reward;
     this.saveData.reputation+=1+this.classHelped;
     this.persist();
     this.refresh();
     this.timer.setText('CLASS COMPLETE');
-    this.say('Helped '+this.classHelped+'/3. Earned $'+reward+'. Close gym for next day.');
+    this.say('Helped '+this.classHelped+'/3. Teamwork $'+this.friendshipBonus+'. Earned $'+reward+'.');
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
