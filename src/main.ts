@@ -64,7 +64,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.9',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -166,7 +166,8 @@ class GymScene extends Phaser.Scene {
       nearest.friendship++;
       this.persist();
       const lines=[['My jab needs work.','I want to compete someday.'],['I brought snacks!','I love this gym community.'],['I studied some fight footage.','I am working on combinations.'],['I am sore today.','I keep showing up!']];
-      this.say(nearest.name+': '+lines[i][(nearest.friendship-1)%2]+' Friendship '+nearest.friendship);
+      const milestone=nearest.friendship===3?' You are becoming regular training partners.':nearest.friendship===5?' Friendship milestone: Trusted teammate!':'';
+      this.say(nearest.name+': '+lines[i][(nearest.friendship-1)%2]+' Friendship '+nearest.friendship+'.'+milestone);
     }
   }
   private startClass():void {
