@@ -92,7 +92,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 6.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 7.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -125,8 +125,9 @@ class GymScene extends Phaser.Scene {
     this.buildButtonText.setDepth(40);
     this.addButton(340,265,60,16,'SHOP',() => this.openFurniture('shop'));
     this.addButton(340,285,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(404,285,60,17,'COACH SAYS',()=>this.openArcade('Memory'));
-    this.add.text(342,302,'ARCADE: TRAIN FOR BONUSES',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.addButton(404,285,60,17,'BAG WORK',()=>this.openArcade('Memory'));
+    this.addButton(340,323,124,17,'DEFENSE',()=>this.openArcade('Defense'));
+    this.add.text(342,302,'TRAINING DRILLS',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(340,103,124,17,'INVENTORY',() => this.openFurniture('inventory'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
@@ -152,7 +153,7 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
       // Explicitly route HUD clicks before world placement. Phaser input can hit the scene and UI together.
-      if(p.worldX>=404 && p.worldY>=249) { this.openFurniture('build'); return; }
+      if(p.worldX>=404 && p.worldX<=464 && p.worldY>=249 && p.worldY<=265) { this.openFurniture('build'); return; }
       if(this.furniturePanel.visible) return;
       if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
@@ -676,8 +677,9 @@ class RushScene extends Phaser.Scene {
     for(const r of this.requests){
       const y=125+r.lane*43;
       const remain=Math.max(0,Math.ceil(9-r.age));
-      const t=this.add.text(235,y,'NEEDS HELP  '+remain+'s',{fontFamily:UI_FONT,fontSize:'11px',color:remain<4?'#ffb3a2':'#ffe5a4'}).setOrigin(0.5);
+      const t=this.add.text(242,y,'! '+remain+'s',{fontFamily:UI_FONT,fontSize:'11px',color:remain<4?'#ffb3a2':'#ffe5a4'}).setOrigin(0.5);
       this.lanes.add(t);
+      const bubble=this.add.circle(169,y,7,remain<4?0xe76d58:0xf0cb70).setStrokeStyle(1,0xffffff);this.lanes.add(bubble);
     }
     this.info.setText('TIME '+Math.ceil(this.seconds)+'s    POINTS '+this.score+'    MISSED '+this.missed);
   }
@@ -702,92 +704,166 @@ class RushScene extends Phaser.Scene {
     if(!this.active)return;this.active=false;this.scene.start('Gym');
   }
 }
+
+const TECHNIQUES=['JAB','CROSS','HOOK','KICK','KNEE','SPRAWL'];
+const KEYS=['A','S','D','F','G','H'];
+function trainingButton(scene:Phaser.Scene,x:number,y:number,w:number,h:number,label:string,fn:()=>void):void {
+  arcadeButton(scene,x,y,w,h,label,fn);
+}
 class RhythmScene extends Phaser.Scene {
-  private active=false;private beat=0;private hits=0;private attempts=0;private info!:Phaser.GameObjects.Text;private marker!:Phaser.GameObjects.Rectangle;
+  private active=false;private attempts=0;private hits=0;private streak=0;private target=0;
+  private clock=0;private window=1.4;private level=0;private info!:Phaser.GameObjects.Text;
+  private cue!:Phaser.GameObjects.Text;private meter!:Phaser.GameObjects.Rectangle;
+  private feedback!:Phaser.GameObjects.Text;private keys:Phaser.Input.Keyboard.Key[]=[];
   constructor(){super('Rhythm');}
   create():void {
-    this.active=true;this.beat=0;this.hits=0;this.attempts=0;
-    arcadeFrame(this,'PAD WORK','Time 12 strikes as the marker crosses the gold target. SPACE or STRIKE.');
-    this.info=this.add.text(24,84,'',{fontFamily:UI_FONT,fontSize:'14px',color:cream});
-    this.add.rectangle(240,165,380,16,0x112b32);
-    this.add.rectangle(240,165,46,30,0xe8bb70,0.5).setStrokeStyle(2,gold);
-    this.marker=this.add.rectangle(65,165,10,37,0xe8e5d8);
-    arcadeButton(this,240,248,165,43,'STRIKE',()=>this.strike());
-    arcadeButton(this,415,35,75,27,'EXIT',()=>this.scene.start('Gym'));
-    this.input.keyboard?.on('keydown-SPACE',()=>this.strike());
-    this.render();
+    this.active=true;this.attempts=0;this.hits=0;this.streak=0;this.clock=0;this.level=0;this.window=1.4;
+    arcadeFrame(this,'PAD WORK','Hit the FLASHING technique on the beat. Tap a pad or use A S D F G H.');
+    this.info=this.add.text(24,81,'',{fontFamily:UI_FONT,fontSize:'13px',color:cream});
+    this.cue=this.add.text(240,120,'',{fontFamily:UI_FONT,fontSize:'25px',fontStyle:'bold',color:'#ffe29b'}).setOrigin(0.5);
+    this.add.rectangle(240,150,340,12,0x132b30);
+    this.meter=this.add.rectangle(70,150,0,12,0xe8bb70).setOrigin(0,0.5);
+    this.feedback=this.add.text(240,169,'Watch the timing bar',{fontFamily:UI_FONT,fontSize:'12px',color:cream}).setOrigin(0.5);
+    for(let i=0;i<6;i++){
+      const x=90+(i%3)*150,y=215+Math.floor(i/3)*58;
+      trainingButton(this,x,y,135,46,TECHNIQUES[i]+' ['+KEYS[i]+']',()=>this.strike(i));
+    }
+    arcadeButton(this,415,35,75,27,'EXIT',()=>this.exit());
+    this.keys=KEYS.map(k=>this.input.keyboard!.addKey(k));
+    this.next();
   }
-  private strike():void {
+  private next():void {
+    this.level=this.attempts<5?0:this.attempts<10?1:2;
+    const count=[2,4,6][this.level];this.target=Phaser.Math.Between(0,count-1);
+    this.window=[1.5,1.15,0.9][this.level];this.clock=0;
+    this.cue.setText(TECHNIQUES[this.target]+'  ['+KEYS[this.target]+']');
+    this.info.setText('ROUND '+(this.attempts+1)+'/15  |  ACCURATE '+this.hits+'  |  STREAK '+this.streak+'  |  '+['EASY','MEDIUM','HARD'][this.level]);
+  }
+  private strike(i:number):void {
     if(!this.active)return;
-    const x=this.marker.x;
-    const good=Math.abs(x-240)<=26;
-    this.hits+=Number(good);this.attempts++;this.beat=0;this.render();
-    if(this.attempts>=12)this.finish();
+    const timing=Math.abs(this.clock/this.window-0.72);
+    const good=i===this.target && timing<=0.19;
+    this.hits+=Number(good);this.streak=good?this.streak+1:0;
+    this.feedback.setText(good?'PERFECT!':i!==this.target?'WRONG TECHNIQUE':'MISSED THE BEAT');
+    this.attempts++;
+    if(this.attempts>=15)this.finish();else this.next();
   }
-  private render():void {this.info.setText('STRIKES '+this.attempts+'/12   PERFECT '+this.hits+'   '+(this.attempts?Math.round(this.hits/this.attempts*100):0)+'%');}
   update(_t:number,delta:number):void {
     if(!this.active)return;
-    this.beat+=Math.min(delta,100)/1000;
-    this.marker.x=240+175*Math.sin(this.beat*3.2-Math.PI/2);
+    for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.strike(i);break;}
+    this.clock+=Math.min(delta,100)/1000;
+    this.meter.width=340*Math.min(1,this.clock/this.window);
+    if(this.clock>=this.window){this.streak=0;this.attempts++;this.feedback.setText('TOO SLOW');if(this.attempts>=15)this.finish();else this.next();}
   }
   private finish():void {
-    this.active=false;const earned=5+this.hits*4;awardArcade(earned,Math.floor(this.hits/5),false);
-    this.add.rectangle(240,165,345,168,ink).setStrokeStyle(2,gold);
+    this.active=false;const cash=8+this.hits*3;awardArcade(cash,Math.floor(this.hits/5),false);
+    this.add.rectangle(240,164,355,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,117,'PAD WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'20px',color:cream}).setOrigin(0.5);
-    this.add.text(240,155,this.hits+'/12 accurate  |  +$'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
-    arcadeButton(this,240,207,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
+    this.add.text(240,153,this.hits+'/15 on target  |  Earned $'+cash,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
+    arcadeButton(this,240,205,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
+  private exit():void {this.active=false;this.scene.start('Gym');}
 }
 class MemoryScene extends Phaser.Scene {
   private sequence:number[]=[];private position=0;private round=0;private showing=false;private active=false;
-  private info!:Phaser.GameObjects.Text;private pads:Phaser.GameObjects.Rectangle[]=[];
+  private info!:Phaser.GameObjects.Text;private coach!:Phaser.GameObjects.Text;private pads:Phaser.GameObjects.Rectangle[]=[];
+  private keys:Phaser.Input.Keyboard.Key[]=[];
   constructor(){super('Memory');}
   create():void {
-    this.active=true;this.sequence=[];this.round=0;this.position=0;this.showing=false;
-    arcadeFrame(this,'COACH SAYS','Watch the drill, then repeat the sequence. Complete five rounds.');
-    this.info=this.add.text(24,85,'',{fontFamily:UI_FONT,fontSize:'14px',color:cream});
-    const labels=['JAB','CROSS','HOOK','KICK'];
-    for(let i=0;i<4;i++){
-      const x=137+(i%2)*206,y=151+Math.floor(i/2)*76;
-      const pad=this.add.rectangle(x,y,180,62,[0x376b70,0x965a4d,0x6c658c,0x8c7447][i]).setStrokeStyle(2,gold).setInteractive({useHandCursor:true});
-      this.add.text(x,y,labels[i],{fontFamily:UI_FONT,fontSize:'17px',fontStyle:'bold',color:cream}).setOrigin(0.5);
+    this.active=true;this.sequence=[];this.round=0;this.position=0;this.showing=false;this.pads=[];
+    arcadeFrame(this,'BAG WORK CLASS','Remember the combination. Call out each move and your student hits the bag.');
+    this.info=this.add.text(24,78,'',{fontFamily:UI_FONT,fontSize:'13px',color:cream});
+    this.coach=this.add.text(240,111,'COACH: READY!',{fontFamily:UI_FONT,fontSize:'19px',fontStyle:'bold',color:'#ffe29b'}).setOrigin(0.5);
+    for(let i=0;i<6;i++){
+      const x=90+(i%3)*150,y=170+Math.floor(i/3)*72;
+      const pad=this.add.rectangle(x,y,134,60,[0x376b70,0x965a4d,0x6c658c,0x8c7447,0x497f66,0x795e88][i]).setStrokeStyle(2,gold).setInteractive({useHandCursor:true});
+      this.add.text(x,y,TECHNIQUES[i]+' ['+KEYS[i]+']',{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:cream}).setOrigin(0.5);
       pad.on('pointerdown',()=>this.choose(i));this.pads.push(pad);
     }
-    arcadeButton(this,415,35,75,27,'EXIT',()=>this.scene.start('Gym'));
+    this.keys=KEYS.map(k=>this.input.keyboard!.addKey(k));
+    arcadeButton(this,415,35,75,27,'EXIT',()=>this.exit());
     this.nextRound();
   }
+  update():void {if(!this.active)return;for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.choose(i);break;}}
   private nextRound():void {
     if(!this.active)return;
-    this.round++;this.position=0;this.sequence.push(Phaser.Math.Between(0,3));this.showing=true;
-    this.info.setText('ROUND '+this.round+'/5   |   WATCH THE DRILL');
-    this.sequence.forEach((n,i)=>{
-      this.time.delayedCall(600+i*730,()=>{
-        if(!this.active)return;
-        this.pads[n].setStrokeStyle(5,0xffffff);
-        this.time.delayedCall(390,()=>{if(this.active)this.pads[n].setStrokeStyle(2,gold);});
-      });
-    });
-    this.time.delayedCall(750+this.sequence.length*730,()=>{
-      if(!this.active)return;this.showing=false;this.info.setText('ROUND '+this.round+'/5   |   YOUR TURN: '+this.sequence.length+' MOVES');
+    this.round++;this.position=0;const count=this.round<=2?3:this.round<=4?4:6;
+    this.sequence=Array.from({length:Math.min(2+this.round,7)},()=>Phaser.Math.Between(0,count-1));
+    this.showing=true;this.info.setText('ROUND '+this.round+'/5  |  MEMORIZE '+this.sequence.length+' MOVES');
+    this.coach.setText('WATCH THE COMBINATION');
+    this.sequence.forEach((n,i)=>this.time.delayedCall(500+i*650,()=>{
+      if(!this.active)return;this.coach.setText(TECHNIQUES[n]+'!');
+      this.pads[n].setStrokeStyle(5,0xffffff);
+      this.time.delayedCall(350,()=>{if(this.active)this.pads[n].setStrokeStyle(2,gold);});
+    }));
+    this.time.delayedCall(750+this.sequence.length*650,()=>{
+      if(!this.active)return;this.showing=false;this.coach.setText('YOUR TURN, COACH!');
+      this.info.setText('ROUND '+this.round+'/5  |  CALL THE COMBINATION: 0/'+this.sequence.length);
     });
   }
   private choose(n:number):void {
     if(!this.active||this.showing)return;
-    if(this.sequence[this.position]!==n){this.finish(false);return;}
-    this.position++;
+    if(this.sequence[this.position]!==n){this.coach.setText('WRONG CALL!');this.finish(false);return;}
+    this.position++;this.coach.setText('COACH: '+TECHNIQUES[n]+'!  |  STUDENT: HIT!');
+    this.info.setText('ROUND '+this.round+'/5  |  COMBINATION '+this.position+'/'+this.sequence.length);
     if(this.position===this.sequence.length){
-      this.showing=true;
-      if(this.round>=5)this.finish(true);
-      else this.time.delayedCall(700,()=>this.nextRound());
+      this.showing=true;if(this.round>=5)this.finish(true);
+      else this.time.delayedCall(650,()=>this.nextRound());
     }
   }
   private finish(won:boolean):void {
     this.active=false;const earned=won?35:Math.max(0,(this.round-1)*5);awardArcade(earned,won?2:0,false);
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
-    this.add.text(240,115,won?'DRILL MASTERED':'DRILL ENDED',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
-    this.add.text(240,153,'Round '+this.round+'/5   |   Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
+    this.add.text(240,115,won?'CLASS MASTERED':'CLASS ENDED',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
+    this.add.text(240,153,'Round '+this.round+'/5  |  Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
+  private exit():void {this.active=false;this.scene.start('Gym');}
+}
+class DefenseScene extends Phaser.Scene {
+  private active=false;private count=0;private correct=0;private attack=0;private elapsed=0;private limit=2.6;
+  private info!:Phaser.GameObjects.Text;private cue!:Phaser.GameObjects.Text;private bar!:Phaser.GameObjects.Rectangle;
+  private feedback!:Phaser.GameObjects.Text;private keys:Phaser.Input.Keyboard.Key[]=[];
+  private readonly attacks=[{name:'HEAD SHOT',defense:'BLOCK'},{name:'BODY SHOT',defense:'GUARD'},{name:'LOW KICK',defense:'CHECK'},{name:'STRAIGHT',defense:'SLIP'}];
+  constructor(){super('Defense');}
+  create():void {
+    this.active=true;this.count=0;this.correct=0;
+    arcadeFrame(this,'DEFENSE DRILLS','Read the incoming attack. Choose the right defense before impact.');
+    this.info=this.add.text(24,81,'',{fontFamily:UI_FONT,fontSize:'13px',color:cream});
+    this.cue=this.add.text(240,128,'',{fontFamily:UI_FONT,fontSize:'25px',fontStyle:'bold',color:'#ffb7a4'}).setOrigin(0.5);
+    this.add.rectangle(240,163,340,12,0x132b30);
+    this.bar=this.add.rectangle(70,163,340,12,0xe8bb70).setOrigin(0,0.5);
+    this.feedback=this.add.text(240,189,'READ THE ATTACK',{fontFamily:UI_FONT,fontSize:'12px',color:cream}).setOrigin(0.5);
+    ['BLOCK','GUARD','CHECK','SLIP'].forEach((label,i)=>trainingButton(this,65+i*116,248,105,50,label+' ['+['J','K','L',';'][i]+']',()=>this.defend(i)));
+    this.keys=['J','K','L','SEMICOLON'].map(k=>this.input.keyboard!.addKey(k));
+    arcadeButton(this,415,35,75,27,'EXIT',()=>this.exit());
+    this.next();
+  }
+  private next():void {
+    this.elapsed=0;this.limit=Math.max(1.1,2.6-this.count*0.09);this.attack=Phaser.Math.Between(0,3);
+    this.cue.setText('INCOMING: '+this.attacks[this.attack].name);
+    this.info.setText('ATTACK '+(this.count+1)+'/15  |  DEFENDED '+this.correct+'  |  REACT!');
+  }
+  private defend(i:number):void {
+    if(!this.active)return;
+    const good=i===this.attack;this.correct+=Number(good);this.count++;
+    this.feedback.setText(good?'GOOD DEFENSE!':'HIT! WRONG RESPONSE');
+    if(this.count>=15)this.finish();else this.next();
+  }
+  update(_t:number,delta:number):void {
+    if(!this.active)return;
+    for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.defend(i);break;}
+    this.elapsed+=Math.min(delta,100)/1000;this.bar.width=340*Math.max(0,1-this.elapsed/this.limit);
+    if(this.elapsed>=this.limit){this.count++;this.feedback.setText('TOO SLOW - HIT!');if(this.count>=15)this.finish();else this.next();}
+  }
+  private finish():void {
+    this.active=false;const earned=8+this.correct*3;awardArcade(earned,Math.floor(this.correct/5),false);
+    this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
+    this.add.text(240,115,'DEFENSE COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
+    this.add.text(240,153,this.correct+'/15 defended  |  Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
+    arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
+  }
+  private exit():void {this.active=false;this.scene.start('Gym');}
 }
 
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene]});
+new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene,DefenseScene]});
