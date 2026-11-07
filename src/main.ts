@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 const W = 480, H = 270, CELL = 12;
 const UI_FONT = 'Arial, Helvetica, sans-serif';
 type Point = { x: number; y: number };
-type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container };
+type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[] };
 const SAVE_KEY = 'combat-culture-gym-v1';
 const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
@@ -38,6 +38,7 @@ class GymScene extends Phaser.Scene {
   private seconds = 50;
   private requests: number[] = [];
   private classHelped = 0;
+  private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
   private message!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
@@ -59,7 +60,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.4',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     this.player = this.add.container(170,150,[
       this.add.ellipse(0,14,22,6,0x203a3a,0.35),
@@ -73,6 +74,7 @@ class GymScene extends Phaser.Scene {
         this.add.circle(0,-13,9,0xe4b18d).setStrokeStyle(1,0x563e35),
       ]);
       this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
+      s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
     this.status = this.add.text(345,17,'',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}});
     this.message = this.add.text(12,16,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4},wordWrap:{width:295}}).setDepth(10);
@@ -93,8 +95,8 @@ class GymScene extends Phaser.Scene {
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
         if(Phaser.Math.Distance.Between(this.player.x,this.player.y,student.x,student.y) < 42) this.interact(student);
-        else this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:student.x-24,y:student.y+10});
-      } else this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:p.worldX,y:p.worldY});
+        else { this.targetStudent = student; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:student.x-24,y:student.y+10}); }
+      } else { this.targetStudent = null; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:p.worldX,y:p.worldY}); }
     });
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):void {
@@ -111,6 +113,9 @@ class GymScene extends Phaser.Scene {
     this.status.setText(['DAY '+this.saveData.day,'$'+this.saveData.money,'REP '+this.saveData.reputation,this.saveData.completed?'CLASS DONE':'CLASS READY']);
   }
   private say(message:string):void { this.message.setText(message); }
+  private updateIndicators():void {
+    this.students.forEach((s,i)=>s.indicator?.setVisible(this.running && this.requests.includes(i)));
+  }
   private interact(target?:Student):void {
     const nearest=target??[...this.students].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
@@ -119,6 +124,7 @@ class GymScene extends Phaser.Scene {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
       this.requests.splice(at,1);
+      this.updateIndicators();
       this.classHelped++;
       nearest.skill++;
       this.say(nearest.name+': Thanks, coach!');
@@ -135,11 +141,13 @@ class GymScene extends Phaser.Scene {
     this.running=true; this.seconds=50; this.classHelped=0;
     const offset=(this.saveData.day-1)%4;
     this.requests=[offset,(offset+1)%4,(offset+2)%4];
+    this.updateIndicators();
     this.say('Beginner Boxing! Help the three students named below.');
   }
   private finishClass():void {
     if(!this.running) return;
     this.running=false;
+    this.updateIndicators();
     this.saveData.completed=true;
     const reward=20+this.classHelped*5;
     this.saveData.money+=reward;
@@ -160,7 +168,7 @@ class GymScene extends Phaser.Scene {
   }
   private reset():void {
     this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.requests=[]; this.persist();
+    this.running=false; this.requests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
   private findRoute(start:Point,end:Point):Point[] {
@@ -201,11 +209,11 @@ class GymScene extends Phaser.Scene {
     }
     let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
     let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
-    if(dx||dy) this.route=[];
+    if(dx||dy) { this.route=[]; this.targetStudent=null; }
     else if(this.route.length) {
       const target=this.route[0];
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
-      if(distance<2) { this.route.shift(); return; }
+      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
       dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
     }
     const length=Math.hypot(dx,dy);
@@ -216,6 +224,7 @@ class GymScene extends Phaser.Scene {
     const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
     if(walkable(nx,this.player.y)) this.player.x=nx;
     if(walkable(this.player.x,ny)) this.player.y=ny;
+    if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
   }
 }
 new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:H,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene]});
