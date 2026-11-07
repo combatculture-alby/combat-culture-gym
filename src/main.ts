@@ -695,7 +695,7 @@ class RushScene extends Phaser.Scene {
     awardArcade(earned,rep,true);
     this.add.rectangle(240,164,330,180,ink).setStrokeStyle(2,gold);
     this.add.text(240,112,'CLASS COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',fontStyle:'bold',color:cream}).setOrigin(0.5);
-    this.add.text(240,155,'Earned type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene]});
+    this.add.text(240,155,'Earned $'+earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
 +earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,209,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
@@ -735,7 +735,7 @@ class RhythmScene extends Phaser.Scene {
     this.active=false;const earned=5+this.hits*4;awardArcade(earned,Math.floor(this.hits/5),false);
     this.add.rectangle(240,165,345,168,ink).setStrokeStyle(2,gold);
     this.add.text(240,117,'PAD WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'20px',color:cream}).setOrigin(0.5);
-    this.add.text(240,155,this.hits+'/12 accurate  |  +type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene]});
+    this.add.text(240,155,this.hits+'/12 accurate  |  +$'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
 +earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,207,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
@@ -787,7 +787,7 @@ class MemoryScene extends Phaser.Scene {
     this.active=false;const earned=won?35:Math.max(0,(this.round-1)*5);awardArcade(earned,won?2:0,false);
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,115,won?'DRILL MASTERED':'DRILL ENDED',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
-    this.add.text(240,153,'Round '+this.round+'/5   |   Earned type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene]});
+    this.add.text(240,153,'Round '+this.round+'/5   |   Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
 +earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
