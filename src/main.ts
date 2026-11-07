@@ -39,6 +39,8 @@ class GymScene extends Phaser.Scene {
   private requests: number[] = [];
   private classHelped = 0;
   private friendshipBonus = 0;
+  private quickBonus = 0;
+  private requestAge: Record<number,number> = {};
   private pendingRequests: number[] = [];
   private nextRequestAt = 0;
   private tasks: Record<number,string> = {};
@@ -65,7 +67,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -154,13 +156,14 @@ class GymScene extends Phaser.Scene {
     if(this.running) {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
+      if((this.requestAge[i] ?? 99)<=7) this.quickBonus+=2;
       this.requests.splice(at,1);
       this.updateIndicators();
       this.classHelped++;
       if(nearest.friendship>=5) this.friendshipBonus+=2;
       nearest.skill++;
       const task = this.tasks[i] || 'Assistance';
-      this.showFeedback((nearest.friendship>=5?'TEAMWORK +$2 | ':'HELPED | ')+task+' | '+nearest.name);
+      this.showFeedback((this.requestAge[i]<=7?'QUICK +$2 | ':'HELPED | ')+task+' | '+nearest.name);
       this.say(nearest.name+': Thanks for the '+task.toLowerCase()+' help, coach!');
       this.tweens.add({targets:nearest.body,y:nearest.y-7,duration:140,yoyo:true,repeat:1});
       if(!this.requests.length && !this.pendingRequests.length) this.finishClass();
@@ -174,7 +177,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.nextRequestAt=5;
+    this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
     this.requests=[];
@@ -189,6 +192,7 @@ class GymScene extends Phaser.Scene {
     const index=this.pendingRequests.shift();
     if(index===undefined) return;
     this.requests.push(index);
+    this.requestAge[index]=0;
     this.updateIndicators();
     this.say(this.students[index].name+' needs '+this.tasks[index].toLowerCase()+' help!');
   }
@@ -197,14 +201,14 @@ class GymScene extends Phaser.Scene {
     this.running=false;
     this.updateIndicators();
     this.saveData.completed=true;
-    const reward=20+this.classHelped*5+this.friendshipBonus;
+    const reward=20+this.classHelped*5+this.friendshipBonus+this.quickBonus;
     this.saveData.money+=reward;
     this.saveData.reputation+=1+this.classHelped;
     this.persist();
     this.refresh();
     this.timer.setText('CLASS COMPLETE');
     const rating=this.classHelped===3?'Excellent':this.classHelped===2?'Good':this.classHelped===1?'Fair':'Needs practice';
-    this.say(rating+' class! Helped '+this.classHelped+'/3. Teamwork $'+this.friendshipBonus+'. Earned $'+reward+'.');
+    this.say(rating+'! Helped '+this.classHelped+'/3. Quick $'+this.quickBonus+'. Teamwork $'+this.friendshipBonus+'. Total $'+reward+'.');
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
@@ -252,7 +256,9 @@ class GymScene extends Phaser.Scene {
   }
   update(_time:number,delta:number):void {
     if(this.running) {
-      this.seconds-=Math.min(delta,100)/1000;
+      const dt=Math.min(delta,100)/1000;
+      this.seconds-=dt;
+      for(const index of this.requests) this.requestAge[index]+=dt;
       if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
         this.spawnRequest(); this.nextRequestAt+=5;
       }
