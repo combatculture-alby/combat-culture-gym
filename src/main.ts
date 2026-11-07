@@ -47,6 +47,8 @@ class GymScene extends Phaser.Scene {
   private feedback!: Phaser.GameObjects.Text;
   private equipmentLabel!: Phaser.GameObjects.Text;
   private walkingClock = 0;
+  private decor!: Phaser.GameObjects.Graphics;
+  private studentCard!: Phaser.GameObjects.Text;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
@@ -75,7 +77,8 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 2.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 2.4',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.decor=this.add.graphics().setDepth(1);
     this.equipmentLabel=this.add.text(344,119,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
@@ -88,12 +91,13 @@ class GymScene extends Phaser.Scene {
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
     this.status = this.add.text(340,17,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}}).setDepth(10);
+    this.studentCard=this.add.text(12,16,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(10).setVisible(false);
     this.message = this.add.text(12,220,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
     this.timer = this.add.text(12,207,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(12,250,'Tap student to talk/help; tap floor to move',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,260,'E: Help   C: Class   T: Change   N: Close   R: Reset',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(340,149,124,17,'UPGRADE GEAR',() => this.upgradeEquipment());
+    this.addButton(340,149,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
     this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
     this.addButton(340,189,124,17,'START CLASS',() => this.startClass());
     this.addButton(340,209,124,17,'CLOSE GYM',() => this.nextDay());
@@ -150,10 +154,39 @@ class GymScene extends Phaser.Scene {
     this.status.setText(['DAY '+this.saveData.day+'   $'+this.saveData.money,'REP '+this.saveData.reputation+'   CLASSES '+(this.saveData.classesTaught||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
     const level=this.saveData.equipment||0;
     this.equipmentLabel.setText('GEAR '+level+'/3 | '+(level===3?'MAXED':'$'+(40+level*35)));
+    this.drawEquipment();
+  }
+  private drawEquipment():void {
+    this.decor.clear();
+    const level=this.saveData.equipment||0;
+    if(level>=1) {
+      this.decor.fillStyle(0x8e3834).fillRoundedRect(302,63,13,38,3);
+      this.decor.fillStyle(0x242a2b).fillRect(305,60,7,4);
+      this.decor.lineStyle(1,0xd5b88a).lineBetween(308,53,308,60);
+    }
+    if(level>=2) {
+      this.decor.fillStyle(0x343b40).fillRect(302,147,17,6);
+      this.decor.fillStyle(0xd2ae6e).fillRect(298,143,5,14);
+      this.decor.fillStyle(0xd2ae6e).fillRect(318,143,5,14);
+    }
+    if(level>=3) {
+      this.decor.fillStyle(0x733e36).fillRect(45,43,45,5);
+      this.decor.fillStyle(0xe5d1a0).fillRect(49,44,37,2);
+      this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
+      this.decor.fillStyle(0xd9bd80).fillRect(86,48,3,13);
+    }
+  }
+  private showStudentCard(student:Student):void {
+    const rank=student.skill>=10?'Advanced':student.skill>=5?'Intermediate':'Beginner';
+    this.studentCard.setText(student.name+' | '+rank+' | Skill '+student.skill+' | Bond '+student.friendship).setVisible(true);
+    this.time.delayedCall(2800,()=>this.studentCard.setVisible(false));
   }
   private changeClass():void {
     if(this.running || this.saveData.completed) { this.say('Choose tomorrow\'s class after closing the gym.'); return; }
-    this.saveData.classType=((this.saveData.classType||0)+1)%this.classNames.length;
+    const next=((this.saveData.classType||0)+1)%this.classNames.length;
+    if(next===1 && this.saveData.reputation<5) { this.say('Muay Thai unlocks at 5 reputation.'); return; }
+    if(next===2 && this.saveData.reputation<15) { this.say('Conditioning unlocks at 15 reputation.'); return; }
+    this.saveData.classType=next;
     this.persist();
     this.say('Scheduled: '+this.classNames[this.saveData.classType]+'. Press CHANGE CLASS to rotate.');
   }
@@ -167,7 +200,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.equipment=level+1;
     this.persist(); this.refresh();
     this.showFeedback('GEAR LEVEL '+(level+1));
-    this.say('New gym equipment! Each class now earns $'+((level+1)*5)+' extra.');
+    this.say('Purchased '+['Heavy bag','Weight station','Training rack'][level]+'! Gym gear adds $'+((level+1)*5)+' per class.');
   }
   private say(message:string):void { this.message.setText(message); }
   private updateIndicators():void {
@@ -185,6 +218,7 @@ class GymScene extends Phaser.Scene {
     const nearest=target??[...this.students].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
+    this.showStudentCard(nearest);
     if(this.running) {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
@@ -238,12 +272,14 @@ class GymScene extends Phaser.Scene {
     const reward=20+classBonus+this.classHelped*5+this.friendshipBonus+this.quickBonus+gearBonus;
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
     this.saveData.money+=reward;
+    const oldRep=this.saveData.reputation;
     this.saveData.reputation+=1+this.classHelped;
     this.persist();
     this.refresh();
     this.timer.setText('CLASS COMPLETE');
     const rating=this.classHelped===3?'Excellent':this.classHelped===2?'Good':this.classHelped===1?'Fair':'Needs practice';
-    this.say(rating+'! '+this.classHelped+'/3 helped | Class +$'+classBonus+' | Speed +$'+this.quickBonus+' | Team +$'+this.friendshipBonus+' | Gear +$'+gearBonus+' | Earned $'+reward);
+    const unlock=oldRep<5&&this.saveData.reputation>=5?' MUAY THAI UNLOCKED!':oldRep<15&&this.saveData.reputation>=15?' CONDITIONING UNLOCKED!':'';
+    this.say(rating+'! '+this.classHelped+'/3 helped | Earned $'+reward+' (speed $'+this.quickBonus+', gear $'+gearBonus+').'+unlock);
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
