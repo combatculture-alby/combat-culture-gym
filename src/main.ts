@@ -52,6 +52,8 @@ class GymScene extends Phaser.Scene {
   private rosterPanel!: Phaser.GameObjects.Container;
   private rosterText!: Phaser.GameObjects.Text;
   private shopLabel!: Phaser.GameObjects.Text;
+  private modeLabel!: Phaser.GameObjects.Text;
+  private classOverlay!: Phaser.GameObjects.Graphics;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
@@ -80,8 +82,10 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 3.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 3.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
+    this.classOverlay=this.add.graphics().setDepth(2);
+    this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
     this.shopLabel=this.add.text(344,225,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.equipmentLabel=this.add.text(344,119,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
@@ -301,6 +305,8 @@ class GymScene extends Phaser.Scene {
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
     this.rosterPanel.setVisible(false);
+    this.modeLabel.setText('CLASS RUSH');
+    this.classOverlay.clear().lineStyle(3,0xe8bd6c).strokeRect(30,30,290,181);
     this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
@@ -323,6 +329,8 @@ class GymScene extends Phaser.Scene {
   private finishClass():void {
     if(!this.running) return;
     this.running=false;
+    this.modeLabel.setText('GYM HUB');
+    this.classOverlay.clear();
     this.updateIndicators();
     this.saveData.completed=true;
     const gearBonus=(this.saveData.equipment||0)*5;
@@ -351,7 +359,7 @@ class GymScene extends Phaser.Scene {
   }
   private reset():void {
     this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
+    this.running=false; this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
   private findRoute(start:Point,end:Point):Point[] {
