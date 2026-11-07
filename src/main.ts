@@ -67,7 +67,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.3',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.4',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -259,6 +259,12 @@ class GymScene extends Phaser.Scene {
       const dt=Math.min(delta,100)/1000;
       this.seconds-=dt;
       for(const index of this.requests) this.requestAge[index]+=dt;
+      this.students.forEach((student,index)=>{
+        if(!student.indicator || !this.requests.includes(index)) return;
+        const remaining=Math.max(0,Math.ceil(7-(this.requestAge[index] ?? 0)));
+        student.indicator.setText('! '+this.tasks[index]+(remaining>0?' +$2 '+remaining+'s':''));
+        student.indicator.setBackgroundColor(remaining>0?'#a53d34':'#555b5d');
+      });
       if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
         this.spawnRequest(); this.nextRequestAt+=5;
       }
