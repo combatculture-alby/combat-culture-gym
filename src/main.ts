@@ -4,12 +4,12 @@ const W = 480, H = 270, CELL = 12;
 const UI_FONT = 'Arial, Helvetica, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; rentPaid?: number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number };
 const SAVE_KEY = 'combat-culture-gym-v1';
 const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, rentPaid: 0 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0 };
 function loadSave(): Save {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -23,7 +23,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), rentPaid: Math.max(0,Math.floor(Number(s.rentPaid)||0))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0)))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -75,7 +75,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 2.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 2.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.equipmentLabel=this.add.text(348,153,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
@@ -147,7 +147,7 @@ class GymScene extends Phaser.Scene {
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
   }
   private refresh():void {
-    this.status.setText(['DAY '+this.saveData.day,'$'+this.saveData.money,'REP '+this.saveData.reputation,'CLASSES '+(this.saveData.classesTaught||0),'RENT PAID $'+(this.saveData.rentPaid||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
+    this.status.setText(['DAY '+this.saveData.day,'$'+this.saveData.money,'REP '+this.saveData.reputation,'CLASSES '+(this.saveData.classesTaught||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
     const level=this.saveData.equipment||0;
     this.equipmentLabel.setText('GEAR '+level+'/3 | '+(level===3?'MAXED':'$'+(40+level*35)));
   }
@@ -250,12 +250,7 @@ class GymScene extends Phaser.Scene {
     if(!this.saveData.completed) { this.say('Teach class first.'); return; }
     this.saveData.day++;
     this.saveData.completed=false;
-    if(this.saveData.day%3===1) {
-      const rent=15;
-      this.saveData.money-=rent;
-      this.saveData.rentPaid=(this.saveData.rentPaid||0)+rent;
-      this.say('Rent due: $'+rent+' paid. Choose a class for today.');
-    } else this.say('New day! '+this.classNames[this.saveData.classType||0]+' is scheduled.');
+    this.say('New day! '+this.classNames[this.saveData.classType||0]+' is scheduled. Save earnings for gym upgrades.');
     this.persist(); this.refresh();
     this.timer.setText('');
   }
