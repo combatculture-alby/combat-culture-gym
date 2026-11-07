@@ -60,19 +60,14 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.4',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.5',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
-    this.player = this.add.container(170,150,[
-      this.add.ellipse(0,14,22,6,0x203a3a,0.35),
-      this.add.rectangle(0,0,22,26,0x292a2c).setStrokeStyle(2,0xb52427),
-      this.add.rectangle(0,-14,22,5,0xd92928),
-    ]);
+    // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
+    this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
     for(const s of this.students) {
-      s.body = this.add.container(s.x,s.y,[
-        this.add.ellipse(0,12,18,6,0x193b3c,0.3),
-        this.add.rectangle(0,0,17,20,s.color).setStrokeStyle(1,0x283638),
-        this.add.circle(0,-13,9,0xe4b18d).setStrokeStyle(1,0x563e35),
-      ]);
+      const skin = [0xc68c66,0xe5b08e,0x9c674c,0xe0bc91][this.students.indexOf(s)];
+      const hair = [0x29252a,0x503329,0x171a22,0x755039][this.students.indexOf(s)];
+      s.body = this.makeCharacter(s.x,s.y,s.color,skin,hair,0x354e56,false);
       this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
@@ -98,6 +93,28 @@ class GymScene extends Phaser.Scene {
         else { this.targetStudent = student; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:student.x-24,y:student.y+10}); }
       } else { this.targetStudent = null; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:p.worldX,y:p.worldY}); }
     });
+  }
+  private makeCharacter(x:number,y:number,shirt:number,skin:number,hair:number,shorts:number,owner:boolean):Phaser.GameObjects.Container {
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    const rect=(px:number,py:number,w:number,h:number,color:number) => {
+      parts.push(this.add.rectangle(px,py,w,h,color).setStrokeStyle(1,0x283137));
+    };
+    parts.push(this.add.ellipse(0,14,23,6,0x193b3c,0.3));
+    rect(-5,13,6,7,skin); rect(5,13,6,7,skin);
+    rect(0,5,21,14,shorts);
+    rect(-12,-5,6,15,skin); rect(12,-5,6,15,skin);
+    rect(0,-5,21,19,shirt);
+    rect(0,-21,22,19,skin);
+    rect(0,-30,23,8,hair);
+    rect(-8,-25,6,10,hair);
+    if(owner) {
+      rect(0,-27,24,4,0xc82f31);
+      rect(0,-5,8,8,0xc97c36);
+      rect(-6,5,5,3,0xd6b36e); rect(6,5,5,3,0xd6b36e);
+    } else {
+      rect(-5,-21,2,2,0x302a2a); rect(5,-21,2,2,0x302a2a);
+    }
+    return this.add.container(x,y,parts);
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):void {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
