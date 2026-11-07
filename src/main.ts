@@ -55,6 +55,8 @@ class GymScene extends Phaser.Scene {
   private modeLabel!: Phaser.GameObjects.Text;
   private classOverlay!: Phaser.GameObjects.Graphics;
   private placingDecor = -1;
+  private buildButtonText!: Phaser.GameObjects.Text;
+  private buildHint!: Phaser.GameObjects.Text;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
@@ -83,7 +85,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 4.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 4.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -104,7 +106,7 @@ class GymScene extends Phaser.Scene {
     this.message = this.add.text(12,220,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
     this.timer = this.add.text(12,207,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.add.text(12,250,'M: Move decor | Tap destination to place',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.buildHint=this.add.text(12,250,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,260,'E: Help   C: Class   T: Change   N: Close   R: Reset',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(340,149,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
     this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
@@ -112,6 +114,7 @@ class GymScene extends Phaser.Scene {
     this.addButton(340,209,124,17,'CLOSE GYM',() => this.nextDay());
     this.addButton(340,245,60,16,'DECOR',() => this.buyDecor());
     this.addButton(404,245,60,16,'ROSTER',() => this.toggleRoster());
+    this.buildButtonText=this.addButton(404,265,60,16,'BUILD',() => this.cycleDecorPlacement());
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
@@ -159,10 +162,11 @@ class GymScene extends Phaser.Scene {
     }
     return this.add.container(x,y,parts);
   }
-  private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):void {
+  private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Text {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
     const t=this.add.text(x+w/2,y-h/2,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
     b.on('pointerdown',fn); t.on('pointerdown',fn);
+    return t;
   }
   private persist():void {
     this.saveData.friendships=this.students.map(s=>s.friendship);
@@ -228,6 +232,8 @@ class GymScene extends Phaser.Scene {
     this.placingDecor=this.placingDecor+1>=owned?-1:this.placingDecor+1;
     this.route=[]; this.targetStudent=null;
     this.drawEquipment();
+    this.buildButtonText.setText(this.placingDecor<0?'BUILD':'NEXT');
+    this.buildHint.setText(this.placingDecor<0?'Build mode: click BUILD to arrange your decorations':'BUILD MODE | Click mat to place | NEXT to cycle');
     this.say(this.placingDecor<0?'Decoration placement closed.':'Moving '+['Gym banner','Training poster','Indoor plant'][this.placingDecor]+'. Tap a free spot on the mat. Press M to switch or exit.');
   }
   private placeDecor(x:number,y:number):void {
@@ -343,6 +349,9 @@ class GymScene extends Phaser.Scene {
     this.modeLabel.setText('CLASS RUSH');
     this.classOverlay.clear().lineStyle(3,0xe8bd6c).strokeRect(30,30,290,181);
     this.placingDecor=-1;
+    this.buildButtonText.setText('BUILD');
+    this.buildHint.setText('Build mode: click BUILD to arrange your decorations');
+    this.drawEquipment();
     this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
@@ -395,7 +404,7 @@ class GymScene extends Phaser.Scene {
   }
   private reset():void {
     this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.placingDecor=-1; this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
+    this.running=false; this.placingDecor=-1; this.buildButtonText.setText('BUILD'); this.buildHint.setText('Build mode: click BUILD to arrange your decorations'); this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
   private findRoute(start:Point,end:Point):Point[] {
