@@ -203,7 +203,7 @@ class GymScene extends Phaser.Scene {
     this.persist();
     this.refresh();
     this.timer.setText('CLASS COMPLETE');
-    this.say('Helped '+this.classHelped+'/3. Teamwork bonus 
+    this.say('Helped '+this.classHelped+'/3. Teamwork 
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
