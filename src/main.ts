@@ -171,7 +171,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.running=true; this.seconds=50; this.classHelped=0; this.nextRequestAt=12;
+    this.running=true; this.seconds=50; this.classHelped=0; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
     this.requests=[];
@@ -250,7 +250,7 @@ class GymScene extends Phaser.Scene {
     if(this.running) {
       this.seconds-=Math.min(delta,100)/1000;
       if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
-        this.spawnRequest(); this.nextRequestAt+=12;
+        this.spawnRequest(); this.nextRequestAt+=5;
       }
       this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
       if(this.seconds<=0) this.finishClass();
