@@ -38,7 +38,6 @@ class GymScene extends Phaser.Scene {
   private seconds = 50;
   private requests: number[] = [];
   private classHelped = 0;
-  private friendshipBonus = 0;
   private pendingRequests: number[] = [];
   private nextRequestAt = 0;
   private tasks: Record<number,string> = {};
@@ -65,7 +64,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 1.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -157,10 +156,9 @@ class GymScene extends Phaser.Scene {
       this.requests.splice(at,1);
       this.updateIndicators();
       this.classHelped++;
-      if(nearest.friendship>=5) this.friendshipBonus+=2;
       nearest.skill++;
       const task = this.tasks[i] || 'Assistance';
-      this.showFeedback((nearest.friendship>=5?'TEAMWORK +$2 | ':'HELPED | ')+task+' | '+nearest.name);
+      this.showFeedback('+1 '+task+' | '+nearest.name);
       this.say(nearest.name+': Thanks for the '+task.toLowerCase()+' help, coach!');
       this.tweens.add({targets:nearest.body,y:nearest.y-7,duration:140,yoyo:true,repeat:1});
       if(!this.requests.length && !this.pendingRequests.length) this.finishClass();
@@ -174,7 +172,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.nextRequestAt=5;
+    this.running=true; this.seconds=50; this.classHelped=0; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
     this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
     this.requests=[];
@@ -197,165 +195,13 @@ class GymScene extends Phaser.Scene {
     this.running=false;
     this.updateIndicators();
     this.saveData.completed=true;
-    const reward=20+this.classHelped*5+this.friendshipBonus;
+    const reward=20+this.classHelped*5;
     this.saveData.money+=reward;
     this.saveData.reputation+=1+this.classHelped;
     this.persist();
     this.refresh();
     this.timer.setText('CLASS COMPLETE');
-    this.say('Helped '+this.classHelped+'/3. Teamwork 
-  }
-  private nextDay():void {
-    if(this.running) { this.say('Finish class first.'); return; }
-    if(!this.saveData.completed) { this.say('Teach class first.'); return; }
-    this.saveData.day++;
-    this.saveData.completed=false;
-    this.persist(); this.refresh();
-    this.timer.setText('');
-    this.say('New day! Students are ready.');
-  }
-  private reset():void {
-    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
-    this.scene.restart();
-  }
-  private findRoute(start:Point,end:Point):Point[] {
-    const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
-    const key=(x:number,y:number)=>y*cols+x;
-    const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.floor(p.x/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.floor(p.y/CELL),0,rows-1)});
-    const s=cell(start),goal=cell(end);
-    const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&walkable(x*CELL+CELL/2,y*CELL+CELL/2);
-    if(!valid(goal.x,goal.y)) return [];
-    const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
-    let found=false;
-    for(let head=0;head<queue.length;head++) {
-      const cur=queue[head];
-      if(cur.x===goal.x&&cur.y===goal.y) { found=true; break; }
-      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const x=cur.x+dx,y=cur.y+dy,id=key(x,y);
-        if(!valid(x,y)||visited.has(id)) continue;
-        visited.add(id); previous.set(id,key(cur.x,cur.y)); queue.push({x,y});
-      }
-    }
-    if(!found) return [];
-    const route:Point[]=[];
-    let current=key(goal.x,goal.y),origin=key(s.x,s.y);
-    while(current!==origin) {
-      route.unshift({x:(current%cols)*CELL+CELL/2,y:Math.floor(current/cols)*CELL+CELL/2});
-      const parent=previous.get(current);
-      if(parent===undefined) return [];
-      current=parent;
-    }
-    if(walkable(end.x,end.y)) route.push(end);
-    return route;
-  }
-  update(_time:number,delta:number):void {
-    if(this.running) {
-      this.seconds-=Math.min(delta,100)/1000;
-      if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
-        this.spawnRequest(); this.nextRequestAt+=5;
-      }
-      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
-      if(this.seconds<=0) this.finishClass();
-    }
-    let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
-    let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
-    if(dx||dy) { this.route=[]; this.targetStudent=null; }
-    else if(this.route.length) {
-      const target=this.route[0];
-      const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
-      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
-      dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
-    }
-    const length=Math.hypot(dx,dy);
-    if(!length) return;
-    const step=Math.min(delta,50)/1000*this.speed;
-    const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
-    const move=Math.min(step,remaining);
-    const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
-    if(walkable(nx,this.player.y)) this.player.x=nx;
-    if(walkable(this.player.x,ny)) this.player.y=ny;
-    if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
-  }
-}
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:H,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene]});
-+this.friendshipBonus+'. Earned 
-  }
-  private nextDay():void {
-    if(this.running) { this.say('Finish class first.'); return; }
-    if(!this.saveData.completed) { this.say('Teach class first.'); return; }
-    this.saveData.day++;
-    this.saveData.completed=false;
-    this.persist(); this.refresh();
-    this.timer.setText('');
-    this.say('New day! Students are ready.');
-  }
-  private reset():void {
-    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
-    this.scene.restart();
-  }
-  private findRoute(start:Point,end:Point):Point[] {
-    const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
-    const key=(x:number,y:number)=>y*cols+x;
-    const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.floor(p.x/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.floor(p.y/CELL),0,rows-1)});
-    const s=cell(start),goal=cell(end);
-    const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&walkable(x*CELL+CELL/2,y*CELL+CELL/2);
-    if(!valid(goal.x,goal.y)) return [];
-    const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
-    let found=false;
-    for(let head=0;head<queue.length;head++) {
-      const cur=queue[head];
-      if(cur.x===goal.x&&cur.y===goal.y) { found=true; break; }
-      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const x=cur.x+dx,y=cur.y+dy,id=key(x,y);
-        if(!valid(x,y)||visited.has(id)) continue;
-        visited.add(id); previous.set(id,key(cur.x,cur.y)); queue.push({x,y});
-      }
-    }
-    if(!found) return [];
-    const route:Point[]=[];
-    let current=key(goal.x,goal.y),origin=key(s.x,s.y);
-    while(current!==origin) {
-      route.unshift({x:(current%cols)*CELL+CELL/2,y:Math.floor(current/cols)*CELL+CELL/2});
-      const parent=previous.get(current);
-      if(parent===undefined) return [];
-      current=parent;
-    }
-    if(walkable(end.x,end.y)) route.push(end);
-    return route;
-  }
-  update(_time:number,delta:number):void {
-    if(this.running) {
-      this.seconds-=Math.min(delta,100)/1000;
-      if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
-        this.spawnRequest(); this.nextRequestAt+=5;
-      }
-      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
-      if(this.seconds<=0) this.finishClass();
-    }
-    let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
-    let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
-    if(dx||dy) { this.route=[]; this.targetStudent=null; }
-    else if(this.route.length) {
-      const target=this.route[0];
-      const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
-      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
-      dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
-    }
-    const length=Math.hypot(dx,dy);
-    if(!length) return;
-    const step=Math.min(delta,50)/1000*this.speed;
-    const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
-    const move=Math.min(step,remaining);
-    const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
-    if(walkable(nx,this.player.y)) this.player.x=nx;
-    if(walkable(this.player.x,ny)) this.player.y=ny;
-    if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
-  }
-}
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:H,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene]});
-+reward+'.');
+    this.say('Helped '+this.classHelped+'/3. Earned $'+reward+'. Close gym for next day.');
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
