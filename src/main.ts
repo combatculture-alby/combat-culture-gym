@@ -121,8 +121,8 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-B',() => this.buyDecor());
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
-      if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
       if(p.worldX >= 330 || p.worldY >= 215) return;
+      if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
         if(Phaser.Math.Distance.Between(this.player.x,this.player.y,student.x,student.y) < 42) this.interact(student);
