@@ -92,7 +92,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 5.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 5.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -122,12 +122,13 @@ class GymScene extends Phaser.Scene {
     this.addButton(340,245,60,16,'DECOR',() => this.buyDecor());
     this.addButton(404,245,60,16,'ROSTER',() => this.toggleRoster());
     this.buildButtonText=this.addButton(404,265,60,16,'BUILD',() => this.openFurniture('build'));
+    this.buildButtonText.setDepth(40);
     this.addButton(340,265,60,16,'SHOP',() => this.openFurniture('shop'));
     this.addButton(340,103,124,17,'INVENTORY',() => this.openFurniture('inventory'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
-    this.furniturePanel=this.add.container(0,0).setDepth(35).setVisible(false);
+    this.furniturePanel=this.add.container(0,0).setDepth(60).setVisible(false);
     this.rotateControl=this.makeActionControl(36,238,'ROTATE',()=>this.rotateFurniture());
     this.storeControl=this.makeActionControl(112,238,'STORE',()=>this.storeFurniture());
     this.updateFurnitureActions();
@@ -145,6 +146,8 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
+      // Explicitly route HUD clicks before world placement. Phaser input can hit the scene and UI together.
+      if(p.worldX>=404 && p.worldY>=249) { this.openFurniture('build'); return; }
       if(this.furniturePanel.visible) return;
       if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
@@ -304,6 +307,7 @@ class GymScene extends Phaser.Scene {
     }
     this.rosterPanel.setVisible(false);
     this.furniturePanel.setVisible(true);
+    this.say(mode==='build'?'Build mode open: choose an owned item to move.':mode==='shop'?'Furniture shop open.':'Inventory open.');
   }
   private buyFurniture(kind:number):void {
     const item=FURNITURE[kind];
