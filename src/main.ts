@@ -38,6 +38,8 @@ class GymScene extends Phaser.Scene {
   private seconds = 50;
   private requests: number[] = [];
   private classHelped = 0;
+  private pendingRequests: number[] = [];
+  private nextRequestAt = 0;
   private tasks: Record<number,string> = {};
   private feedback!: Phaser.GameObjects.Text;
   private targetStudent: Student | null = null;
@@ -62,7 +64,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.6',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 0.7',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
@@ -159,7 +161,7 @@ class GymScene extends Phaser.Scene {
       this.showFeedback('+1 '+task+' | '+nearest.name);
       this.say(nearest.name+': Thanks for the '+task.toLowerCase()+' help, coach!');
       this.tweens.add({targets:nearest.body,y:nearest.y-7,duration:140,yoyo:true,repeat:1});
-      if(!this.requests.length) this.finishClass();
+      if(!this.requests.length && !this.pendingRequests.length) this.finishClass();
     } else {
       nearest.friendship++;
       this.persist();
@@ -169,14 +171,23 @@ class GymScene extends Phaser.Scene {
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.running=true; this.seconds=50; this.classHelped=0;
+    this.running=true; this.seconds=50; this.classHelped=0; this.nextRequestAt=12;
     const offset=(this.saveData.day-1)%4;
-    this.requests=[offset,(offset+1)%4,(offset+2)%4];
+    this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
+    this.requests=[];
     const taskTypes=['Technique','Equipment','Station change'];
     this.tasks={};
-    this.requests.forEach((index,position)=>{this.tasks[index]=taskTypes[(position+this.saveData.day-1)%taskTypes.length];});
+    this.pendingRequests.forEach((index,position)=>{this.tasks[index]=taskTypes[(position+this.saveData.day-1)%taskTypes.length];});
+    this.spawnRequest();
     this.updateIndicators();
-    this.say('Beginner Boxing! Help students with the marked tasks.');
+    this.say('Beginner Boxing! Students request help throughout class.');
+  }
+  private spawnRequest():void {
+    const index=this.pendingRequests.shift();
+    if(index===undefined) return;
+    this.requests.push(index);
+    this.updateIndicators();
+    this.say(this.students[index].name+' needs '+this.tasks[index].toLowerCase()+' help!');
   }
   private finishClass():void {
     if(!this.running) return;
@@ -202,7 +213,7 @@ class GymScene extends Phaser.Scene {
   }
   private reset():void {
     this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0]};
-    this.running=false; this.requests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
+    this.running=false; this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
   private findRoute(start:Point,end:Point):Point[] {
@@ -238,7 +249,10 @@ class GymScene extends Phaser.Scene {
   update(_time:number,delta:number):void {
     if(this.running) {
       this.seconds-=Math.min(delta,100)/1000;
-      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' tasks remaining');
+      if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
+        this.spawnRequest(); this.nextRequestAt+=12;
+      }
+      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
       if(this.seconds<=0) this.finishClass();
     }
     let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
