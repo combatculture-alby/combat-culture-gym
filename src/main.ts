@@ -45,10 +45,10 @@ class GymScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
   private students: Student[] = [
-    { name:'Alex', x:90, y:90, color:0xd9a06c, friendship:0, skill:0 },
-    { name:'Maya', x:245, y:104, color:0x8cbaaa, friendship:0, skill:0 },
-    { name:'Jordan', x:105, y:183, color:0xaaa4d5, friendship:0, skill:0 },
-    { name:'Sam', x:275, y:183, color:0xe2bd77, friendship:0, skill:0 },
+    { name:'Frank', x:90, y:90, color:0xd9a06c, friendship:0, skill:0 },
+    { name:'Radish', x:245, y:104, color:0x8cbaaa, friendship:0, skill:0 },
+    { name:'Marshall', x:105, y:183, color:0xaaa4d5, friendship:0, skill:0 },
+    { name:'Pudge', x:275, y:183, color:0xe2bd77, friendship:0, skill:0 },
   ];
   constructor() { super('Gym'); }
   create(): void {
