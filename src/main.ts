@@ -92,7 +92,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 7.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 7.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -647,62 +647,108 @@ function awardArcade(cash:number,rep:number,completeClass:boolean):void {
   if(completeClass){s.completed=true;s.classesTaught=(s.classesTaught||0)+1;}
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch{}
 }
+
 class RushScene extends Phaser.Scene {
-  private active=false;private seconds=45;private score=0;private missed=0;private requests:{lane:number,age:number}[]=[];
-  private spawn=0;private info!:Phaser.GameObjects.Text;private lanes!:Phaser.GameObjects.Container;
+  private active=false;private seconds=50;private score=0;private missed=0;private spawn=0;
+  private requests:{lane:number,age:number,task:string}[]=[];private info!:Phaser.GameObjects.Text;
+  private markers!:Phaser.GameObjects.Container;private coach!:Phaser.GameObjects.Container;
+  private coachTarget=-1;private coachSpeed=130;private coachBusy=false;
+  private students:Phaser.GameObjects.Container[]=[];private positions=[{x:90,y:153},{x:182,y:153},{x:273,y:153},{x:365,y:153}];
+  private names=['FRANK','RADISH','MARSHALL','PUDGE'];
+  private tasks=['FIX STANCE','HOLD PADS','CHECK FORM','NEED WATER','SHOW COMBO','ADJUST GUARD'];
   constructor(){super('Rush');}
   create():void {
-    this.active=true;this.seconds=45;this.score=0;this.missed=0;this.requests=[];this.spawn=0;
-    arcadeFrame(this,'CLASS RUSH','Help students before their patience runs out. Click their HELP buttons.');
-    this.info=this.add.text(24,80,'',{fontFamily:UI_FONT,fontSize:'14px',color:cream});
-    this.lanes=this.add.container(0,0);
-    ['FRANK','RADISH','MARSHALL','PUDGE'].forEach((name,i)=>{
-      const y=125+i*43;
-      this.add.rectangle(238,y,418,38,i%2?0x31535a:0x294950).setStrokeStyle(1,0x628186);
-      this.add.circle(52,y,13,[0xd9a06c,0x8cbaaa,0xaaa4d5,0xe2bd77][i]);
-      this.add.text(75,y,name,{fontFamily:UI_FONT,fontSize:'13px',color:cream}).setOrigin(0,0.5);
-      arcadeButton(this,392,y,76,28,'HELP',()=>this.help(i));
+    this.active=true;this.seconds=50;this.score=0;this.missed=0;this.spawn=1.4;this.requests=[];this.coachTarget=-1;this.coachBusy=false;this.students=[];
+    arcadeFrame(this,'CLASS RUSH','Tap a student with a request. Your coach walks over to help.');
+    const floor=this.add.graphics();
+    floor.fillStyle(0xc5aa83).fillRoundedRect(23,91,434,207,8);
+    floor.fillStyle(0x416e70).fillRoundedRect(34,101,412,175,6);
+    floor.lineStyle(2,0xd9c58e).strokeRoundedRect(34,101,412,175,6);
+    floor.lineStyle(1,0x5c8b89,0.7);
+    for(let x=55;x<445;x+=27)floor.lineBetween(x,101,x,276);
+    for(let y=112;y<276;y+=27)floor.lineBetween(34,y,446,y);
+    floor.fillStyle(0x8e3834).fillRoundedRect(38,112,22,56,5);
+    floor.fillStyle(0x2b3034).fillRect(43,107,12,5);
+    floor.fillStyle(0x8e3834).fillRoundedRect(418,112,22,56,5);
+    floor.fillStyle(0x2b3034).fillRect(423,107,12,5);
+    this.add.text(42,281,'TRAINING MAT  /  SAME GYM, CLASS VIEW',{fontFamily:UI_FONT,fontSize:'9px',color:'#273d42'});
+    this.info=this.add.text(24,75,'',{fontFamily:UI_FONT,fontSize:'12px',color:cream});
+    this.positions.forEach((p,i)=>{
+      const character=this.makeTrainee(p.x,p.y,[0x986446,0x507c78,0x8576a2,0xc7a053][i],false);
+      this.students.push(character);
+      this.add.text(p.x,p.y+24,this.names[i],{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#1c4045',padding:{x:3,y:2}}).setOrigin(0.5);
+      const hit=this.add.rectangle(p.x,p.y-3,77,87,0xffffff,0).setInteractive({useHandCursor:true});
+      hit.on('pointerdown',()=>this.help(i));
     });
+    this.coach=this.makeTrainee(240,242,0xc4463c,true);
+    this.markers=this.add.container(0,0);
     arcadeButton(this,415,35,75,27,'EXIT',()=>this.exit());
     this.render();
   }
+  private makeTrainee(x:number,y:number,shirt:number,coach:boolean):Phaser.GameObjects.Container {
+    const p:Phaser.GameObjects.GameObject[]=[];
+    const r=(px:number,py:number,w:number,h:number,color:number)=>p.push(this.add.rectangle(px,py,w,h,color).setStrokeStyle(1,0x29383b));
+    p.push(this.add.ellipse(0,13,26,7,0x183c40,0.45));
+    r(-6,10,7,12,0x30343b);r(6,10,7,12,0x30343b);
+    r(0,1,23,16,0x333c46);r(-14,-10,7,18,0xc99473);r(14,-10,7,18,0xc99473);
+    r(0,-10,24,21,shirt);r(0,-30,23,20,0xc99473);r(0,-40,24,8,0x2b2929);
+    if(coach)r(0,-13,9,7,0xe3c66e);
+    return this.add.container(x,y,p);
+  }
   private help(i:number):void {
-    if(!this.active)return;
-    const idx=this.requests.findIndex(r=>r.lane===i);
-    if(idx<0)return;
-    const r=this.requests.splice(idx,1)[0];this.score+=r.age<4?3:2;this.render();
+    if(!this.active||this.coachBusy)return;
+    if(!this.requests.some(r=>r.lane===i))return;
+    this.coachTarget=i;this.coachBusy=true;
+  }
+  private serve(i:number):void {
+    const index=this.requests.findIndex(r=>r.lane===i);if(index<0)return;
+    const r=this.requests.splice(index,1)[0];this.score+=r.age<4?4:2;
+    this.coachBusy=false;this.coachTarget=-1;
+    this.render();
   }
   private render():void {
-    this.lanes.removeAll(true);
+    this.markers.removeAll(true);
     for(const r of this.requests){
-      const y=125+r.lane*43;
-      const remain=Math.max(0,Math.ceil(9-r.age));
-      const t=this.add.text(242,y,'! '+remain+'s',{fontFamily:UI_FONT,fontSize:'11px',color:remain<4?'#ffb3a2':'#ffe5a4'}).setOrigin(0.5);
-      this.lanes.add(t);
-      const bubble=this.add.circle(169,y,7,remain<4?0xe76d58:0xf0cb70).setStrokeStyle(1,0xffffff);this.lanes.add(bubble);
+      const p=this.positions[r.lane],remain=Math.max(0,9-r.age);
+      const warning=remain<3?0xf58b79:0xf4d68c;
+      const bubble=this.add.rectangle(p.x,p.y-73,104,33,0x17383e).setStrokeStyle(2,warning);
+      const text=this.add.text(p.x,p.y-79,r.task,{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#ffffff'}).setOrigin(0.5);
+      const track=this.add.rectangle(p.x,p.y-63,88,5,0x4c5858);
+      const bar=this.add.rectangle(p.x-44,p.y-63,88*remain/9,5,warning).setOrigin(0,0.5);
+      this.markers.add([bubble,text,track,bar]);
     }
-    this.info.setText('TIME '+Math.ceil(this.seconds)+'s    POINTS '+this.score+'    MISSED '+this.missed);
+    this.info.setText('TIME '+Math.ceil(Math.max(0,this.seconds))+'s   HELPED '+this.score+'   MISSED '+this.missed+'   '+(this.coachBusy?'COACH MOVING':'TAP REQUEST'));
   }
   update(_t:number,delta:number):void {
     if(!this.active)return;
     const dt=Math.min(delta,100)/1000;this.seconds-=dt;this.spawn-=dt;
-    if(this.spawn<=0){const free=[0,1,2,3].filter(i=>!this.requests.some(r=>r.lane===i));if(free.length)this.requests.push({lane:Phaser.Utils.Array.GetRandom(free),age:0});this.spawn=2.4;}
+    if(this.spawn<=0){
+      const free=[0,1,2,3].filter(i=>!this.requests.some(r=>r.lane===i));
+      if(free.length){const lane=Phaser.Utils.Array.GetRandom(free);this.requests.push({lane,age:0,task:Phaser.Utils.Array.GetRandom(this.tasks)});}
+      this.spawn=2.8;
+    }
+    if(this.coachBusy&&this.coachTarget>=0){
+      const p=this.positions[this.coachTarget];const dx=p.x-this.coach.x,dy=(p.y+27)-this.coach.y,dist=Math.hypot(dx,dy);
+      if(dist<6)this.serve(this.coachTarget);
+      else{const step=Math.min(dist,this.coachSpeed*dt);this.coach.x+=dx/dist*step;this.coach.y+=dy/dist*step;}
+    }
     for(const r of this.requests)r.age+=dt;
-    const expired=this.requests.filter(r=>r.age>=9);this.missed+=expired.length;this.requests=this.requests.filter(r=>r.age<9);
-    if(this.seconds<=0){this.finish();return;}this.render();
+    const expired=this.requests.filter(r=>r.age>=9);
+    this.missed+=expired.length;this.requests=this.requests.filter(r=>r.age<9);
+    if(this.coachTarget>=0&&!this.requests.some(r=>r.lane===this.coachTarget)){this.coachBusy=false;this.coachTarget=-1;}
+    if(this.seconds<=0){this.finish();return;}
+    this.render();
   }
   private finish():void {
-    this.active=false;this.requests=[];this.render();
+    this.active=false;this.requests=[];this.markers.removeAll(true);
     const earned=20+this.score*3,rep=Math.max(1,Math.floor(this.score/4));
     awardArcade(earned,rep,true);
-    this.add.rectangle(240,164,330,180,ink).setStrokeStyle(2,gold);
-    this.add.text(240,112,'CLASS COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',fontStyle:'bold',color:cream}).setOrigin(0.5);
-    this.add.text(240,155,'Earned $'+earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
-    arcadeButton(this,240,209,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
+    this.add.rectangle(240,164,350,176,ink).setStrokeStyle(2,gold);
+    this.add.text(240,114,'CLASS COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',fontStyle:'bold',color:cream}).setOrigin(0.5);
+    this.add.text(240,153,'Earned $'+earned+'   Reputation +'+rep,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
+    arcadeButton(this,240,210,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
-  private exit():void {
-    if(!this.active)return;this.active=false;this.scene.start('Gym');
-  }
+  private exit():void {this.active=false;this.scene.start('Gym');}
 }
 
 const TECHNIQUES=['JAB','CROSS','HOOK','KICK','KNEE','SPRAWL'];
