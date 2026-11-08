@@ -1308,7 +1308,7 @@ class GymScene extends Phaser.Scene {
     // Flip the sprite horizontally for east/west, without moving its world anchor.
     body.scaleX=direction==='left'?-1:1;
     // Side views use a slimmer silhouette while retaining the same collision footprint.
-    const head=body.list[9] as Phaser.GameObjects.Rectangle;
+    const head=body.list[12] as Phaser.GameObjects.Rectangle;
     if(head)head.width=side?18:22;
   }
   private animateStudent(s:Student,moving:boolean):void {
@@ -1438,11 +1438,11 @@ class GymScene extends Phaser.Scene {
     }
     this.player.setDepth(10+this.player.y/100);
     const length=Math.hypot(dx,dy);
-    if(!length) { this.player.setScale(1); return; }
+    if(!length) { this.player.scaleY=1; return; }
     this.player.setDepth(10+this.player.y/100);
     this.faceCharacter(this.player,dx,dy);
     this.walkingClock+=delta;
-    this.player.setScale(1,1+Math.sin(this.walkingClock/95)*0.035);
+    this.player.scaleY=1+Math.sin(this.walkingClock/95)*0.035;
     const step=Math.min(delta,50)/1000*this.speed;
     const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
     const move=Math.min(step,remaining);
