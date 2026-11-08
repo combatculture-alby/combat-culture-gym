@@ -369,11 +369,13 @@ class GymScene extends Phaser.Scene {
     rect(0,-21,22,19,skin);
     rect(-10,-23,2,10,0xb47c5d);
     rect(10,-23,2,10,0xb47c5d);
+    const faceStart=parts.length;
     rect(-5,-22,3,3,0xf4d3b0);
     rect(5,-22,3,3,0xf4d3b0);
     rect(-5,-19,3,2,0x2c2d32);
     rect(5,-19,3,2,0x2c2d32);
     rect(0,-14,5,1,0x8e5b4c);
+    const faceParts=parts.slice(faceStart);
     rect(0,-30,23,8,hair);
     rect(-8,-32,7,3,hair);
     rect(5,-34,10,3,hair);
@@ -405,7 +407,16 @@ class GymScene extends Phaser.Scene {
     } else {
       rect(-5,-21,2,2,0x302a2a); rect(5,-21,2,2,0x302a2a);
     }
-    return this.add.container(x,y,parts).setDepth(10+y/100);
+    // Back-view hair and jersey number appear only while facing away.
+    const backHair=this.add.rectangle(0,-25,22,15,hair).setStrokeStyle(1,0x283137).setVisible(false);
+    const backCollar=this.add.rectangle(0,-13,12,4,0x273e45).setVisible(false);
+    const jersey=this.add.rectangle(0,-5,5,8,owner?0xc82f31:0xe4d4b2).setVisible(false);
+    parts.push(backHair,backCollar,jersey);
+    const sprite=this.add.container(x,y,parts).setDepth(10+y/100);
+    sprite.setData('faceParts',faceParts);
+    sprite.setData('backParts',[backHair,backCollar,jersey]);
+    sprite.setData('facing','down');
+    return sprite;
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Text {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
@@ -1284,6 +1295,22 @@ class GymScene extends Phaser.Scene {
       if(Math.random()<0.3){s.activityTag?.setText(dialogue[i][(this.saveData.day+i)%2].split(': ')[1].toUpperCase()).setVisible(true);}
     }
   }
+  private faceCharacter(body:Phaser.GameObjects.Container,dx:number,dy:number):void {
+    if(Math.abs(dx)<0.02&&Math.abs(dy)<0.02)return;
+    const direction=Math.abs(dx)>Math.abs(dy)*1.15?(dx>0?'right':'left'):(dy>0?'down':'up');
+    if(body.getData('facing')===direction)return;
+    body.setData('facing',direction);
+    const back=direction==='up',side=direction==='left'||direction==='right';
+    const faceParts=body.getData('faceParts') as Phaser.GameObjects.GameObject[]|undefined;
+    const backParts=body.getData('backParts') as Phaser.GameObjects.GameObject[]|undefined;
+    faceParts?.forEach(p=>(p as Phaser.GameObjects.Rectangle).setVisible(!back));
+    backParts?.forEach(p=>(p as Phaser.GameObjects.Rectangle).setVisible(back));
+    // Flip the sprite horizontally for east/west, without moving its world anchor.
+    body.scaleX=direction==='left'?-1:1;
+    // Side views use a slimmer silhouette while retaining the same collision footprint.
+    const head=body.list[9] as Phaser.GameObjects.Rectangle;
+    if(head)head.width=side?18:22;
+  }
   private animateStudent(s:Student,moving:boolean):void {
     const ai=s.ai,body=s.body;if(!ai||!body)return;
     // Animate actual sprite parts rather than scaling the entire character.
@@ -1373,6 +1400,7 @@ class GymScene extends Phaser.Scene {
       }
       ai.phase+=dt*(ai.activity===0||ai.activity===1?11:5);
       s.body.setPosition(s.x,s.y).setDepth(10+s.y/100);
+      if(distance>1)this.faceCharacter(s.body,destination.x-s.x,destination.y-s.y);
       this.animateStudent(s,distance>1);
       s.nameTag?.setPosition(s.x,s.y-36).setDepth(10+s.y/100+0.1);
       s.indicator?.setPosition(s.x,s.y-55);
@@ -1412,6 +1440,7 @@ class GymScene extends Phaser.Scene {
     const length=Math.hypot(dx,dy);
     if(!length) { this.player.setScale(1); return; }
     this.player.setDepth(10+this.player.y/100);
+    this.faceCharacter(this.player,dx,dy);
     this.walkingClock+=delta;
     this.player.setScale(1,1+Math.sin(this.walkingClock/95)*0.035);
     const step=Math.min(delta,50)/1000*this.speed;
