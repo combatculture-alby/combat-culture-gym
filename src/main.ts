@@ -577,20 +577,26 @@ class GymScene extends Phaser.Scene {
     this.say(name+' placed. Use Build to move it again.');
   }
   private openMaterials():void {
-    this.menuShell('MATERIALS & CRAFT','GATHER  /  CONVERT  /  EARN',()=>this.openGymUpgrades());
-    this.furniturePanel.add(this.add.text(84,76,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    const collected=this.saveData.gatheredToday?.length||0;
+    this.menuShell('MATERIALS & CRAFT',collected+'/12 pickups collected today',()=>this.openGymUpgrades());
+    const stock=this.saveData.materials||[0,0,0];
+    this.furniturePanel.add(this.add.text(84,75,MATERIAL_NAMES.map((name,i)=>name+': '+(stock[i]||0)).join('    '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.furniturePanel.add(this.add.text(84,94,collected>=12?'All pickups collected. New materials appear tomorrow.':'Tap scattered material piles in the gym to collect them.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b9d6c8',wordWrap:{width:310}}));
     const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
-      const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
-      const item=this.add.text(84,108+i*47,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6},wordWrap:{width:302}}).setInteractive();
-      item.on('pointerdown',()=>{
-        const stock=this.saveData.materials||[0,0,0];
-        if(recipe.cost.some((amount,j)=>stock[j]<amount)){this.say('Gather more materials to craft this.');return;}
-        recipe.cost.forEach((amount,j)=>stock[j]-=amount);
-        this.saveData.materials=stock;this.saveData.money+=recipe.reward;
-        this.persist();this.refresh();this.openMaterials();this.say('Crafted '+recipe.name+' and earned USD '+recipe.reward+'.');
-      });this.furniturePanel.add(item);
+      const canCraft=recipe.cost.every((amount,j)=>stock[j]>=amount);
+      const cost=recipe.cost.map((amount,j)=>amount?amount+' '+MATERIAL_NAMES[j]:'').filter(Boolean).join(' + ');
+      this.panelButton(this.furniturePanel,recipe.name+'  +$'+recipe.reward,84,122+i*43,310,35,()=>{
+        const current=this.saveData.materials||[0,0,0];
+        if(recipe.cost.some((amount,j)=>current[j]<amount)){this.say('Not enough materials. Gather more piles in the gym.');return;}
+        recipe.cost.forEach((amount,j)=>current[j]-=amount);
+        this.saveData.materials=current;
+        this.saveData.money+=recipe.reward;
+        this.persist();this.refresh();this.openMaterials();
+        this.say('Crafted '+recipe.name+' and earned $'+recipe.reward+'.');
+      },!canCraft,0x39735f,cost);
     });
+    this.furniturePanel.add(this.add.text(166,220,'Materials also pay for equipment and furniture.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
     this.furniturePanel.setVisible(true);
   }
   // Deterministic daily material locations. No real-time timers or mandatory cleanup.
