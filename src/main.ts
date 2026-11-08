@@ -682,12 +682,10 @@ class BriefingScene extends Phaser.Scene {
     this.add.rectangle(240,174,430,216,ink).setStrokeStyle(2,gold);
     guide.lines.forEach((line,i)=>this.add.text(240,102+i*30,line,{fontFamily:UI_FONT,fontSize:'13px',color:cream,align:'center'}).setOrigin(.5));
     this.add.text(240,208,'DIFFICULTY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffe29b'}).setOrigin(.5);
-    const buttons:Phaser.GameObjects.Text[]=[];
+    const selection=this.add.text(240,263,'SELECTED: NORMAL',{fontFamily:UI_FONT,fontSize:'10px',color:cream}).setOrigin(.5);
     (['easy','normal','hard'] as TrainingDifficulty[]).forEach((d,i)=>{
-      const t=arcadeButton(this,110+i*130,241,112,29,d.toUpperCase(),()=>{this.difficulty=d;buttons.forEach((b,j)=>b.setColor(j===i?'#ffe29b':'#ffffff'));});
-      buttons.push(t);
+      arcadeButton(this,110+i*130,241,112,29,d.toUpperCase(),()=>{this.difficulty=d;selection.setText('SELECTED: '+d.toUpperCase());});
     });
-    buttons[1].setColor('#ffe29b');
     arcadeButton(this,240,291,170,32,'START TRAINING',()=>this.scene.start(this.mode,{difficulty:this.difficulty}));
     arcadeButton(this,419,35,74,27,'BACK',()=>this.scene.start('Gym'));
   }
