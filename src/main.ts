@@ -342,6 +342,12 @@ class GymScene extends Phaser.Scene {
     });
     this.furniturePanel.setVisible(true);
   }
+  private addShopInventory(y:number):void {
+    const stock=this.saveData.materials||[0,0,0];
+    const label='YOU HAVE  USD '+this.saveData.money+'  |  '+MATERIAL_NAMES.map((name,i)=>name+' '+(stock[i]||0)).join('  ');
+    this.furniturePanel.add(this.add.rectangle(33,y-4,294,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
+    this.furniturePanel.add(this.add.text(38,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+  }
   private openGearShop():void {
     this.furniturePanel.removeAll(true);
     this.furniturePanel.add(this.add.rectangle(25,18,310,287,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
@@ -363,6 +369,7 @@ class GymScene extends Phaser.Scene {
         this.say('Purchased '+gear.name+'. Click the gym floor to place it.');
       });this.furniturePanel.add(line);
     });
+    this.addShopInventory(279);
     this.furniturePanel.setVisible(true);
   }
   private beginGearPlacement(index:number):void {
@@ -519,6 +526,8 @@ class GymScene extends Phaser.Scene {
       buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
       this.furniturePanel.add(buy);
     }
+    if(mode==='shop')this.addShopInventory(207);
+    this.addShopInventory(190);
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
@@ -535,7 +544,7 @@ class GymScene extends Phaser.Scene {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
     this.furnitureMode=mode;
     this.furniturePanel.removeAll(true);
-    const bg=this.add.rectangle(32,32,292,178,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    const bg=this.add.rectangle(32,32,292,mode==='shop'?203:178,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.furniturePanel.add(bg);
     const heading=this.add.text(44,40,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
     this.furniturePanel.add(heading);
