@@ -337,6 +337,7 @@ class GymScene extends Phaser.Scene {
       if(!item.stored)layer(item.y);
       if(item.stored) return;
       const x=item.x,y=item.y,side=item.rotation%2===1;
+      this.decor.fillStyle(0x1b3439,0.2).fillEllipse(x,y+7,side?27:44,11);
       this.decor.fillStyle([0xf3d48b,0x735b48,0xb08b56,0x7cc2cc,0x9e5148][item.kind]);
       if(item.kind===0) { // Side-view lamp: the shade and base turn with the furniture.
         const dx=[0,14,0,-14][item.rotation],dy=[-14,0,14,0][item.rotation];
@@ -346,10 +347,18 @@ class GymScene extends Phaser.Scene {
         this.decor.fillStyle(0xffdf84).fillCircle(x+dx,y+dy,9);
         this.decor.fillStyle(0xe6a75c).fillRect(x+dx-7,y+dy+3,14,3);
       }
-      else if(item.kind===1) this.decor.fillRoundedRect(x-(side?7:20),y-(side?20:7),side?14:40,side?40:14,3);
-      else if(item.kind===2) this.decor.fillRect(x-(side?9:16),y-(side?16:9),side?18:32,side?32:18);
-      else if(item.kind===3) {this.decor.fillRect(x-9,y-17,18,30);this.decor.fillStyle(0xe4f7fa).fillRect(x-6,y-14,12,8);}
-      else {this.decor.fillRoundedRect(x-9,y-20,18,38,6);this.decor.fillStyle(0x30353b).fillRect(x-3,y-24,6,5);}
+      else if(item.kind===1) {
+        this.decor.fillStyle(0x503d32).fillRoundedRect(x-(side?8:21),y-(side?21:8),side?16:42,side?42:16,3);
+        this.decor.fillStyle(0x9e7c5a).fillRoundedRect(x-(side?6:19),y-(side?19:6),side?12:38,side?38:12,2);
+        this.decor.fillStyle(0xc9a479).fillRect(x-(side?4:15),y-(side?16:4),side?8:30,side?32:8);
+      }
+      else if(item.kind===2) {
+        this.decor.fillStyle(0x654c3a).fillRect(x-(side?10:17),y-(side?17:10),side?20:34,side?34:20);
+        this.decor.fillStyle(0xc09c6b).fillRect(x-(side?8:15),y-(side?15:8),side?16:30,side?30:16);
+        this.decor.fillStyle(0x7e6347).fillRect(x-(side?3:12),y-(side?12:3),side?6:24,side?24:6);
+      }
+      else if(item.kind===3) {this.decor.fillStyle(0x547f85).fillRect(x-10,y-19,20,33);this.decor.fillStyle(0xc3e5df).fillRect(x-7,y-16,14,11);this.decor.fillStyle(0x8fbdb7).fillRect(x-5,y-14,10,7);this.decor.fillStyle(0x3a575a).fillRect(x-5,y+5,10,4);}
+      else {this.decor.fillStyle(0x34373a).fillRoundedRect(x-10,y-21,20,40,6);this.decor.fillStyle(0xa7554a).fillRoundedRect(x-8,y-17,16,31,5);this.decor.fillStyle(0xd5a77d).fillRect(x-8,y-11,16,3);this.decor.fillStyle(0x30353b).fillRect(x-3,y-25,6,5);}
       if(this.selectedFurniture===i) this.decor.lineStyle(2,0xffe08a).strokeRect(x-24,y-27,48,54);
     });
     const level=this.saveData.equipment||0;
@@ -378,10 +387,54 @@ class GymScene extends Phaser.Scene {
       const pos=this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
       layer(y);
-      this.decor.fillStyle([0x9c5146,0xd6a66c,0x7eaaa5,0xd3c17c,0x6b7383,0xa7a46d,0x587b88,0x7a8e9b][i]);
-      this.decor.fillRoundedRect(x-9,y-8,18,16,3);
-      this.decor.lineStyle(1,0xf0dfbc).strokeRoundedRect(x-9,y-8,18,16,3);
-      this.decor.fillStyle(0x243b3e).fillRect(x-4,y-2,8,4);
+      // Distinct, readable pixel silhouettes instead of eight identical boxes.
+      const g=this.decor;
+      g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
+      if(i===0){ // Heavy bag
+        g.fillStyle(0x2c3335).fillRect(x-2,y-25,4,8);
+        g.fillStyle(0xa04a40).fillRoundedRect(x-9,y-19,18,28,4);
+        g.fillStyle(0xd0a777).fillRect(x-9,y-15,18,3);
+        g.fillStyle(0x733b35).fillRect(x-8,y+3,16,3);
+      }else if(i===1){ // Thai pads
+        g.fillStyle(0x674534).fillRect(x-13,y-4,26,10);
+        g.fillStyle(0xc8915c).fillRoundedRect(x-12,y-10,11,16,3);
+        g.fillStyle(0xc8915c).fillRoundedRect(x+1,y-10,11,16,3);
+        g.fillStyle(0x543b34).fillRect(x-8,y-7,4,11);
+        g.fillStyle(0x543b34).fillRect(x+5,y-7,4,11);
+      }else if(i===2){ // Speed bag
+        g.fillStyle(0x343e43).fillRect(x-2,y-23,4,13);
+        g.fillStyle(0x3b4b50).fillRect(x-12,y-23,24,4);
+        g.fillStyle(0x8b463d).fillRoundedRect(x-6,y-11,12,15,5);
+        g.fillStyle(0xc28e62).fillRect(x-4,y-9,8,2);
+      }else if(i===3){ // Jump rope
+        g.lineStyle(3,0xc5a15b).strokeEllipse(x,y-2,24,16);
+        g.fillStyle(0x34575b).fillRect(x-14,y-5,6,4);
+        g.fillStyle(0x34575b).fillRect(x+8,y-5,6,4);
+      }else if(i===4){ // Bench
+        g.fillStyle(0x353d47).fillRoundedRect(x-13,y-10,26,9,2);
+        g.fillStyle(0x8c989d).fillRect(x-10,y-1,4,12);
+        g.fillStyle(0x8c989d).fillRect(x+6,y-1,4,12);
+        g.fillStyle(0x222c31).fillRect(x-12,y+8,24,3);
+      }else if(i===5){ // Kettlebells
+        for(const dx of [-7,7]){
+          g.lineStyle(3,0x394c4c).strokeRect(x+dx-4,y-12,8,7);
+          g.fillStyle(0x617d76).fillRoundedRect(x+dx-7,y-6,14,14,4);
+          g.fillStyle(0xa7b4a4).fillRect(x+dx-4,y-4,4,3);
+        }
+      }else if(i===6){ // Treadmill
+        g.fillStyle(0x3b4c53).fillRect(x-12,y-6,24,15);
+        g.fillStyle(0x758c91).fillRect(x-9,y-3,18,9);
+        g.fillStyle(0x30383b).fillRect(x-12,y-20,4,17);
+        g.fillStyle(0x30383b).fillRect(x+8,y-20,4,17);
+        g.fillStyle(0x80b9b1).fillRect(x-9,y-22,18,5);
+      }else{ // Assault bike
+        g.lineStyle(3,0x445c61).strokeCircle(x-9,y+3,7);
+        g.lineStyle(3,0x445c61).strokeCircle(x+9,y+3,7);
+        g.lineStyle(3,0x8da8a1).lineBetween(x-9,y+3,x+1,y-11);
+        g.lineBetween(x+1,y-11,x+9,y+3);
+        g.fillStyle(0x364f50).fillRect(x-3,y-14,13,4);
+        g.fillStyle(0xb99d6f).fillRect(x-13,y-17,12,3);
+      }
       if(this.placingGear===i)this.decor.lineStyle(2,0xffe08a).strokeRect(x-12,y-11,24,22);
     });
     const decor=this.saveData.decorLevel||0;
@@ -748,7 +801,7 @@ class GymScene extends Phaser.Scene {
       this.say('Too close to someone. Choose another spot.'); return;
     }
     const positions=this.saveData.decorPositions||defaults.decorPositions!.map(p=>({...p}));
-    if(positions.some((p,i)=>i!==this.placingDecor && i<(this.saveData.decorLevel||0) && Phaser.Math.Distance.Between(p.x,p.y,x,y)<44)) {
+    if(!this.canPlace(x,y,this.placingDecor===2?12:25,12)||positions.some((p,i)=>i!==this.placingDecor && i<(this.saveData.decorLevel||0) && Phaser.Math.Distance.Between(p.x,p.y,x,y)<44)) {
       this.say('Too close to another decoration.'); return;
     }
     positions[this.placingDecor]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
