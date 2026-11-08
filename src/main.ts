@@ -105,7 +105,7 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,302,'COMBAT CULTURE GYM | Prototype 8.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,302,'COMBAT CULTURE GYM | Prototype 8.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
@@ -128,21 +128,21 @@ class GymScene extends Phaser.Scene {
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.buildHint=this.add.text(12,285,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(341,133,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
+    this.addButton(341,133,124,17,'GYM UPGRADES',() => this.openGymUpgrades());
     this.addButton(341,153,124,17,'CHANGE CLASS',() => this.changeClass());
-    this.addButton(341,173,124,17,'START CLASS',() => this.startClass());
+    this.addButton(341,173,124,17,'CLASS RUSH',() => this.startClass());
     this.addButton(341,193,124,17,'CLOSE GYM',() => this.nextDay());
-    this.addButton(341,213,60,16,'DECOR',() => this.buyDecor());
+    this.addButton(341,213,60,16,'UPGRADES',() => this.openGymUpgrades());
     this.addButton(405,213,60,16,'ROSTER',() => this.toggleRoster());
     this.buildButtonText=this.addButton(405,232,60,16,'BUILD',() => this.openFurniture('build'));
     this.buildButtonText.setDepth(40);
-    this.addButton(341,232,60,16,'SHOP',() => this.openFurniture('shop'));
+    this.addButton(341,232,60,16,'SHOP',() => this.openGymUpgrades());
     this.add.text(344,247,'TRAINING & SPARRING',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
     this.addButton(341,270,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
     this.addButton(405,270,60,17,'BAG WORK',()=>this.openArcade('Memory'));
     this.addButton(341,291,60,17,'DEFENSE',()=>this.openArcade('Defense'));
     this.addButton(405,291,60,17,'COMPETE',()=>this.openArcade('Competition'));
-    this.addButton(341,313,124,17,'INVENTORY',() => this.openFurniture('inventory'));
+    this.addButton(341,313,124,17,'INVENTORY / SELL',() => this.openFurniture('inventory'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
@@ -289,6 +289,36 @@ class GymScene extends Phaser.Scene {
       this.decor.lineStyle(2,0xffe08a).strokeRect(p.x-27,p.y-22,54,42);
     }
   }
+  private openGymUpgrades():void {
+    if(this.running)return;
+    this.furniturePanel.removeAll(true);
+    this.furniturePanel.add(this.add.rectangle(32,32,292,202,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(44,40,'GYM UPGRADES',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
+    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
+    close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
+    const actions:[string,()=>void][]=[
+      ['BUY TRAINING GEAR',()=>{this.furniturePanel.setVisible(false);this.upgradeEquipment();}],
+      ['BUY GYM DECOR',()=>{this.furniturePanel.setVisible(false);this.buyDecor();}],
+      ['FURNITURE SHOP',()=>this.openFurniture('shop')],
+      ['PLACE / ARRANGE ITEMS',()=>this.openFurniture('build')],
+      ['INVENTORY / SELL',()=>this.openFurniture('inventory')]
+    ];
+    actions.forEach(([label,fn],i)=>{
+      const row=this.add.text(48,70+i*30,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
+      row.on('pointerdown',fn);this.furniturePanel.add(row);
+    });
+    this.furniturePanel.setVisible(true);
+  }
+  private sellFurniture(index:number):void {
+    const items=this.saveData.furniture||[];
+    const item=items[index];if(!item)return;
+    const refund=Math.floor(FURNITURE[item.kind].price/2);
+    this.saveData.money+=refund;items.splice(index,1);
+    this.selectedFurniture=-1;this.placingDecor=-1;
+    this.updateFurnitureActions();this.persist();this.refresh();
+    this.openFurniture('inventory');
+    this.say('Sold '+FURNITURE[item.kind].name+' for USD '+refund+' (50% resale).');
+  }
   private openFurniture(mode:'shop'|'inventory'|'build'):void {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
     this.furnitureMode=mode;
@@ -326,9 +356,10 @@ class GymScene extends Phaser.Scene {
       const items=this.saveData.furniture||[];
       if(!items.length) this.furniturePanel.add(this.add.text(46,78,'Nothing purchased yet. Visit SHOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
       items.slice(0,5).forEach((item,i)=>{
-        const row=this.add.text(46,67+i*25,FURNITURE[item.kind].name+(item.stored?' [STORED]':' [PLACED]')+'  SELECT',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>this.selectFurniture(i));
-        this.furniturePanel.add(row);
+        const row=this.add.text(46,67+i*25,FURNITURE[item.kind].name+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
+        row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
+        const sell=this.add.text(253,67+i*25,'SELL '+Math.floor(FURNITURE[item.kind].price/2),{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#974c40',padding:{x:3,y:3}}).setInteractive();
+        sell.on('pointerdown',()=>this.sellFurniture(i));this.furniturePanel.add(sell);
       });
       if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
     }
