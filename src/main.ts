@@ -64,6 +64,8 @@ class GymScene extends Phaser.Scene {
   private equipmentLabel!: Phaser.GameObjects.Text;
   private walkingClock = 0;
   private decor!: Phaser.GameObjects.Graphics;
+  private worldFixtures:Phaser.GameObjects.Graphics[]=[];
+  private stationTarget:'board'|'desk'|null=null;
   private studentCard!: Phaser.GameObjects.Text;
   private rosterPanel!: Phaser.GameObjects.Container;
   private rosterText!: Phaser.GameObjects.Text;
@@ -202,9 +204,11 @@ class GymScene extends Phaser.Scene {
     const anchor=board?{x:348,y:145}:{x:375,y:198};
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,anchor.x,anchor.y)>43){
       this.route=this.findRoute({x:this.player.x,y:this.player.y},anchor);
-      this.say('Walk to the '+(board?'training board':'reception computer')+' and press E.');
+      this.stationTarget=board?'board':'desk';
+      this.say('Walking to '+(board?'training board':'reception computer')+'.');
       return true;
     }
+    this.stationTarget=null;
     if(board)this.openTrainingBoard();else this.openGymUpgrades();
     return true;
   }
@@ -290,7 +294,13 @@ class GymScene extends Phaser.Scene {
   }
   private drawEquipment():void {
     this.decor.clear();
+    this.worldFixtures.forEach(g=>g.destroy());this.worldFixtures=[];
+    const layer=(y:number):void=>{
+      const g=this.add.graphics().setDepth(10+y/100-0.05);
+      this.worldFixtures.push(g);this.decor=g;
+    };
     (this.saveData.furniture||[]).forEach((item,i)=>{
+      if(!item.stored)layer(item.y);
       if(item.stored) return;
       const x=item.x,y=item.y,side=item.rotation%2===1;
       this.decor.fillStyle([0xf3d48b,0x735b48,0xb08b56,0x7cc2cc,0x9e5148][item.kind]);
@@ -310,16 +320,19 @@ class GymScene extends Phaser.Scene {
     });
     const level=this.saveData.equipment||0;
     if(level>=1) {
+      layer(101);
       this.decor.fillStyle(0x8e3834).fillRoundedRect(302,63,13,38,3);
       this.decor.fillStyle(0x242a2b).fillRect(305,60,7,4);
       this.decor.lineStyle(1,0xd5b88a).lineBetween(308,53,308,60);
     }
     if(level>=2) {
+      layer(154);
       this.decor.fillStyle(0x343b40).fillRect(302,147,17,6);
       this.decor.fillStyle(0xd2ae6e).fillRect(298,143,5,14);
       this.decor.fillStyle(0xd2ae6e).fillRect(318,143,5,14);
     }
     if(level>=3) {
+      layer(60);
       this.decor.fillStyle(0x733e36).fillRect(45,43,45,5);
       this.decor.fillStyle(0xe5d1a0).fillRect(49,44,37,2);
       this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
@@ -330,6 +343,7 @@ class GymScene extends Phaser.Scene {
       if(!owned)return;
       const pos=this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
+      layer(y);
       this.decor.fillStyle([0x9c5146,0xd6a66c,0x7eaaa5,0xd3c17c,0x6b7383,0xa7a46d,0x587b88,0x7a8e9b][i]);
       this.decor.fillRoundedRect(x-9,y-8,18,16,3);
       this.decor.lineStyle(1,0xf0dfbc).strokeRoundedRect(x-9,y-8,18,16,3);
@@ -340,26 +354,32 @@ class GymScene extends Phaser.Scene {
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
     if(decor>=1) {
       const p=pos[0];
+      layer(p.y);
       this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
       this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
       this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
     }
     if(decor>=2) {
       const p=pos[1];
+      layer(p.y);
       this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
       this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
       this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
     }
     if(decor>=3) {
       const p=pos[2];
+      layer(p.y);
       this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
       this.decor.fillStyle(0x4d885c).fillCircle(p.x,p.y-11,12);
       this.decor.fillStyle(0x7ca76d).fillCircle(p.x-5,p.y-14,5);
     }
     if(this.placingDecor>=0) {
       const p=pos[this.placingDecor];
+      layer(p.y);
       this.decor.lineStyle(2,0xffe08a).strokeRect(p.x-27,p.y-22,54,42);
     }
+    this.decor=this.add.graphics().setDepth(1);
+    this.worldFixtures.push(this.decor);
   }
   private openGymUpgrades():void {
     if(this.running)return;
@@ -374,9 +394,8 @@ class GymScene extends Phaser.Scene {
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
       ['BUILD / ARRANGE ITEMS',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
-      ['SCHEDULE CLASSES',()=>this.openClassSchedule()],
-      ['STUDENT GOALS',()=>this.showStudentGoals()],
       ['MATERIALS / CRAFT',()=>this.openMaterials()],
+      ['CLOSE GYM / NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}],
       ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.time.delayedCall(1,()=>{this.rosterPanel.setDepth(80);this.toggleRoster();});}]
     ];
     actions.forEach(([label,fn],i)=>{
@@ -914,6 +933,7 @@ class GymScene extends Phaser.Scene {
       if(!nearest)return [];
       goal.x=nearest.x;goal.y=nearest.y;
     }
+    if(!valid(s.x,s.y))return [];
     const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
     let found=false;
     for(let head=0;head<queue.length;head++) {
@@ -956,11 +976,11 @@ class GymScene extends Phaser.Scene {
     }
     let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
     let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
-    if(dx||dy) { this.route=[]; this.targetStudent=null; }
+    if(dx||dy) { this.route=[]; this.targetStudent=null;this.stationTarget=null; }
     else if(this.route.length) {
       const target=this.route[0];
       const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
-      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
+      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } else if(!this.route.length&&this.stationTarget){const station=this.stationTarget;this.stationTarget=null;if(station==='board')this.openTrainingBoard();else this.openGymUpgrades();} return; }
       dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
     }
     this.player.setDepth(10+this.player.y/100);
