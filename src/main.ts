@@ -198,7 +198,7 @@ class GymScene extends Phaser.Scene {
   private makeActionControl(x:number,y:number,label:string,fn:()=>void):Phaser.GameObjects.Container {
     const bg=this.add.rectangle(0,0,69,18,0x294f52).setOrigin(0).setStrokeStyle(1,0xd5b786).setInteractive();
     const t=this.add.text(34,9,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
-    bg.on('pointerdown',fn);t.on('pointerdown',fn);
+    bg.on('pointerdown',()=>{playGymCue('tap');fn();});t.on('pointerdown',fn);
     return this.add.container(x,y,[bg,t]).setDepth(25);
   }
   private persist():void {
@@ -699,11 +699,11 @@ class RushScene extends Phaser.Scene {
   private help(i:number):void {
     if(!this.active||this.coachBusy)return;
     if(!this.requests.some(r=>r.lane===i))return;
-    this.coachTarget=i;this.coachBusy=true;
+    playGymCue('tap');this.coachTarget=i;this.coachBusy=true;
   }
   private serve(i:number):void {
     const index=this.requests.findIndex(r=>r.lane===i);if(index<0)return;
-    const r=this.requests.splice(index,1)[0];this.score+=r.age<4?4:2;
+    playGymCue('success');const r=this.requests.splice(index,1)[0];this.score+=r.age<4?4:2;
     this.coachBusy=false;this.coachTarget=-1;
     this.render();
   }
@@ -742,6 +742,7 @@ class RushScene extends Phaser.Scene {
   }
   private finish():void {
     this.active=false;this.requests=[];this.markers.removeAll(true);
+    playGymCue('complete');
     const earned=20+this.score*3,rep=Math.max(1,Math.floor(this.score/4));
     awardArcade(earned,rep,true);
     this.add.rectangle(240,164,350,176,ink).setStrokeStyle(2,gold);
@@ -791,6 +792,7 @@ class RhythmScene extends Phaser.Scene {
     const timing=Math.abs(this.clock/this.window-0.72);
     const good=i===this.target && timing<=0.19;
     this.hits+=Number(good);this.streak=good?this.streak+1:0;
+    playGymCue(good?'success':'miss');
     this.feedback.setText(good?'PERFECT!':i!==this.target?'WRONG TECHNIQUE':'MISSED THE BEAT');
     this.attempts++;
     if(this.attempts>=15)this.finish();else this.next();
@@ -800,9 +802,10 @@ class RhythmScene extends Phaser.Scene {
     for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.strike(i);break;}
     this.clock+=Math.min(delta,100)/1000;
     this.meter.width=340*Math.min(1,this.clock/this.window);
-    if(this.clock>=this.window){this.streak=0;this.attempts++;this.feedback.setText('TOO SLOW');if(this.attempts>=15)this.finish();else this.next();}
+    if(this.clock>=this.window){this.streak=0;this.attempts++;playGymCue('timeout');this.feedback.setText('TOO SLOW');if(this.attempts>=15)this.finish();else this.next();}
   }
   private finish():void {
+    playGymCue('complete');
     this.active=false;const cash=8+this.hits*3;awardArcade(cash,Math.floor(this.hits/5),false);
     this.add.rectangle(240,164,355,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,117,'PAD WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'20px',color:cream}).setOrigin(0.5);
@@ -850,8 +853,8 @@ class MemoryScene extends Phaser.Scene {
   }
   private choose(n:number):void {
     if(!this.active||this.showing)return;
-    if(this.sequence[this.position]!==n){this.mistakes++;this.coach.setText('WRONG CALL! TRY THE NEXT ROUND');this.showing=true;this.time.delayedCall(850,()=>this.nextRound());return;}
-    this.position++;this.coach.setText('COACH: '+TECHNIQUES[n]+'!  |  STUDENT: HIT!');
+    if(this.sequence[this.position]!==n){playGymCue('miss');this.mistakes++;this.coach.setText('WRONG CALL! TRY THE NEXT ROUND');this.showing=true;this.time.delayedCall(850,()=>this.nextRound());return;}
+    playGymCue('success');this.position++;this.coach.setText('COACH: '+TECHNIQUES[n]+'!  |  STUDENT: HIT!');
     this.info.setText('ROUND '+this.round+'/10  |  COMBINATION '+this.position+'/'+this.sequence.length);
     if(this.position===this.sequence.length){
       this.successes++;this.showing=true;if(this.round>=10)this.finish();
@@ -859,6 +862,7 @@ class MemoryScene extends Phaser.Scene {
     }
   }
   private finish():void {
+    playGymCue('complete');
     this.active=false;const earned=10+this.successes*7;awardArcade(earned,Math.floor(this.successes/3),false);
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,115,'BAG WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
@@ -893,7 +897,7 @@ class DefenseScene extends Phaser.Scene {
   }
   private defend(i:number):void {
     if(!this.active)return;
-    const good=i===this.attack;this.correct+=Number(good);this.count++;
+    const good=i===this.attack;playGymCue(good?'success':'miss');this.correct+=Number(good);this.count++;
     this.feedback.setText(good?'GOOD DEFENSE!':'HIT! WRONG RESPONSE');
     if(this.count>=15)this.finish();else this.next();
   }
@@ -901,9 +905,10 @@ class DefenseScene extends Phaser.Scene {
     if(!this.active)return;
     for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.defend(i);break;}
     this.elapsed+=Math.min(delta,100)/1000;this.bar.width=340*Math.max(0,1-this.elapsed/this.limit);
-    if(this.elapsed>=this.limit){this.count++;this.feedback.setText('TOO SLOW - HIT!');if(this.count>=15)this.finish();else this.next();}
+    if(this.elapsed>=this.limit){this.count++;playGymCue('timeout');this.feedback.setText('TOO SLOW - HIT!');if(this.count>=15)this.finish();else this.next();}
   }
   private finish():void {
+    playGymCue('complete');
     this.active=false;const earned=8+this.correct*3;awardArcade(earned,Math.floor(this.correct/5),false);
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
     this.add.text(240,115,'DEFENSE COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
@@ -927,6 +932,32 @@ function fightDamage(a:FightMove,b:FightMove,sp:number):number {
   if(a==='attack'&&b==='big')n=18;
   if(sp<10)n=Math.ceil(n*.75);
   return n;
+}
+// Shared lightweight audio cues for every training activity.
+type GymCue='tap'|'success'|'miss'|'timeout'|'complete';
+let gymAudio:AudioContext|undefined;
+function playGymCue(kind:GymCue):void {
+  try {
+    const AudioCtx=window.AudioContext;
+    if(!AudioCtx)return;
+    if(!gymAudio)gymAudio=new AudioCtx();
+    const ctx=gymAudio;
+    if(ctx.state==='suspended')void ctx.resume();
+    const notes:Record<GymCue,[number,number,number,OscillatorType]>={
+      tap:[480,390,.055,'sine'],success:[600,870,.13,'sine'],
+      miss:[240,130,.16,'triangle'],timeout:[330,120,.22,'sawtooth'],
+      complete:[540,920,.35,'sine']
+    };
+    const [start,end,duration,wave]=notes[kind],t=ctx.currentTime;
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type=wave;osc.frequency.setValueAtTime(start,t);
+    osc.frequency.exponentialRampToValueAtTime(end,t+duration);
+    gain.gain.setValueAtTime(.0001,t);
+    gain.gain.exponentialRampToValueAtTime(.055,t+.01);
+    gain.gain.exponentialRampToValueAtTime(.0001,t+duration);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start(t);osc.stop(t+duration+.01);
+  }catch{/* Audio must never interrupt gameplay. */}
 }
 // Short synthesized cues avoid external audio assets and play only after player interaction.
 function playFightSound(kind:'attack'|'big'|'defend'|'breath'|'win'|'lose'):void {
