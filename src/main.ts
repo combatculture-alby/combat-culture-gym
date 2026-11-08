@@ -22,7 +22,7 @@ const initialStats=()=>Array.from({length:4},()=>[10,10,10,10]);
 const initialXP=()=>Array.from({length:4},()=>[0,0,0,0]);
 const initialGoals=()=>[[20,0],[25,2],[20,3],[25,1]];
 const SAVE_KEY = 'combat-culture-gym-v1';
-const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
+const blocks = [{ x: 395, y: 185, w: 65, h: 35 }];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
 const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [] };
@@ -99,8 +99,7 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x73563e).fillRect(0,0,480,31);
     g.fillStyle(0xe4d3ac).fillRect(0,31,480,194);
     g.fillStyle(0x927452).fillRect(0,224,480,106);
-    g.fillStyle(0x203b42).fillRoundedRect(333,34,139,292,7);
-    g.lineStyle(2,0xe1bc76).strokeRoundedRect(333,34,139,292,7);
+    g.fillStyle(0xe4d3ac).fillRect(330,31,150,194);
     g.fillStyle(0x86b8bd).fillRect(48,39,73,36);
     g.fillStyle(0xe9d9b6).fillRect(82,39,4,36);
     g.fillStyle(0xe9d9b6).fillRect(48,55,73,3);
@@ -111,21 +110,31 @@ class GymScene extends Phaser.Scene {
     g.lineStyle(1,0x639596,0.7);
     for(let x=32;x<=318;x+=32) g.lineBetween(x,78,x,210);
     for(let y=78;y<=210;y+=32) g.lineBetween(32,y,318,y);
-    g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
-    g.fillStyle(0x342e2d).fillRect(367,57,40,6);
-    g.fillStyle(0xe0bc83).fillRect(367,140,40,4);
+    // Training board and reception desk are physical interaction points.
+    g.fillStyle(0x795a3f).fillRect(344,51,112,69);
+    g.fillStyle(0xd9c18e).fillRect(349,56,102,58);
+    g.lineStyle(2,0x644a35).strokeRect(349,56,102,58);
+    g.fillStyle(0x476c69).fillRect(359,65,80,13);
+    g.fillStyle(0xa34f42).fillRect(359,84,46,5);
+    g.fillStyle(0x8d9f87).fillRect(359,95,70,5);
+    g.fillStyle(0x8a6242).fillRect(390,185,78,36);
+    g.fillStyle(0xc9a477).fillRect(388,182,82,8);
+    g.fillStyle(0x263b3c).fillRect(409,163,40,23);
+    g.fillStyle(0x77ada9).fillRect(413,167,32,15);
+    g.fillStyle(0xe6d2a8).fillRect(410,191,39,5);
     g.fillStyle(0x735a3d).fillRect(33,76,285,4);
     g.fillStyle(0x254b4b).fillRoundedRect(341,148,106,25,4);
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
-    g.fillStyle(0x765337).fillRect(346,180,92,34);
+    g.fillStyle(0x765337).fillRect(385,217,88,6);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,302,'COMBAT CULTURE GYM | Prototype 8.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(346,127,'TRAINING BOARD',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
+    this.add.text(385,226,'RECEPTION',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
     this.modeLabel=this.add.text(12,17,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
-    this.shopLabel=this.add.text(344,110,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.equipmentLabel=this.add.text(344,95,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
-    this.add.text(344,43,'GYM MANAGEMENT',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
+    this.shopLabel=this.add.text(0,0,'',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
+    this.equipmentLabel=this.add.text(0,0,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px'}).setVisible(false);
+    this.add.text(338,141,'CLICK BOARD FOR CLASSES',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
     for(const s of this.students) {
@@ -135,24 +144,16 @@ class GymScene extends Phaser.Scene {
       this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
-    this.status = this.add.text(341,52,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}}).setDepth(10);
+    this.status = this.add.text(120,5,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(30);
     this.studentCard=this.add.text(12,16,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(10).setVisible(false);
     this.message = this.add.text(12,237,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
     this.timer = this.add.text(12,225,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.buildHint=this.add.text(12,285,'Arrange decorations from MANAGE GYM > BUILD',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(341,133,124,24,'MANAGE GYM',() => this.openGymUpgrades());
-    this.addButton(341,165,124,24,'CLOSE GYM / NEXT DAY',() => this.nextDay());
-    this.add.text(344,201,'DAILY ACTIVITIES',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
-    this.add.text(344,216,'Each activity once per day',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
-    this.addButton(341,239,60,19,'CLASS RUSH',()=>this.openArcade('Rush'));
-    this.addButton(405,239,60,19,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(341,263,60,19,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(405,263,60,19,'DEFENSE',()=>this.openArcade('Defense'));
-    this.addButton(341,287,60,19,'COMPETE',()=>this.openArcade('Competition'));
-    this.addButton(405,287,60,19,'S&C',()=>this.openArcade('Conditioning'));
-    this.dailyStatus=this.add.text(344,310,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#e7e3d4'});
+    this.add.text(12,253,'E: INTERACT  |  CLICK: WALK / USE',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
+    this.add.text(350,239,'COMPUTER: MANAGE GYM',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
+    this.dailyStatus=this.add.text(12,18,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#f5e8cc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setDepth(30);
     const panelBack=this.add.rectangle(34,26,294,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,35,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(80).setVisible(false);
@@ -166,7 +167,7 @@ class GymScene extends Phaser.Scene {
     this.drawGatheringNodes();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
-    this.input.keyboard!.on('keydown-E',() => this.collectNearby() || this.interact());
+    this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.furniturePanel.setVisible(false);return;}if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
     this.input.keyboard!.on('keydown-C',() => this.openArcade('Rush'));
     this.input.keyboard!.on('keydown-P',()=>this.openArcade('Rhythm'));
     this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
@@ -184,7 +185,8 @@ class GymScene extends Phaser.Scene {
       if(this.placingGear>=0){if(p.worldX<330&&p.worldY>=32&&p.worldY<=215)this.placeGear(p.worldX,p.worldY);return;}
       if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
-      if(p.worldX >= 330 || p.worldY >= 225) return;
+      if(p.worldY >= 225) return;
+      if(this.useStationAt(p.worldX,p.worldY))return;
       if(this.collectNodeAt(p.worldX,p.worldY))return;
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
@@ -192,6 +194,47 @@ class GymScene extends Phaser.Scene {
         else { this.targetStudent = student; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:student.x-24,y:student.y+10}); }
       } else { this.targetStudent = null; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:p.worldX,y:p.worldY}); }
     });
+  }
+  private useStationAt(x:number,y:number):boolean {
+    const board=x>=344&&x<=457&&y>=49&&y<=122;
+    const desk=x>=390&&x<=470&&y>=158&&y<=224;
+    if(!board&&!desk)return false;
+    const anchor=board?{x:348,y:145}:{x:375,y:198};
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,anchor.x,anchor.y)>43){
+      this.route=this.findRoute({x:this.player.x,y:this.player.y},anchor);
+      this.say('Walk to the '+(board?'training board':'reception computer')+' and press E.');
+      return true;
+    }
+    if(board)this.openTrainingBoard();else this.openGymUpgrades();
+    return true;
+  }
+  private useNearbyStation():boolean {
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,375,198)<48){this.openGymUpgrades();return true;}
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,348,145)<48){this.openTrainingBoard();return true;}
+    return false;
+  }
+  private openTrainingBoard():void {
+    if(this.running)return;
+    this.furniturePanel.removeAll(true);
+    this.furniturePanel.add(this.add.rectangle(24,18,312,242,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(38,28,'TRAINING BOARD',{fontFamily:UI_FONT,fontSize:'15px',color:'#f4d68c'}));
+    const close=this.add.text(305,28,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}).setInteractive();
+    close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
+    const actions:[string,()=>void][]=[
+      ['SCHEDULE CLASSES',()=>this.openClassSchedule()],
+      ['STUDENT GOALS',()=>this.showStudentGoals()],
+      ['CLASS RUSH',()=>this.openArcade('Rush')],
+      ['PAD WORK',()=>this.openArcade('Rhythm')],
+      ['BAG WORK',()=>this.openArcade('Memory')],
+      ['DEFENSE',()=>this.openArcade('Defense')],
+      ['SPARRING',()=>this.openArcade('Competition')],
+      ['AGILITY TRAINING',()=>this.openArcade('Conditioning')]
+    ];
+    actions.forEach(([label,fn],i)=>{
+      const t=this.add.text(40,55+i*24,label,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:3}}).setInteractive({useHandCursor:true});
+      t.on('pointerdown',fn);this.furniturePanel.add(t);
+    });
+    this.furniturePanel.setVisible(true);
   }
   private makeCharacter(x:number,y:number,shirt:number,skin:number,hair:number,shorts:number,owner:boolean):Phaser.GameObjects.Container {
     const parts: Phaser.GameObjects.GameObject[] = [];
@@ -920,9 +963,11 @@ class GymScene extends Phaser.Scene {
       if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
       dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
     }
+    this.player.setDepth(10+this.player.y/100);
     const length=Math.hypot(dx,dy);
     if(!length) { this.player.setScale(1); return; }
-    this.player.setDepth(10+this.player.y/100);\n    this.walkingClock+=delta;
+    this.player.setDepth(10+this.player.y/100);
+    this.walkingClock+=delta;
     this.player.setScale(1,1+Math.sin(this.walkingClock/95)*0.035);
     const step=Math.min(delta,50)/1000*this.speed;
     const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
