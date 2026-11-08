@@ -1222,7 +1222,9 @@ class GymScene extends Phaser.Scene {
     }
     // Unavailable stations should never trigger pretend bag, lifting or resting interactions.
     // Without a real station or conversation partner, students practice shadowboxing.
-    const action:Pose='shadow';
+    // Floor stretching and drinking from a personal bottle are valid solo activities.
+    // Sitting/resting is reserved for an actual bench or rest station.
+    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?'drink':pose==='lift'?'stretch':'shadow';
     for(let i=0;i<6;i++){
       const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
       const routine=plan({x,y},action);
