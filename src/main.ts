@@ -6,7 +6,7 @@ type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -39,7 +39,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(65,Math.min(285,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(187,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(65,Math.min(285,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(187,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -70,6 +70,7 @@ class GymScene extends Phaser.Scene {
   private buildMode=false;
   private placementCursor:Point={x:168,y:144};
   private keyboardPlacement=false;
+  private buildPage=0;
   private stationTarget:'board'|'desk'|null=null;
   private studentCard!: Phaser.GameObjects.Text;
   private rosterPanel!: Phaser.GameObjects.Container;
@@ -228,7 +229,7 @@ class GymScene extends Phaser.Scene {
         if(fi>=0){this.selectFurniture(fi);return;}
         const gi=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
           const pos=this.saveData.gearPositions?.[i];
-          return owned&&pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
+          return owned&&!this.saveData.gearStored?.[i]&&pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
         });
         if(gi>=0){this.beginGearPlacement(gi);return;}
         this.say('Click an item to move, or press M for inventory.');return;
@@ -413,7 +414,7 @@ class GymScene extends Phaser.Scene {
     }
     // New equipment purchases appear as compact floor fixtures.
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-      if(!owned)return;
+      if(!owned||this.saveData.gearStored?.[i])return;
       const pos=this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
       layer(y);
@@ -532,8 +533,10 @@ class GymScene extends Phaser.Scene {
         this.saveData.materials=spendMaterials(this.saveData.materials,GEAR_MATERIALS[i]);
         if(!this.saveData.ownedGear)this.saveData.ownedGear=Array(8).fill(false);
         this.saveData.ownedGear[i]=true;
-        this.persist();this.refresh();this.beginGearPlacement(i);
-        this.say('Purchased '+gear.name+'. Click the gym floor to place it.');
+        if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
+        this.saveData.gearStored[i]=true;
+        this.persist();this.refresh();this.furniturePanel.setVisible(false);
+        this.say('Purchased '+gear.name+'! Stored in inventory. Press M to place it.');
       });this.furniturePanel.add(line);
     });
     this.addShopInventory(203);
@@ -542,7 +545,7 @@ class GymScene extends Phaser.Scene {
   private beginGearPlacement(index:number):void {
     this.placingGear=index;
     this.selectedFurniture=-1;this.placingDecor=-1;this.buildMode=true;
-    const pos=this.saveData.gearPositions?.[index];this.placementCursor=pos?{...pos}:{x:168,y:144};this.keyboardPlacement=true;
+    const pos=this.saveData.gearPositions?.[index];this.placementCursor=pos&&!this.saveData.gearStored?.[index]?{...pos}:{x:168,y:144};this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.drawEquipment();
     this.say('Placing '+GEAR_ITEMS[index].name+': click an open spot on the mat.');
@@ -556,6 +559,8 @@ class GymScene extends Phaser.Scene {
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
     this.saveData.gearPositions[this.placingGear]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
     const name=GEAR_ITEMS[this.placingGear].name;
+    if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
+    this.saveData.gearStored[this.placingGear]=false;
     this.placingGear=-1;this.keyboardPlacement=false;this.persist();this.refresh();
     this.say(name+' placed. Open Training Equipment to move it again.');
   }
@@ -711,32 +716,49 @@ class GymScene extends Phaser.Scene {
       row.on('pointerdown',()=>this.buyFurniture(i));
       this.furniturePanel.add(row);
     });
-    else if(mode==='build') {
-      const owned=this.saveData.decorLevel||0;
-      for(let i=0;i<owned;i++) {
-        const idx=i;
-        const row=this.add.text(84,72+i*25,['Gym banner','Training poster','Indoor plant'][i]+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>{this.placingDecor=idx;this.selectedFurniture=-1;this.furniturePanel.setVisible(false);this.drawEquipment();this.say('Tap a clear spot to move '+['banner','poster','plant'][idx]+'.');});
-        this.furniturePanel.add(row);
-      }
-      const items=this.saveData.furniture||[];
-      items.slice(0,8).forEach((item,i)=>{
-        const y=67+(owned+i)*23;
-        const row=this.add.text(84,y,FURNITURE[item.kind].name+' '+(item.stored?'[STORED]':'[PLACED]')+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
-      });
-      if(owned+items.length===0) this.furniturePanel.add(this.add.text(84,82,'Buy furniture in SHOP first.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
-    }
     else {
-      const items=this.saveData.furniture||[];
-      if(!items.length) this.furniturePanel.add(this.add.text(46,78,'Nothing purchased yet. Visit SHOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
-      items.slice(0,5).forEach((item,i)=>{
-        const row=this.add.text(46,67+i*25,FURNITURE[item.kind].name+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
-        const sell=this.add.text(253,67+i*25,'SELL '+Math.floor(FURNITURE[item.kind].price/2),{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#974c40',padding:{x:3,y:3}}).setInteractive();
-        sell.on('pointerdown',()=>this.sellFurniture(i));this.furniturePanel.add(sell);
+      // Unified paginated build inventory: furniture, gear and decorations.
+      const entries:{name:string;status:string;select:()=>void;sell?:()=>void}[]=[];
+      (this.saveData.furniture||[]).forEach((item,i)=>entries.push({
+        name:FURNITURE[item.kind].name,status:item.stored?'STORED':'PLACED',
+        select:()=>this.selectFurniture(i),sell:()=>this.sellFurniture(i)
+      }));
+      (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+        if(owned)entries.push({name:GEAR_ITEMS[i].name,status:this.saveData.gearStored?.[i]?'STORED':'PLACED',select:()=>this.beginGearPlacement(i)});
       });
-      if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
+      for(let i=0;i<(this.saveData.decorLevel||0);i++){
+        const idx=i;
+        entries.push({name:['Gym Banner','Training Poster','Indoor Plant'][i],status:'DECOR',select:()=>{
+          this.placingDecor=idx;this.selectedFurniture=-1;this.placingGear=-1;this.buildMode=true;
+          const p=this.saveData.decorPositions?.[idx];this.placementCursor=p?{...p}:{x:168,y:144};this.keyboardPlacement=true;
+          this.furniturePanel.setVisible(false);this.say('Move with arrows, Enter to place, Esc to cancel.');
+        }});
+      }
+      const pageSize=5,pages=Math.max(1,Math.ceil(entries.length/pageSize));
+      this.buildPage=Math.min(this.buildPage,pages-1);
+      this.furniturePanel.add(this.add.text(84,60,'CLICK TO MOVE  |  M BUILD  |  ESC CLOSE',{fontFamily:UI_FONT,fontSize:'9px',color:'#b8d2ca'}));
+      entries.slice(this.buildPage*pageSize,(this.buildPage+1)*pageSize).forEach((entry,i)=>{
+        const y=79+i*27;
+        const row=this.add.rectangle(84,y,310,24,0x34575b).setOrigin(0).setStrokeStyle(1,0x557a78).setInteractive({useHandCursor:true});
+        const label=this.add.text(90,y+6,entry.name+'  ['+entry.status+']',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb'});
+        row.on('pointerdown',entry.select);
+        this.furniturePanel.add([row,label]);
+        if(mode==='inventory'&&entry.sell){
+          const sell=this.add.text(350,y+5,'SELL',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffdbcb',backgroundColor:'#974c40',padding:{x:3,y:2}}).setInteractive({useHandCursor:true});
+          sell.on('pointerdown',entry.sell);this.furniturePanel.add(sell);
+        }
+      });
+      if(!entries.length)this.furniturePanel.add(this.add.text(84,94,'No items yet. Buy gear or furniture at reception.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
+      const pageLabel=this.add.text(229,224,'PAGE '+(this.buildPage+1)+' / '+pages,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
+      this.furniturePanel.add(pageLabel);
+      if(this.buildPage>0){
+        const prev=this.add.text(157,224,'< PREV',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setInteractive({useHandCursor:true});
+        prev.on('pointerdown',()=>{this.buildPage--;this.openFurniture(mode);});this.furniturePanel.add(prev);
+      }
+      if(this.buildPage<pages-1){
+        const next=this.add.text(319,224,'NEXT >',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setInteractive({useHandCursor:true});
+        next.on('pointerdown',()=>{this.buildPage++;this.openFurniture(mode);});this.furniturePanel.add(next);
+      }
     }
     this.rosterPanel.setVisible(false);
     if(mode==='shop')this.addShopInventory(228);
@@ -1060,7 +1082,7 @@ class GymScene extends Phaser.Scene {
     });
     const gearBounds:[number,number][]=[[9,12],[13,10],[8,11],[12,8],[14,10],[14,10],[13,13],[13,12]];
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-      if(!owned||i===excludeGear)return;
+      if(!owned||this.saveData.gearStored?.[i]||i===excludeGear)return;
       const pos=this.saveData.gearPositions?.[i]||{x:65+(i%4)*57,y:i<4?80:180};
       const [rx,ry]=gearBounds[i]||[12,11];
       solids.push({x:pos.x,y:pos.y,rx,ry});
