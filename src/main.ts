@@ -77,6 +77,7 @@ class GymScene extends Phaser.Scene {
   ];
   constructor() { super('Gym'); }
   create(): void {
+    this.saveData=loadSave();
     this.students.forEach((s,i) => { s.friendship = this.saveData.friendships[i]; s.skill = this.saveData.skills[i]; });
     const g = this.add.graphics();
     g.fillStyle(0xc9ae86).fillRect(0,0,W,330);
@@ -500,11 +501,11 @@ class GymScene extends Phaser.Scene {
   private openArcade(mode:'Rhythm'|'Memory'|'Defense'|'Competition'):void {
     if(this.running) return;
     this.persist();
-    this.scene.start(mode);
+    this.scene.start('Briefing',{mode});
   }
   private startClass():void {
     if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.persist(); this.scene.start('Rush'); return;
+    this.persist(); this.scene.start('Briefing',{mode:'Rush'}); return;
     this.rosterPanel.setVisible(false);
     this.modeLabel.setText('CLASS RUSH');
     this.classOverlay.clear().lineStyle(3,0xe8bd6c).strokeRect(30,30,290,181);
@@ -661,8 +662,39 @@ function awardArcade(cash:number,rep:number,completeClass:boolean):void {
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch{}
 }
 
+type TrainingMode='Rush'|'Rhythm'|'Memory'|'Defense'|'Competition';
+type TrainingDifficulty='easy'|'normal'|'hard';
+class BriefingScene extends Phaser.Scene {
+  private mode:TrainingMode='Rhythm';
+  private difficulty:TrainingDifficulty='normal';
+  constructor(){super('Briefing');}
+  init(data:{mode:TrainingMode}):void {this.mode=data.mode;this.difficulty='normal';}
+  create():void {
+    const guides:Record<TrainingMode,{title:string;lines:string[]}> = {
+      Rush:{title:'CLASS RUSH',lines:['Students ask for help during class.','Click a student with a request to walk over.','Help as many as possible before time runs out.']},
+      Rhythm:{title:'PAD WORK',lines:['Watch the technique and timing bar.','Tap the matching pad or use A S D F G H.','Strike near the timing sweet spot. 15 attempts.']},
+      Memory:{title:'BAG WORK',lines:['Watch the combination, then repeat it.','Use the pads or A S D F G H.','Complete 10 rounds. Mistakes count, but do not end class.']},
+      Defense:{title:'DEFENSE',lines:['Read the incoming attack before the timer ends.','HEAD = BLOCK, BODY = GUARD, LOW KICK = CHECK.','STRAIGHT = SLIP. Use buttons or J K L ;.']},
+      Competition:{title:'COMPETITION',lines:['Choose attacks, defense, or recovery.','Both fighters act on each turn.','Manage health and stamina to win.']}
+    };
+    const guide=guides[this.mode];
+    arcadeFrame(this,guide.title,'HOW TO PLAY');
+    this.add.rectangle(240,174,430,216,ink).setStrokeStyle(2,gold);
+    guide.lines.forEach((line,i)=>this.add.text(240,102+i*30,line,{fontFamily:UI_FONT,fontSize:'13px',color:cream,align:'center'}).setOrigin(.5));
+    this.add.text(240,208,'DIFFICULTY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffe29b'}).setOrigin(.5);
+    const selection=this.add.text(240,263,'SELECTED: NORMAL',{fontFamily:UI_FONT,fontSize:'10px',color:cream}).setOrigin(.5);
+    (['easy','normal','hard'] as TrainingDifficulty[]).forEach((d,i)=>{
+      arcadeButton(this,110+i*130,241,112,29,d.toUpperCase(),()=>{this.difficulty=d;selection.setText('SELECTED: '+d.toUpperCase());});
+    });
+    arcadeButton(this,240,291,170,32,'START TRAINING',()=>this.scene.start(this.mode,{difficulty:this.difficulty}));
+    arcadeButton(this,419,35,74,27,'BACK',()=>this.scene.start('Gym'));
+  }
+}
+
 class RushScene extends Phaser.Scene {
   private active=false;private seconds=50;private score=0;private missed=0;private spawn=0;
+  private difficulty:TrainingDifficulty='normal';
+  init(data:{difficulty?:TrainingDifficulty}):void {this.difficulty=data?.difficulty||'normal';}
   private requests:{lane:number,age:number,task:string}[]=[];private info!:Phaser.GameObjects.Text;
   private markers!:Phaser.GameObjects.Container;private coach!:Phaser.GameObjects.Container;
   private coachTarget=-1;private coachSpeed=130;private coachBusy=false;
@@ -738,7 +770,7 @@ class RushScene extends Phaser.Scene {
     if(this.spawn<=0){
       const free=[0,1,2,3].filter(i=>!this.requests.some(r=>r.lane===i));
       if(free.length){const lane=Phaser.Utils.Array.GetRandom(free);this.requests.push({lane,age:0,task:Phaser.Utils.Array.GetRandom(this.tasks)});}
-      this.spawn=2.8;
+      this.spawn=this.difficulty==='easy'?4:this.difficulty==='hard'?1.8:2.8;
     }
     if(this.coachBusy&&this.coachTarget>=0){
       const p=this.positions[this.coachTarget];const dx=p.x-this.coach.x,dy=(p.y+27)-this.coach.y,dist=Math.hypot(dx,dy);
@@ -746,8 +778,9 @@ class RushScene extends Phaser.Scene {
       else{const step=Math.min(dist,this.coachSpeed*dt);this.coach.x+=dx/dist*step;this.coach.y+=dy/dist*step;}
     }
     for(const r of this.requests)r.age+=dt;
-    const expired=this.requests.filter(r=>r.age>=9);
-    this.missed+=expired.length;this.requests=this.requests.filter(r=>r.age<9);
+    const maxAge=this.difficulty==='easy'?13:this.difficulty==='hard'?6:9;
+    const expired=this.requests.filter(r=>r.age>=maxAge);
+    this.missed+=expired.length;this.requests=this.requests.filter(r=>r.age<maxAge);
     if(this.coachTarget>=0&&!this.requests.some(r=>r.lane===this.coachTarget)){this.coachBusy=false;this.coachTarget=-1;}
     if(this.seconds<=0){this.finish();return;}
     this.render();
@@ -772,7 +805,9 @@ function trainingButton(scene:Phaser.Scene,x:number,y:number,w:number,h:number,l
 }
 class RhythmScene extends Phaser.Scene {
   private active=false;private attempts=0;private hits=0;private streak=0;private target=0;
-  private clock=0;private window=1.4;private level=0;private info!:Phaser.GameObjects.Text;
+  private clock=0;private window=1.4;private level=0;private difficulty:TrainingDifficulty='normal';
+  init(data:{difficulty?:TrainingDifficulty}):void {this.difficulty=data?.difficulty||'normal';}
+  private info!:Phaser.GameObjects.Text;
   private cue!:Phaser.GameObjects.Text;private meter!:Phaser.GameObjects.Rectangle;
   private feedback!:Phaser.GameObjects.Text;private keys:Phaser.Input.Keyboard.Key[]=[];
   constructor(){super('Rhythm');}
@@ -794,8 +829,8 @@ class RhythmScene extends Phaser.Scene {
   }
   private next():void {
     this.level=this.attempts<5?0:this.attempts<10?1:2;
-    const count=[2,4,6][this.level];this.target=Phaser.Math.Between(0,count-1);
-    this.window=[1.5,1.15,0.9][this.level];this.clock=0;
+    const count=this.difficulty==='easy'?3:this.difficulty==='hard'?6:[2,4,6][this.level];this.target=Phaser.Math.Between(0,count-1);
+    this.window=[1.5,1.15,0.9][this.level]*(this.difficulty==='easy'?1.45:this.difficulty==='hard'?0.7:1);this.clock=0;
     this.cue.setText(TECHNIQUES[this.target]+'  ['+KEYS[this.target]+']');
     this.info.setText('ROUND '+(this.attempts+1)+'/15  |  ACCURATE '+this.hits+'  |  STREAK '+this.streak+'  |  '+['EASY','MEDIUM','HARD'][this.level]);
   }
@@ -828,6 +863,8 @@ class RhythmScene extends Phaser.Scene {
 }
 class MemoryScene extends Phaser.Scene {
   private sequence:number[]=[];private position=0;private round=0;private showing=false;private active=false;private mistakes=0;private successes=0;
+  private difficulty:TrainingDifficulty='normal';
+  init(data:{difficulty?:TrainingDifficulty}):void {this.difficulty=data?.difficulty||'normal';}
   private info!:Phaser.GameObjects.Text;private coach!:Phaser.GameObjects.Text;private pads:Phaser.GameObjects.Rectangle[]=[];
   private keys:Phaser.Input.Keyboard.Key[]=[];
   constructor(){super('Memory');}
@@ -849,8 +886,9 @@ class MemoryScene extends Phaser.Scene {
   update():void {if(!this.active)return;for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.choose(i);break;}}
   private nextRound():void {
     if(!this.active)return;
-    this.round++;this.position=0;const count=this.round<=3?3:this.round<=6?4:6;
-    this.sequence=Array.from({length:Math.min(2+this.round,10)},()=>Phaser.Math.Between(0,count-1));
+    if(this.round>=10){this.finish();return;}
+    this.round++;this.position=0;const count=this.difficulty==='easy'?3:this.difficulty==='hard'?6:this.round<=3?3:this.round<=6?4:6;
+    this.sequence=Array.from({length:Math.min((this.difficulty==='easy'?1:this.difficulty==='hard'?4:2)+this.round,10)},()=>Phaser.Math.Between(0,count-1));
     this.showing=true;this.info.setText('ROUND '+this.round+'/10  |  MEMORIZE '+this.sequence.length+' MOVES');
     this.coach.setText('WATCH THE COMBINATION');
     this.sequence.forEach((n,i)=>this.time.delayedCall(500+i*650,()=>{
@@ -865,7 +903,7 @@ class MemoryScene extends Phaser.Scene {
   }
   private choose(n:number):void {
     if(!this.active||this.showing)return;
-    if(this.sequence[this.position]!==n){playGymCue('miss');this.mistakes++;this.coach.setText('WRONG CALL! TRY THE NEXT ROUND');this.showing=true;this.time.delayedCall(850,()=>this.nextRound());return;}
+    if(this.sequence[this.position]!==n){playGymCue('miss');this.mistakes++;this.coach.setText('WRONG CALL! TRY THE NEXT ROUND');this.showing=true;this.time.delayedCall(850,()=>{if(this.round>=10)this.finish();else this.nextRound();});return;}
     playGymCue('success');this.position++;this.coach.setText('COACH: '+TECHNIQUES[n]+'!  |  STUDENT: HIT!');
     this.info.setText('ROUND '+this.round+'/10  |  COMBINATION '+this.position+'/'+this.sequence.length);
     if(this.position===this.sequence.length){
@@ -885,6 +923,8 @@ class MemoryScene extends Phaser.Scene {
 }
 class DefenseScene extends Phaser.Scene {
   private active=false;private count=0;private correct=0;private attack=0;private elapsed=0;private limit=2.6;
+  private difficulty:TrainingDifficulty='normal';
+  init(data:{difficulty?:TrainingDifficulty}):void {this.difficulty=data?.difficulty||'normal';}
   private info!:Phaser.GameObjects.Text;private cue!:Phaser.GameObjects.Text;private bar!:Phaser.GameObjects.Rectangle;
   private feedback!:Phaser.GameObjects.Text;private keys:Phaser.Input.Keyboard.Key[]=[];
   private readonly attacks=[{name:'HEAD SHOT',defense:'BLOCK'},{name:'BODY SHOT',defense:'GUARD'},{name:'LOW KICK',defense:'CHECK'},{name:'STRAIGHT',defense:'SLIP'}];
@@ -903,7 +943,7 @@ class DefenseScene extends Phaser.Scene {
     this.next();
   }
   private next():void {
-    this.elapsed=0;this.limit=Math.max(1.1,2.6-this.count*0.09);this.attack=Phaser.Math.Between(0,3);
+    this.elapsed=0;this.limit=Math.max(0.8,(2.6-this.count*0.09)*(this.difficulty==='easy'?1.5:this.difficulty==='hard'?0.7:1));this.attack=Phaser.Math.Between(0,3);
     this.cue.setText('INCOMING: '+this.attacks[this.attack].name);
     this.info.setText('ATTACK '+(this.count+1)+'/15  |  DEFENDED '+this.correct+'  |  REACT!');
   }
@@ -1134,4 +1174,4 @@ class CompetitionScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene]});
+new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene]});
