@@ -6,7 +6,7 @@ type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>> };
 const SAVE_KEY = 'combat-culture-gym-v1';
 const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
@@ -130,19 +130,20 @@ class GymScene extends Phaser.Scene {
     this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(341,133,124,17,'GYM UPGRADES',() => this.openGymUpgrades());
     this.add.text(346,156,'DAILY TRAINING',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
-    this.addButton(341,173,124,17,'CLASS RUSH',() => this.startClass());
+    this.add.text(346,177,'PLAY ONCE PER DAY',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
     this.addButton(341,193,124,17,'CLOSE GYM',() => this.nextDay());
     this.addButton(341,213,60,16,'UPGRADES',() => this.openGymUpgrades());
     this.addButton(405,213,60,16,'ROSTER',() => this.toggleRoster());
     this.buildButtonText=this.addButton(405,232,60,16,'BUILD',() => this.openFurniture('build'));
     this.buildButtonText.setDepth(40);
     this.addButton(341,232,60,16,'SHOP',() => this.openGymUpgrades());
-    this.add.text(344,247,'TRAINING & SPARRING',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
-    this.addButton(341,270,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(405,270,60,17,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(341,291,60,17,'DEFENSE',()=>this.openArcade('Defense'));
-    this.addButton(405,291,60,17,'COMPETE',()=>this.openArcade('Competition'));
-    this.addButton(341,313,124,17,'INVENTORY / SELL',() => this.openFurniture('inventory'));
+    this.add.text(344,247,'DAILY ACTIVITIES',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
+    this.addButton(341,270,60,17,'CLASS RUSH',()=>this.openArcade('Rush'));
+    this.addButton(405,270,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
+    this.addButton(341,291,60,17,'BAG WORK',()=>this.openArcade('Memory'));
+    this.addButton(405,291,60,17,'DEFENSE',()=>this.openArcade('Defense'));
+    this.addButton(341,313,60,17,'COMPETE',()=>this.openArcade('Competition'));
+    this.addButton(405,313,60,17,'S&C',()=>this.openArcade('Conditioning'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
@@ -519,8 +520,9 @@ class GymScene extends Phaser.Scene {
       this.say(nearest.name+': '+lines[i][Math.max(0,nearest.friendship-1)%2]+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
-  private openArcade(mode:'Rhythm'|'Memory'|'Defense'|'Competition'):void {
+  private openArcade(mode:TrainingMode):void {
     if(this.running) return;
+    if(this.saveData.playedActivities?.[mode]===this.saveData.day) {this.say('Already played today. Close gym for a new day.');return;}
     this.persist();
     this.scene.start('Briefing',{mode});
   }
@@ -580,7 +582,6 @@ class GymScene extends Phaser.Scene {
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
-    if(!this.saveData.completed) { this.say('Teach class first.'); return; }
     this.saveData.day++;
     this.saveData.completed=false;
     this.say('New day! '+this.classNames[this.saveData.classType||0]+' is scheduled. Save earnings for gym upgrades.');
@@ -676,27 +677,31 @@ function arcadeFrame(scene:Phaser.Scene,title:string,subtitle:string):void {
   scene.add.text(24,22,title,{fontFamily:UI_FONT,fontSize:'23px',fontStyle:'bold',color:cream});
   scene.add.text(24,53,subtitle,{fontFamily:UI_FONT,fontSize:'11px',color:'#b7d2d0'});
 }
+let activeActivity:TrainingMode|null=null;
 function awardArcade(cash:number,rep:number,completeClass:boolean):void {
   const s=loadSave();
   s.money+=cash;s.lifetimeEarnings=(s.lifetimeEarnings||0)+cash;s.reputation+=rep;
   if(completeClass){s.completed=true;s.classesTaught=(s.classesTaught||0)+1;}
+  const activity=completeClass?'Rush':activeActivity;
+  if(activity)s.playedActivities={...s.playedActivities,[activity]:s.day};
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch{}
 }
 
-type TrainingMode='Rush'|'Rhythm'|'Memory'|'Defense'|'Competition';
+type TrainingMode='Rush'|'Rhythm'|'Memory'|'Defense'|'Competition'|'Conditioning';
 type TrainingDifficulty='easy'|'normal'|'hard';
 class BriefingScene extends Phaser.Scene {
   private mode:TrainingMode='Rhythm';
   private difficulty:TrainingDifficulty='normal';
   constructor(){super('Briefing');}
-  init(data:{mode:TrainingMode}):void {this.mode=data.mode;this.difficulty='normal';}
+  init(data:{mode:TrainingMode}):void {this.mode=data.mode;activeActivity=data.mode;this.difficulty='normal';}
   create():void {
     const guides:Record<TrainingMode,{title:string;lines:string[]}> = {
       Rush:{title:'CLASS RUSH',lines:['Students ask for help during class.','Click a student with a request to walk over.','Help as many as possible before time runs out.']},
       Rhythm:{title:'PAD WORK',lines:['Watch the technique and timing bar.','Tap the matching pad or use A S D F G H.','Strike near the timing sweet spot. 15 attempts.']},
       Memory:{title:'BAG WORK',lines:['Watch the combination, then repeat it.','Use the pads or A S D F G H.','Complete 10 rounds. Mistakes count, but do not end class.']},
       Defense:{title:'DEFENSE',lines:['Read the incoming attack before the timer ends.','HEAD = BLOCK, BODY = GUARD, LOW KICK = CHECK.','STRAIGHT = SLIP. Use buttons or J K L ;.']},
-      Competition:{title:'COMPETITION',lines:['Choose attacks, defense, or recovery.','Both fighters act on each turn.','Manage health and stamina to win.']}
+      Competition:{title:'COMPETITION',lines:['Choose attacks, defense, or recovery.','Both fighters act on each turn.','Manage health and stamina to win.']},
+      Conditioning:{title:'STRENGTH & CONDITIONING',lines:['Run an obstacle course with direct movement control.','Use LEFT / RIGHT to move, SPACE to jump, DOWN to duck.','Reach the finish line while avoiding gym obstacles.']}
     };
     const guide=guides[this.mode];
     arcadeFrame(this,guide.title,'HOW TO PLAY');
@@ -708,7 +713,7 @@ class BriefingScene extends Phaser.Scene {
       arcadeButton(this,110+i*130,241,112,29,d.toUpperCase(),()=>{this.difficulty=d;selection.setText('SELECTED: '+d.toUpperCase());});
     });
     arcadeButton(this,240,291,170,32,'START TRAINING',()=>this.scene.start(this.mode,{difficulty:this.difficulty}));
-    arcadeButton(this,419,35,74,27,'BACK',()=>this.scene.start('Gym'));
+    arcadeButton(this,419,35,74,27,'BACK',()=>{activeActivity=null;this.scene.start('Gym');});
   }
 }
 
@@ -1195,4 +1200,68 @@ class CompetitionScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene]});
+
+class ConditioningScene extends Phaser.Scene {
+  private difficulty:TrainingDifficulty='normal';
+  private active=false;private distance=0;private hits=0;private playerX=90;private y=248;private vy=0;private duck=false;
+  private runner!:Phaser.GameObjects.Container;private status!:Phaser.GameObjects.Text;
+  private obstacles:{x:number,type:'jump'|'duck',body:Phaser.GameObjects.Rectangle,passed:boolean}[]=[];
+  private left=false;private right=false;private down=false;private jumpPressed=false;
+  init(data:{difficulty?:TrainingDifficulty}):void {this.difficulty=data.difficulty||'normal';}
+  constructor(){super('Conditioning');}
+  create():void {
+    this.active=true;this.distance=0;this.hits=0;this.playerX=90;this.y=248;this.vy=0;this.obstacles=[];
+    arcadeFrame(this,'STRENGTH & CONDITIONING','Move with arrows / A D. Jump SPACE / UP. Duck DOWN / S.');
+    this.add.rectangle(240,267,440,6,0xc4a37b);
+    this.add.rectangle(240,290,440,42,0x587b68);
+    this.status=this.add.text(24,78,'',{fontFamily:UI_FONT,fontSize:'12px',color:cream});
+    this.runner=this.add.container(this.playerX,this.y);
+    this.runner.add([this.add.rectangle(0,-23,17,23,0x367b82),this.add.rectangle(0,-42,17,17,0xe6b18a),this.add.rectangle(-6,-7,6,15,0x343b4c),this.add.rectangle(6,-7,6,15,0x343b4c)]);
+    const kb=this.input.keyboard!;
+    kb.on('keydown-SPACE',()=>{this.jumpPressed=true;});
+    arcadeButton(this,419,35,74,27,'EXIT',()=>{this.active=false;this.scene.start('Gym');});
+    arcadeButton(this,75,307,75,28,'LEFT',()=>{this.left=true;this.time.delayedCall(180,()=>this.left=false);});
+    arcadeButton(this,160,307,75,28,'RIGHT',()=>{this.right=true;this.time.delayedCall(180,()=>this.right=false);});
+    arcadeButton(this,285,307,75,28,'JUMP',()=>{this.jumpPressed=true;});
+    arcadeButton(this,375,307,75,28,'DUCK',()=>{this.down=true;this.time.delayedCall(450,()=>this.down=false);});
+  }
+  update(_time:number,delta:number):void {
+    if(!this.active)return;
+    const dt=Math.min(delta/1000,0.05),kb=this.input.keyboard!;
+    const keys=kb.addKeys('A,D,S,LEFT,RIGHT,DOWN,UP') as Record<string,Phaser.Input.Keyboard.Key>;
+    const left=this.left||keys.A.isDown||keys.LEFT.isDown,right=this.right||keys.D.isDown||keys.RIGHT.isDown;
+    this.duck=this.down||keys.S.isDown||keys.DOWN.isDown;
+    this.playerX=Phaser.Math.Clamp(this.playerX+(Number(right)-Number(left))*170*dt,45,275);
+    if((this.jumpPressed||Phaser.Input.Keyboard.JustDown(keys.UP))&&this.y>=248){this.vy=-295;}
+    this.jumpPressed=false;this.vy+=790*dt;this.y=Math.min(248,this.y+this.vy*dt);if(this.y>=248)this.vy=0;
+    this.runner.setPosition(this.playerX,this.y);this.runner.setScale(1,this.duck&&this.y>=248?0.65:1);
+    const speed=this.difficulty==='easy'?105:this.difficulty==='hard'?170:135;
+    this.distance+=speed*dt;
+    const spacing=this.difficulty==='easy'?170:this.difficulty==='hard'?105:135;
+    if(!this.obstacles.length||this.obstacles[this.obstacles.length-1].x<480-spacing){
+      const type: 'jump'|'duck'=Math.random()<0.55?'jump':'duck';
+      const body=this.add.rectangle(490,type==='jump'?250:207,type==='jump'?24:48,type==='jump'?26:10,type==='jump'?0xc07855:0xe6c076);
+      this.obstacles.push({x:490,type,body,passed:false});
+    }
+    for(const o of this.obstacles){
+      o.x-=speed*dt;o.body.x=o.x;
+      if(!o.passed&&Math.abs(o.x-this.playerX)<18){
+        o.passed=true;
+        if(o.type==='jump'&&this.y>220||o.type==='duck'&&(!this.duck||this.y<240)){this.hits++;playGymCue('timeout');}
+      }
+    }
+    this.obstacles=this.obstacles.filter(o=>{if(o.x<15){o.body.destroy();return false;}return true;});
+    this.status.setText('DISTANCE '+Math.floor(this.distance)+'/1800   |   HITS '+this.hits+'   |   '+this.difficulty.toUpperCase());
+    if(this.distance>=1800)this.finish();
+  }
+  private finish():void {
+    this.active=false;const earned=Math.max(5,35-this.hits*5);
+    awardArcade(earned,Math.max(0,3-this.hits),false);playGymCue('complete');
+    this.add.rectangle(240,165,365,160,ink).setStrokeStyle(2,gold).setDepth(50);
+    this.add.text(240,132,'COURSE COMPLETE',{fontFamily:UI_FONT,fontSize:'22px',color:cream}).setOrigin(.5).setDepth(51);
+    this.add.text(240,171,'Hits: '+this.hits+'   Earned USD '+earned,{fontFamily:UI_FONT,fontSize:'13px',color:cream}).setOrigin(.5).setDepth(51);
+    arcadeButton(this,240,210,170,33,'RETURN TO GYM',()=>this.scene.start('Gym'));
+  }
+}
+
+new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
