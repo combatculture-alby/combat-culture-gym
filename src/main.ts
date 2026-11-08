@@ -129,7 +129,7 @@ class GymScene extends Phaser.Scene {
     this.buildHint=this.add.text(12,285,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(341,133,124,17,'GYM UPGRADES',() => this.openGymUpgrades());
-    this.addButton(341,153,124,17,'CHANGE CLASS',() => this.changeClass());
+    this.add.text(346,156,'DAILY TRAINING',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
     this.addButton(341,173,124,17,'CLASS RUSH',() => this.startClass());
     this.addButton(341,193,124,17,'CLOSE GYM',() => this.nextDay());
     this.addButton(341,213,60,16,'UPGRADES',() => this.openGymUpgrades());
@@ -159,7 +159,6 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
     this.input.keyboard!.on('keydown-N',() => this.nextDay());
     this.input.keyboard!.on('keydown-R',() => this.reset());
-    this.input.keyboard!.on('keydown-T',() => this.changeClass());
     this.input.keyboard!.on('keydown-B',() => this.buyDecor());
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
     this.input.keyboard!.on('keydown-M',() => this.openFurniture('build'));
@@ -462,15 +461,6 @@ class GymScene extends Phaser.Scene {
     const rank=student.skill>=10?'Advanced':student.skill>=5?'Intermediate':'Beginner';
     this.studentCard.setText(student.name+' | '+rank+' | Skill '+student.skill+' | Bond '+student.friendship).setVisible(true);
     this.time.delayedCall(2800,()=>this.studentCard.setVisible(false));
-  }
-  private changeClass():void {
-    if(this.running || this.saveData.completed) { this.say('Choose tomorrow\'s class after closing the gym.'); return; }
-    const next=((this.saveData.classType||0)+1)%this.classNames.length;
-    if(next===1 && this.saveData.reputation<5) { this.say('Muay Thai unlocks at 5 reputation.'); return; }
-    if(next===2 && this.saveData.reputation<15) { this.say('Conditioning unlocks at 15 reputation.'); return; }
-    this.saveData.classType=next;
-    this.persist();
-    this.say('Scheduled: '+this.classNames[this.saveData.classType]+'. Press CHANGE CLASS to rotate.');
   }
   private upgradeEquipment():void {
     if(this.running) { this.say('Finish class before upgrading.'); return; }
