@@ -143,6 +143,8 @@ class GymScene extends Phaser.Scene {
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
     this.furniturePanel=this.add.container(0,0).setDepth(60).setVisible(false);
+    // Legacy decoration controls still update this label; keep it initialized without exposing a duplicate button.
+    this.buildButtonText=this.add.text(0,0,'BUILD',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
     this.rotateControl=this.makeActionControl(36,238,'ROTATE',()=>this.rotateFurniture());
     this.storeControl=this.makeActionControl(112,238,'STORE',()=>this.storeFurniture());
     this.updateFurnitureActions();
@@ -299,7 +301,7 @@ class GymScene extends Phaser.Scene {
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
       ['BUILD / ARRANGE ITEMS',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
-      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.toggleRoster();}]
+      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.rosterPanel.setDepth(80);this.toggleRoster();}]
     ];
     actions.forEach(([label,fn],i)=>{
       const row=this.add.text(48,70+i*28,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
