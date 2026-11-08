@@ -367,20 +367,29 @@ class GymScene extends Phaser.Scene {
     rect(-5,-10,7,2,owner?0x69747b:0xd5b98c);
     rect(7,-2,3,12,0x263b3c);
     rect(0,-21,22,19,skin);
+    rect(-10,-23,2,10,0xb47c5d);
+    rect(10,-23,2,10,0xb47c5d);
     rect(-5,-22,3,3,0xf4d3b0);
     rect(5,-22,3,3,0xf4d3b0);
+    rect(-5,-19,3,2,0x2c2d32);
+    rect(5,-19,3,2,0x2c2d32);
+    rect(0,-14,5,1,0x8e5b4c);
     rect(0,-30,23,8,hair);
     rect(-8,-32,7,3,hair);
     rect(5,-34,10,3,hair);
     rect(-8,-25,6,10,hair);
     // Pixel detailing: layered hair, collar, shirt seam and athletic footwear.
     rect(0,-32,14,3,hair);
+    rect(-5,-34,6,2,hair);
+    rect(7,-32,4,2,hair);
     rect(-8,-29,3,5,hair);
     rect(0,-14,8,3,0xe7b98f);
     rect(-8,-5,3,12,0xffffff);
     rect(-5,17,6,2,0x6b8185);
     rect(5,17,6,2,0x6b8185);
     rect(0,11,12,2,0x273e45);
+    rect(-5,19,10,2,0x23363b);
+    rect(5,19,10,2,0x23363b);
     if(!owner){
       // Each student's training outfit has a unique stripe and glove palette.
       const accent=shirt===0xd9a06c?0x7b443b:shirt===0x8cbaaa?0x397b6d:shirt===0xaaa4d5?0x68628c:0xa56d38;
