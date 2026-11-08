@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 const W = 480, H = 270, CELL = 6;
 const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Point = { x: number; y: number };
-type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text; nameTag?: Phaser.GameObjects.Text; activityTag?: Phaser.GameObjects.Text; ai?: {target:Point; timer:number; activity:number; phase:number} };
+type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text; nameTag?: Phaser.GameObjects.Text; activityTag?: Phaser.GameObjects.Text; ai?: {target:Point; timer:number; activity:number; phase:number; route:Point[]; socialCooldown:number} };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
 type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[] };
@@ -173,7 +173,7 @@ class GymScene extends Phaser.Scene {
       s.body = this.makeCharacter(s.x,s.y,s.color,skin,hair,0x354e56,false);
       s.nameTag=this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5).setDepth(10+s.y/100+0.1);
       s.activityTag=this.add.text(s.x,s.y-48,'',{fontFamily:UI_FONT,fontSize:'8px',color:'#f5dfb6',backgroundColor:'#34575b',padding:{x:3,y:1}}).setOrigin(0.5).setDepth(10+s.y/100+0.1).setVisible(false);
-      s.ai={target:{x:s.x,y:s.y},timer:1+this.students.indexOf(s)*1.4,activity:0,phase:0};
+      s.ai={target:{x:s.x,y:s.y},timer:1+this.students.indexOf(s)*1.4,activity:0,phase:0,route:[],socialCooldown:6+this.students.indexOf(s)*3};
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
     this.status = this.add.text(111,5,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(30);
@@ -905,6 +905,7 @@ class GymScene extends Phaser.Scene {
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     this.showStudentCard(nearest);
+    if(nearest.ai){nearest.ai.route=[];nearest.ai.target={x:nearest.x,y:nearest.y};nearest.ai.timer=6;}
     if(this.running) {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
@@ -997,6 +998,7 @@ class GymScene extends Phaser.Scene {
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
     this.saveData.day++;
+    this.students.forEach((student,i)=>{if(student.ai){student.ai.timer=0.5+i;student.ai.route=[];student.ai.socialCooldown=5+i*4;}});
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
     this.saveData.completed=false;
@@ -1188,6 +1190,22 @@ class GymScene extends Phaser.Scene {
     }
     return true;
   }
+  private studentSocialMoment(s:Student,i:number):void {
+    const partner=this.students[(i+1)%this.students.length];
+    const nearby=Phaser.Math.Distance.Between(s.x,s.y,partner.x,partner.y)<65;
+    const dialogue=[
+      ['Frank: One more round!','Frank: Nice combination!'],
+      ['Radish: Water break?','Radish: Looking sharp!'],
+      ['Marshall: Working on my footwork.','Marshall: Let us drill that.'],
+      ['Pudge: I needed that stretch.','Pudge: Good session today.']
+    ];
+    const ai=s.ai;if(!ai)return;
+    if(nearby&&ai.activity===4){
+      s.activityTag?.setText('CHATTING').setVisible(true);
+      partner.activityTag?.setText('LISTENING').setVisible(true);
+      if(Math.random()<0.3)this.say(dialogue[i][(this.saveData.day+i)%2]);
+    }
+  }
   private updateStudentLife(delta:number):void {
     // Autonomous ambient behavior is cosmetic: it never changes saved stats or interrupts a class.
     if(this.running||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
@@ -1215,23 +1233,37 @@ class GymScene extends Phaser.Scene {
         if(this.canStand(goal.x,goal.y)&&this.students.every(other=>other===s||Phaser.Math.Distance.Between(goal.x,goal.y,other.x,other.y)>24)){
           ai.target=goal;
         }else ai.target={x:s.x,y:s.y};
+        ai.route=this.findRoute({x:s.x,y:s.y},ai.target);
         ai.timer=7+Math.random()*9+i*0.6;
       }
-      const distance=Phaser.Math.Distance.Between(s.x,s.y,ai.target.x,ai.target.y);
-      if(distance>3){
-        const speed=13+i*1.5,step=Math.min(distance,speed*dt);
-        const vx=(ai.target.x-s.x)/distance*step,vy=(ai.target.y-s.y)/distance*step;
-        const nx=s.x+vx,ny=s.y+vy;
-        if(this.canStand(nx,ny)&&this.students.every(other=>other===s||Phaser.Math.Distance.Between(nx,ny,other.x,other.y)>19)){
+      // Follow the same collision-aware A* routes as the player.
+      let waypoint=ai.route[0];
+      if(waypoint&&Phaser.Math.Distance.Between(s.x,s.y,waypoint.x,waypoint.y)<4){
+        ai.route.shift();waypoint=ai.route[0];
+      }
+      const destination=waypoint||{x:s.x,y:s.y};
+      const distance=Phaser.Math.Distance.Between(s.x,s.y,destination.x,destination.y);
+      if(distance>1){
+        const speed=17+i*1.2,step=Math.min(distance,speed*dt);
+        const nx=s.x+(destination.x-s.x)/distance*step;
+        const ny=s.y+(destination.y-s.y)/distance*step;
+        if(this.canStand(nx,ny)&&this.students.every(other=>other===s||Phaser.Math.Distance.Between(nx,ny,other.x,other.y)>16)){
           s.x=nx;s.y=ny;
-        }else {ai.target={x:s.x,y:s.y};ai.timer=Math.min(ai.timer,2);}
+        }else {
+          ai.route=[];ai.target={x:s.x,y:s.y};ai.timer=Math.min(ai.timer,2);
+        }
+      }
+      ai.socialCooldown-=dt;
+      if(ai.socialCooldown<=0){
+        if(ai.activity===4)this.studentSocialMoment(s,i);
+        ai.socialCooldown=15+i*3+Math.random()*6;
       }
       ai.phase+=dt*(ai.activity===0||ai.activity===1?11:5);
       s.body.setPosition(s.x,s.y).setDepth(10+s.y/100);
-      s.body.setScale(1,1+(distance<3?Math.sin(ai.phase)*0.035:Math.sin(ai.phase*2)*0.06));
+      s.body.setScale(1+(distance<3&&ai.activity===1?Math.sin(ai.phase)*0.055:0),1+(distance<3?Math.sin(ai.phase)*0.035:Math.sin(ai.phase*2)*0.06));
       s.nameTag?.setPosition(s.x,s.y-36).setDepth(10+s.y/100+0.1);
       s.indicator?.setPosition(s.x,s.y-55);
-      s.activityTag?.setPosition(s.x,s.y-49).setDepth(10+s.y/100+0.1).setVisible(distance<8).setText(routines[ai.activity]);
+      s.activityTag?.setPosition(s.x,s.y-49).setDepth(10+s.y/100+0.1).setVisible(ai.route.length===0).setText(routines[ai.activity]);
     });
   }
   update(_time:number,delta:number):void {
