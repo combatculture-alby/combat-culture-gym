@@ -640,13 +640,30 @@ class GymScene extends Phaser.Scene {
     const p=this.gatheringPositions.find((p,i)=>!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
     return p?this.collectNodeAt(p.x,p.y):false;
   }
+  private selectedClass=0;
   private openClassSchedule():void {
     const count=this.saveData.classesToday||0;
-    this.menuShell('CLASS SCHEDULE',count+'/2 CLASSES TAUGHT TODAY',()=>this.openTrainingBoard());
+    const remaining=Math.max(0,2-count);
+    this.menuShell('CLASS SCHEDULE',remaining+' of 2 class slots remaining today',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((program,i)=>{
-      const label=program.name+'  ('+program.stats.map(k=>CORE_STATS[k]).join(' + ')+')';
-      this.menuAction(label,84,76+i*36,310,()=>this.simulateClass(i),count>=2);
+      const selected=i===this.selectedClass;
+      const label=(selected?'› ':'')+program.name;
+      this.panelButton(this.furniturePanel,label,84,72+i*31,142,27,()=>{
+        this.selectedClass=i;
+        this.openClassSchedule();
+      },false,selected?0x527f74:0x355b5d);
     });
+    const program=CLASS_PROGRAMS[this.selectedClass];
+    const x=238;
+    this.furniturePanel.add(this.add.text(x,77,program.name.toUpperCase(),{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:'#ffe4b0'}));
+    this.furniturePanel.add(this.add.text(x,101,'Trains: '+program.stats.map(k=>CORE_STATS[k]).join(' + '),{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:155}}));
+    const gear=GEAR_ITEMS.filter((item,i)=>program.stats.includes(item.stat)&&this.saveData.ownedGear?.[i]);
+    this.furniturePanel.add(this.add.text(x,132,'Gear bonus: '+(gear.length?'ACTIVE':'NONE'),{fontFamily:UI_FONT,fontSize:'9px',color:gear.length?'#aee0b0':'#dbc2a3'}));
+    this.furniturePanel.add(this.add.text(x,148,'Reward: $15 + student XP',{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2'}));
+    this.panelButton(this.furniturePanel,remaining?'TEACH CLASS':'DAILY LIMIT',238,176,157,31,()=>{
+      if(remaining)this.simulateClass(this.selectedClass);
+    },!remaining,0x39735f);
+    this.furniturePanel.add(this.add.text(165,220,'Select a program, then teach it to your students.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
     this.furniturePanel.setVisible(true);
   }
   private simulateClass(index:number):void {
