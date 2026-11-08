@@ -1,12 +1,23 @@
+/// <reference types="vite/client" />
 import Phaser from 'phaser';
+import { GymCharacter, type Pose } from './characters';
+import { drawGym } from './gymWorld';
+import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
-const W = 480, H = 270, CELL = 12;
-const UI_FONT = 'Arial, Helvetica, sans-serif';
-type Point = { x: number; y: number };
-type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
+const W = 480, H = 270;
+const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
+type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'; fixture?:Phaser.GameObjects.Graphics };
+type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
+type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
+const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183}];
+const GEAR_BOUNDS=[{rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},{rx:14,ry:11},{rx:14,ry:10},{rx:13,ry:13},{rx:16,ry:12}];
+const NEAR=42;
+const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.y-b.y);
+const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
+const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -21,15 +32,29 @@ const statThreshold=(value:number):number=>value<20?30:value<40?55:value<60?90:v
 const initialStats=()=>Array.from({length:4},()=>[10,10,10,10]);
 const initialXP=()=>Array.from({length:4},()=>[0,0,0,0]);
 const initialGoals=()=>[[20,0],[25,2],[20,3],[25,1]];
-const SAVE_KEY = 'combat-culture-gym-v1';
-const blocks = [{ x: 368, y: 62, w: 38, h: 80 }, { x: 346, y: 180, w: 92, h: 34 }];
-const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 32 && y <= 215 &&
+const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
+const SAVE_KEY = PLAYTEST
+  ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
+const blocks = [{x:388,y:184,w:82,h:36},{x:345,y:109,w:111,h:13}];
+const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 75 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
 const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [] };
+function newSave():Save {
+  const save=JSON.parse(JSON.stringify(defaults)) as Save;
+  if(PLAYTEST){
+    Object.assign(save,{money:280,reputation:5,materials:[8,8,8],
+      ownedGear:[true,false,false,false,false,true,false,false],
+      gearPositions:[{x:78,y:121},{x:122,y:80},{x:179,y:80},{x:236,y:80},
+        {x:65,y:180},{x:261,y:137},{x:179,y:180},{x:236,y:180}],
+      furniture:[{kind:1,x:110,y:171,rotation:0,stored:false}]
+    });
+  }
+  return save;
+}
 function loadSave(): Save {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] };
+    if (!raw) return newSave();
     const data: unknown = JSON.parse(raw);
     if (!data || typeof data !== 'object') throw Error('invalid');
     const s = data as Partial<Save>;
@@ -39,12 +64,17 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(65,Math.min(285,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(187,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
-  } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+  } catch { return newSave(); }
 }
 
 class GymScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Container;
+  private coach!: GymCharacter;
+  private footprints:Footprint[]=[];
+  private stations:Station[]=[];
+  private navigation=new GymNavigation((x,y)=>this.canStand(x,y));
+  private targetRefresh=0;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private route: Point[] = [];
@@ -62,9 +92,18 @@ class GymScene extends Phaser.Scene {
   private tasks: Record<number,string> = {};
   private feedback!: Phaser.GameObjects.Text;
   private equipmentLabel!: Phaser.GameObjects.Text;
-  private walkingClock = 0;
   private decor!: Phaser.GameObjects.Graphics;
+  private worldFixtures:Phaser.GameObjects.Graphics[]=[];
+  private placementPreview!:Phaser.GameObjects.Graphics;
+  private placementHint!:Phaser.GameObjects.Text;
+  private buildMode=false;
+  private placementCursor:Point={x:168,y:144};
+  private keyboardPlacement=false;
+  private buildPage=0;
+  private stationTarget:'board'|'desk'|null=null;
+  private pickupTarget:Point|null=null;
   private studentCard!: Phaser.GameObjects.Text;
+  private cardTimer?:Phaser.Time.TimerEvent;
   private rosterPanel!: Phaser.GameObjects.Container;
   private rosterText!: Phaser.GameObjects.Text;
   private shopLabel!: Phaser.GameObjects.Text;
@@ -75,157 +114,214 @@ class GymScene extends Phaser.Scene {
   private furniturePanel!: Phaser.GameObjects.Container;
   private rotateControl!: Phaser.GameObjects.Container;
   private storeControl!: Phaser.GameObjects.Container;
-  private furnitureMode: 'shop'|'inventory'|'build' = 'shop';
-  private buildButtonText!: Phaser.GameObjects.Text;
-  private buildHint!: Phaser.GameObjects.Text;
+  private cancelControl!: Phaser.GameObjects.Container;
   private readonly classNames=['Beginner Boxing','Muay Thai Fundamentals','Conditioning'];
   private targetStudent: Student | null = null;
   private status!: Phaser.GameObjects.Text;
   private message!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
-  private students: Student[] = [
-    { name:'Frank', x:90, y:90, color:0xd9a06c, friendship:0, skill:0 },
-    { name:'Radish', x:245, y:104, color:0x8cbaaa, friendship:0, skill:0 },
-    { name:'Marshall', x:105, y:183, color:0xaaa4d5, friendship:0, skill:0 },
-    { name:'Pudge', x:275, y:183, color:0xe2bd77, friendship:0, skill:0 },
-  ];
+  private students: Student[] = ['Frank','Radish','Marshall','Pudge'].map((name,i)=>({
+    ...STUDENT_HOMES[i],name,friendship:0,skill:0,chatCooldown:12+i*5
+  }));
   constructor() { super('Gym'); }
   create(): void {
     this.saveData=loadSave();
-    this.students.forEach((s,i) => { s.friendship = this.saveData.friendships[i]; s.skill = this.saveData.skills[i]; });
-    const g = this.add.graphics();
-    g.fillStyle(0xc9ae86).fillRect(0,0,W,330);
-    // Warm timber wall, windows, posters, and a clear right-side control desk.
-    g.fillStyle(0x73563e).fillRect(0,0,480,31);
-    g.fillStyle(0xe4d3ac).fillRect(0,31,480,194);
-    g.fillStyle(0x927452).fillRect(0,224,480,106);
-    g.fillStyle(0x203b42).fillRoundedRect(333,34,139,292,7);
-    g.lineStyle(2,0xe1bc76).strokeRoundedRect(333,34,139,292,7);
-    g.fillStyle(0x86b8bd).fillRect(48,39,73,36);
-    g.fillStyle(0xe9d9b6).fillRect(82,39,4,36);
-    g.fillStyle(0xe9d9b6).fillRect(48,55,73,3);
-    g.fillStyle(0x36545b).fillRect(199,38,84,26);
-    g.fillStyle(0xe0c38c).fillRect(204,43,74,16);
-    g.fillStyle(0x6b4636).fillRect(0,216,330,9);
-    g.fillStyle(0x426f70).fillRect(32,78,286,132);
-    g.lineStyle(1,0x639596,0.7);
-    for(let x=32;x<=318;x+=32) g.lineBetween(x,78,x,210);
-    for(let y=78;y<=210;y+=32) g.lineBetween(32,y,318,y);
-    g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
-    g.fillStyle(0x342e2d).fillRect(367,57,40,6);
-    g.fillStyle(0xe0bc83).fillRect(367,140,40,4);
-    g.fillStyle(0x735a3d).fillRect(33,76,285,4);
-    g.fillStyle(0x254b4b).fillRoundedRect(341,148,106,25,4);
-    g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
-    g.fillStyle(0x765337).fillRect(346,180,92,34);
-    g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,302,'COMBAT CULTURE GYM | Prototype 8.2',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
-    this.decor=this.add.graphics().setDepth(1);
+    this.clearIntent();
+    this.targetRefresh=0;
+    this.buildMode=false;
+    this.buildPage=0;
+    this.placingGear=this.placingDecor=this.selectedFurniture=-1;
+    this.worldFixtures=[];
+    this.gatheringNodes=[];
+    drawGym(this);
     this.classOverlay=this.add.graphics().setDepth(2);
-    this.modeLabel=this.add.text(12,17,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
-    this.shopLabel=this.add.text(344,110,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.equipmentLabel=this.add.text(344,95,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
-    this.add.text(344,43,'GYM MANAGEMENT',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
-    // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
-    this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
-    for(const s of this.students) {
-      const skin = [0xc68c66,0xe5b08e,0x9c674c,0xe0bc91][this.students.indexOf(s)];
-      const hair = [0x29252a,0x503329,0x171a22,0x755039][this.students.indexOf(s)];
-      s.body = this.makeCharacter(s.x,s.y,s.color,skin,hair,0x354e56,false);
-      this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
-      s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
-    }
-    this.status = this.add.text(341,52,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}}).setDepth(10);
-    this.studentCard=this.add.text(12,16,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(10).setVisible(false);
-    this.message = this.add.text(12,237,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
-    this.timer = this.add.text(12,225,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
+    this.modeLabel=this.add.text(12,5,PLAYTEST?'PLAYTEST':'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(30);
+    this.shopLabel=this.add.text(0,0,'',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
+    this.equipmentLabel=this.add.text(0,0,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px'}).setVisible(false);
+    this.coach=new GymCharacter(this,170,150,0);
+    this.player=this.coach.body;
+    this.students.forEach((student,i)=>{
+      Object.assign(student,STUDENT_HOMES[i],{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
+      student.actor=new GymCharacter(this,student.x,student.y,i+1);
+      student.routine=this.idleRoutine(student,1+i);
+      student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
+    });
+    this.status = this.add.text(111,5,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(30);
+    this.studentCard=this.add.text(12,25,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(34).setVisible(false);
+    this.message = this.add.text(12,228,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:447}}).setDepth(30);
+    this.timer = this.add.text(12,211,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.buildHint=this.add.text(12,285,'Arrange decorations from MANAGE GYM > BUILD',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(341,133,124,24,'MANAGE GYM',() => this.openGymUpgrades());
-    this.addButton(341,165,124,24,'CLOSE GYM / NEXT DAY',() => this.nextDay());
-    this.add.text(344,201,'DAILY ACTIVITIES',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
-    this.add.text(344,216,'Each activity once per day',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
-    this.addButton(341,239,60,19,'CLASS RUSH',()=>this.openArcade('Rush'));
-    this.addButton(405,239,60,19,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(341,263,60,19,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(405,263,60,19,'DEFENSE',()=>this.openArcade('Defense'));
-    this.addButton(341,287,60,19,'COMPETE',()=>this.openArcade('Competition'));
-    this.addButton(405,287,60,19,'S&C',()=>this.openArcade('Conditioning'));
-    this.dailyStatus=this.add.text(344,310,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#e7e3d4'});
-    const panelBack=this.add.rectangle(34,26,294,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
-    this.rosterText=this.add.text(44,35,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
+    this.add.text(12,288,'TAP FLOOR TO WALK  •  TAP A STUDENT OR STATION TO INTERACT',{fontFamily:UI_FONT,fontSize:'9px',color:'#c2b79f'});
+    this.add.text(12,304,'WASD MOVE   E INTERACT   M BUILD',{fontFamily:UI_FONT,fontSize:'8px',color:'#859e98'});
+    this.addButton(390,252,78,29,'BUILD',()=>this.toggleBuildMode());
+    this.addButton(306,252,78,29,'ROSTER',()=>this.toggleRoster());
+    this.cancelControl=this.addButton(222,252,78,29,'CANCEL',()=>this.cancelPlacement()).setVisible(false);
+
+
+    this.dailyStatus=this.add.text(325,5,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#f5e8cc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setDepth(30);
+    const panelBack=this.add.rectangle(67,24,346,222,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    this.rosterText=this.add.text(83,39,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',lineSpacing:4});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(80).setVisible(false);
     this.furniturePanel=this.add.container(0,0).setDepth(60).setVisible(false);
-    // Legacy decoration controls still update this label; keep it initialized without exposing a duplicate button.
-    this.buildButtonText=this.add.text(0,0,'BUILD',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
-    this.rotateControl=this.makeActionControl(36,238,'ROTATE',()=>this.rotateFurniture());
-    this.storeControl=this.makeActionControl(112,238,'STORE',()=>this.storeFurniture());
+    this.placementPreview=this.add.graphics().setDepth(45);
+    this.placementHint=this.add.text(240,219,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40',padding:{x:5,y:3}}).setOrigin(0.5).setDepth(46).setVisible(false);
+    this.rotateControl=this.addButton(12,252,69,29,'ROTATE',()=>this.rotateFurniture());
+    this.storeControl=this.addButton(87,252,69,29,'STORE',()=>this.storeSelection());
     this.updateFurnitureActions();
     this.refresh();
-    this.drawGatheringNodes();
+    this.recoverActors();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
-    this.input.keyboard!.on('keydown-E',() => this.collectNearby() || this.interact());
-    this.input.keyboard!.on('keydown-C',() => this.openArcade('Rush'));
-    this.input.keyboard!.on('keydown-P',()=>this.openArcade('Rhythm'));
-    this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
-    this.input.keyboard!.on('keydown-N',() => this.nextDay());
-    this.input.keyboard!.on('keydown-R',() => this.reset());
-    this.input.keyboard!.on('keydown-B',() => this.openGymUpgrades());
+    this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
+    this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
+    this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
+    this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
+    this.input.keyboard!.on('keydown-N',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.nextDay();});
+    this.input.keyboard!.on('keydown-B',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.openGymUpgrades();});
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
-    this.input.keyboard!.on('keydown-M',() => this.openFurniture('build'));
+    this.input.keyboard!.on('keydown-M',()=>this.toggleBuildMode());
+    this.input.keyboard!.on('keydown-ENTER',()=>this.confirmPlacement());
+    this.input.keyboard!.on('keydown-SPACE',()=>this.confirmPlacement());
+    this.input.keyboard!.on('keydown-UP',()=>this.movePlacement(0,-6));
+    this.input.keyboard!.on('keydown-DOWN',()=>this.movePlacement(0,6));
+    this.input.keyboard!.on('keydown-LEFT',()=>this.movePlacement(-6,0));
+    this.input.keyboard!.on('keydown-RIGHT',()=>this.movePlacement(6,0));
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
-    this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
-    this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
+    this.input.keyboard!.on('keydown-X',() => this.storeSelection());
+    this.input.keyboard!.on('keydown-ESC',()=>{
+      if(this.rosterPanel.visible)this.rosterPanel.setVisible(false);
+      else if(this.furniturePanel.visible)this.closePanel();
+      else if(this.buildMode||this.isPlacing())this.cancelPlacement();
+    });
+    this.input.on('pointermove',(p:Phaser.Input.Pointer)=>{if(!p.wasTouch&&this.isPlacing())this.keyboardPlacement=false;});
+    this.input.on('pointerdown',(p:Phaser.Input.Pointer,targets:Phaser.GameObjects.GameObject[]) => {
+      if(targets.length)return;
+      this.clearIntent();
       // Keep world clicks from passing through open management panels.
       if(this.rosterPanel.visible){this.rosterPanel.setVisible(false);return;}
       if(this.furniturePanel.visible) return;
-      if(this.placingGear>=0){if(p.worldX<330&&p.worldY>=32&&p.worldY<=215)this.placeGear(p.worldX,p.worldY);return;}
-      if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
+      if(this.placingGear>=0){this.placeGear(p.worldX,p.worldY);return;}
+      if(this.selectedFurniture>=0) {this.placeFurniture(p.worldX,p.worldY);return;}
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
-      if(p.worldX >= 330 || p.worldY >= 225) return;
-      if(this.collectNodeAt(p.worldX,p.worldY))return;
-      const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
-      if(student) {
-        if(Phaser.Math.Distance.Between(this.player.x,this.player.y,student.x,student.y) < 42) this.interact(student);
-        else { this.targetStudent = student; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:student.x-24,y:student.y+10}); }
-      } else { this.targetStudent = null; this.route = this.findRoute({x:this.player.x,y:this.player.y},{x:p.worldX,y:p.worldY}); }
+      if(this.buildMode&&p.worldX<330&&p.worldY<220){
+        const fi=(this.saveData.furniture||[]).findIndex(item=>!item.stored&&Math.abs(item.x-p.worldX)<25&&Math.abs(item.y-p.worldY)<22);
+        if(fi>=0){this.selectFurniture(fi);return;}
+        const gi=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
+          const pos=this.saveData.gearPositions?.[i];
+          return owned&&!this.saveData.gearStored?.[i]&&pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
+        });
+        if(gi>=0){this.beginGearPlacement(gi);return;}
+        this.say('Click an item to move, or press M for inventory.');return;
+      }
+      if(p.worldY >= 225) return;
+      if(this.useStationAt(p.worldX,p.worldY))return;
+      const student=[...this.students].sort((a,b)=>b.y-a.y).find(s=>
+        Math.abs(s.x-p.worldX)<15&&p.worldY>=s.y-33&&p.worldY<=s.y+8);
+      if(student){
+        if(distance(this.player,student)<NEAR)this.interact(student);
+        else{
+          this.targetStudent=student;
+          this.targetRefresh=0;
+          this.followStudent();
+        }
+      }else if(!this.collectNodeAt(p.worldX,p.worldY)){
+        this.route=this.playerRoute({x:p.worldX,y:p.worldY});
+      }
     });
   }
-  private makeCharacter(x:number,y:number,shirt:number,skin:number,hair:number,shorts:number,owner:boolean):Phaser.GameObjects.Container {
-    const parts: Phaser.GameObjects.GameObject[] = [];
-    const rect=(px:number,py:number,w:number,h:number,color:number) => {
-      parts.push(this.add.rectangle(px,py,w,h,color).setStrokeStyle(1,0x283137));
-    };
-    parts.push(this.add.ellipse(0,14,23,6,0x193b3c,0.3));
-    rect(-5,13,6,7,skin); rect(5,13,6,7,skin);
-    rect(0,5,21,14,shorts);
-    rect(-12,-5,6,15,skin); rect(12,-5,6,15,skin);
-    rect(0,-5,21,19,shirt);
-    rect(0,-21,22,19,skin);
-    rect(0,-30,23,8,hair);
-    rect(-8,-25,6,10,hair);
-    if(owner) {
-      rect(0,-27,24,4,0xc82f31);
-      rect(0,-5,8,8,0xc97c36);
-      rect(-6,5,5,3,0xd6b36e); rect(6,5,5,3,0xd6b36e);
-    } else {
-      rect(-5,-21,2,2,0x302a2a); rect(5,-21,2,2,0x302a2a);
+  private clearIntent():void {
+    this.route=[];
+    this.targetStudent=null;
+    this.stationTarget=null;
+    this.pickupTarget=null;
+  }
+  private playerRoute(goal:Point,exact=false):Point[] {
+    return this.navigation.route(this.player,goal,(x,y)=>this.students.every(s=>!closeFeet(s,{x,y})),exact);
+  }
+  private followStudent():void {
+    const student=this.targetStudent;
+    if(!student)return;
+    if(distance(this.player,student)<NEAR){
+      this.clearIntent();
+      this.interact(student);
+      return;
     }
-    return this.add.container(x,y,parts);
+    const approaches=[[-25,0],[25,0],[0,17],[0,-17]].map(([dx,dy])=>({x:student.x+dx,y:student.y+dy}));
+    approaches.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+    this.route=[];
+    for(const goal of approaches){
+      this.route=this.playerRoute(goal,true);
+      if(this.route.length)break;
+    }
+    this.targetRefresh=0.45;
   }
-  private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Text {
-    const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
-    const t=this.add.text(x+w/2,y-h/2,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
-    b.on('pointerdown',()=>{playGymCue('tap');fn();}); t.on('pointerdown',()=>{playGymCue('tap');fn();});
-    return t;
+  private useStationAt(x:number,y:number):boolean {
+    const board=x>=344&&x<=457&&y>=49&&y<=122;
+    const desk=x>=390&&x<=470&&y>=158&&y<=224;
+    if(!board&&!desk)return false;
+    const anchor=board?{x:348,y:145}:{x:375,y:198};
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,anchor.x,anchor.y)>43){
+      this.route=this.playerRoute(anchor,true);
+      if(!this.route.length){this.say('The path to the station is blocked.');return true;}
+      this.stationTarget=board?'board':'desk';
+      this.say('Walking to '+(board?'training board':'reception computer')+'.');
+      return true;
+    }
+    this.stationTarget=null;
+    if(board)this.openTrainingBoard();else this.openGymUpgrades();
+    return true;
   }
-  private makeActionControl(x:number,y:number,label:string,fn:()=>void):Phaser.GameObjects.Container {
-    const bg=this.add.rectangle(0,0,69,18,0x294f52).setOrigin(0).setStrokeStyle(1,0xd5b786).setInteractive();
-    const t=this.add.text(34,9,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
-    bg.on('pointerdown',()=>{playGymCue('tap');fn();});t.on('pointerdown',fn);
-    return this.add.container(x,y,[bg,t]).setDepth(25);
+  private useNearbyStation():boolean {
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,375,198)<48){this.openGymUpgrades();return true;}
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,348,145)<48){this.openTrainingBoard();return true;}
+    return false;
+  }
+  private menuShell(title:string,subtitle:string,back:()=>void):void {
+    this.furniturePanel.removeAll(true);
+    const p=this.furniturePanel;
+    p.add(this.add.rectangle(67,24,346,222,0x152b30).setOrigin(0).setStrokeStyle(2,0xc7a579));
+    p.add(this.add.rectangle(71,28,338,34,0x29494c).setOrigin(0));
+    p.add(this.add.text(83,34,title,{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#fff1d5'}));
+    p.add(this.add.text(83,52,subtitle,{fontFamily:UI_FONT,fontSize:'8px',color:'#a8c9c4'}));
+    const close=this.add.text(381,35,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:5,y:2}}).setInteractive({useHandCursor:true});
+    close.on('pointerdown',()=>this.closePanel());p.add(close);
+    const backBtn=this.add.text(84,225,'< BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
+    backBtn.on('pointerdown',back);p.add(backBtn);
+    p.setVisible(true);
+  }
+  private menuAction(label:string,x:number,y:number,w:number,fn:()=>void,muted=false):void {
+    const p=this.furniturePanel;
+    const rect=this.add.rectangle(x,y,w,29,muted?0x365254:0x355b5d).setOrigin(0).setStrokeStyle(1,0x6f9590).setInteractive({useHandCursor:true});
+    const labelText=this.add.text(x+9,y+7,label,{fontFamily:UI_FONT,fontSize:'10px',color:muted?'#b7c3bc':'#fff0d3'});
+    rect.on('pointerover',()=>rect.setFillStyle(0x527776));
+    rect.on('pointerout',()=>rect.setFillStyle(muted?0x365254:0x355b5d));
+    rect.on('pointerdown',fn);p.add([rect,labelText]);
+  }
+  private openTrainingBoard():void {
+    if(this.running)return;
+    this.clearIntent();
+    this.menuShell('TRAINING BOARD','CLASSES  /  PRACTICE  /  STUDENTS',()=>this.furniturePanel.setVisible(false));
+    this.menuAction('SCHEDULE CLASSES',84,74,149,()=>this.openClassSchedule());
+    this.menuAction('STUDENT GOALS',245,74,149,()=>this.showStudentGoals());
+    const games:[string,TrainingMode][]=[
+      ['CLASS RUSH','Rush'],['PAD WORK','Rhythm'],['BAG WORK','Memory'],
+      ['DEFENSE','Defense'],['SPARRING','Competition'],['AGILITY','Conditioning']
+    ];
+    games.forEach(([name,mode],i)=>this.menuAction(name,84+(i%2)*161,114+Math.floor(i/2)*34,149,()=>this.openArcade(mode),this.saveData.playedActivities?.[mode]===this.saveData.day));
+  }
+  private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Container {
+    const bg=this.add.rectangle(0,0,w,h,0x294f52).setOrigin(0).setStrokeStyle(1,0xbd9f71).setInteractive({useHandCursor:true});
+    const text=this.add.text(w/2,h/2,label,{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#f4e8cf'}).setOrigin(0.5);
+    bg.on('pointerdown',(_pointer:Phaser.Input.Pointer,_x:number,_y:number,event:Phaser.Types.Input.EventData)=>{
+      event.stopPropagation();
+      if(this.furniturePanel.visible||this.rosterPanel.visible)return;
+      playGymCue('tap');fn();
+    });
+    return this.add.container(x,y,[bg,text]).setDepth(32);
+  }
+  private closePanel():void {
+    this.furniturePanel.setVisible(false);
+    this.buildMode=false;
   }
   private persist():void {
     this.saveData.friendships=this.students.map(s=>s.friendship);
@@ -236,20 +332,33 @@ class GymScene extends Phaser.Scene {
   private gatheringNodes:Phaser.GameObjects.Container[]=[];
   private placingGear=-1;
   private refresh():void {
-    this.status.setText(['DAY '+this.saveData.day+'  |  $'+this.saveData.money,'REP '+this.saveData.reputation+'  |  CLASSES '+(this.saveData.classesTaught||0)]);
+    this.status.setText('DAY '+this.saveData.day+'  $'+this.saveData.money+'  REP '+this.saveData.reputation);
     const level=this.saveData.equipment||0;
     this.equipmentLabel.setText('GEAR '+level+'/3 | '+(level===3?'MAXED':'$'+(40+level*35)));
     const decor=this.saveData.decorLevel||0;
     this.shopLabel.setText('DECOR '+decor+'/3 '+(decor===3?'MAX':'$'+(25+decor*25)));
     this.drawEquipment();
     this.drawGatheringNodes();
-    this.dailyStatus.setText('GAMES '+(['Rush','Rhythm','Memory','Defense','Competition','Conditioning'] as TrainingMode[]).filter(m=>this.saveData.playedActivities?.[m]===this.saveData.day).length+'/2 | CLASS '+(this.saveData.classesToday||0)+'/2');
+    this.dailyStatus.setText('G '+(['Rush','Rhythm','Memory','Defense','Competition','Conditioning'] as TrainingMode[]).filter(m=>this.saveData.playedActivities?.[m]===this.saveData.day).length+'/2  C '+(this.saveData.classesToday||0)+'/2');
   }
   private drawEquipment():void {
-    this.decor.clear();
+    this.footprints=this.solidFootprints();
+    this.navigation.rebuild();
+    this.stations=[];
+    this.worldFixtures.forEach(g=>g.destroy());this.worldFixtures=[];
+    const layer=(y:number):void=>{
+      const g=this.add.graphics().setDepth(10+y/100-0.05);
+      this.worldFixtures.push(g);this.decor=g;
+    };
     (this.saveData.furniture||[]).forEach((item,i)=>{
+      if(!item.stored)layer(item.y+this.furnitureSize(item).ry*0.6);
       if(item.stored) return;
+      if(item.kind===1||item.kind===3||item.kind===4)this.stations.push({
+        ...item,...this.furnitureSize(item),id:'furniture-'+i,pose:item.kind===4?'bag':'rest',
+        fixture:item.kind===4?this.decor:undefined
+      });
       const x=item.x,y=item.y,side=item.rotation%2===1;
+      this.decor.fillStyle(0x1b3439,0.2).fillEllipse(x,y+7,side?27:44,11);
       this.decor.fillStyle([0xf3d48b,0x735b48,0xb08b56,0x7cc2cc,0x9e5148][item.kind]);
       if(item.kind===0) { // Side-view lamp: the shade and base turn with the furniture.
         const dx=[0,14,0,-14][item.rotation],dy=[-14,0,14,0][item.rotation];
@@ -259,24 +368,39 @@ class GymScene extends Phaser.Scene {
         this.decor.fillStyle(0xffdf84).fillCircle(x+dx,y+dy,9);
         this.decor.fillStyle(0xe6a75c).fillRect(x+dx-7,y+dy+3,14,3);
       }
-      else if(item.kind===1) this.decor.fillRoundedRect(x-(side?7:20),y-(side?20:7),side?14:40,side?40:14,3);
-      else if(item.kind===2) this.decor.fillRect(x-(side?9:16),y-(side?16:9),side?18:32,side?32:18);
-      else if(item.kind===3) {this.decor.fillRect(x-9,y-17,18,30);this.decor.fillStyle(0xe4f7fa).fillRect(x-6,y-14,12,8);}
-      else {this.decor.fillRoundedRect(x-9,y-20,18,38,6);this.decor.fillStyle(0x30353b).fillRect(x-3,y-24,6,5);}
+      else if(item.kind===1) {
+        this.decor.fillStyle(0x503d32).fillRoundedRect(x-(side?8:21),y-(side?21:8),side?16:42,side?42:16,3);
+        this.decor.fillStyle(0x9e7c5a).fillRoundedRect(x-(side?6:19),y-(side?19:6),side?12:38,side?38:12,2);
+        this.decor.fillStyle(0xc9a479).fillRect(x-(side?4:15),y-(side?16:4),side?8:30,side?32:8);
+        this.decor.fillStyle(0x775444).fillRect(x-(side?5:17),y-(side?16:1),side?1:34,side?32:1);
+        this.decor.fillStyle(0xe0b887).fillRect(x-(side?4:17),y-(side?17:5),side?1:34,side?32:1);
+      }
+      else if(item.kind===2) {
+        this.decor.fillStyle(0x654c3a).fillRect(x-(side?10:17),y-(side?17:10),side?20:34,side?34:20);
+        this.decor.fillStyle(0xc09c6b).fillRect(x-(side?8:15),y-(side?15:8),side?16:30,side?30:16);
+        this.decor.fillStyle(0x7e6347).fillRect(x-(side?3:12),y-(side?12:3),side?6:24,side?24:6);
+      }
+      else if(item.kind===3) {this.decor.fillStyle(0x547f85).fillRect(x-10,y-19,20,33);this.decor.fillStyle(0xc3e5df).fillRect(x-7,y-16,14,11);this.decor.fillStyle(0x8fbdb7).fillRect(x-5,y-14,10,7);this.decor.fillStyle(0x3a575a).fillRect(x-5,y+5,10,4);}
+      else {this.decor.fillStyle(0x34373a).fillRoundedRect(x-10,y-21,20,40,6);this.decor.fillStyle(0xa7554a).fillRoundedRect(x-8,y-17,16,31,5);this.decor.fillStyle(0xd5a77d).fillRect(x-8,y-11,16,3);this.decor.fillStyle(0x30353b).fillRect(x-3,y-25,6,5);}
       if(this.selectedFurniture===i) this.decor.lineStyle(2,0xffe08a).strokeRect(x-24,y-27,48,54);
     });
     const level=this.saveData.equipment||0;
     if(level>=1) {
+      layer(95);
+      this.stations.push({x:308,y:82,rx:9,ry:13,id:'legacy-bag',pose:'bag',fixture:this.decor});
       this.decor.fillStyle(0x8e3834).fillRoundedRect(302,63,13,38,3);
       this.decor.fillStyle(0x242a2b).fillRect(305,60,7,4);
       this.decor.lineStyle(1,0xd5b88a).lineBetween(308,53,308,60);
     }
     if(level>=2) {
+      layer(150);
+      this.stations.push({x:310,y:150,rx:15,ry:9,id:'legacy-weights',pose:'lift'});
       this.decor.fillStyle(0x343b40).fillRect(302,147,17,6);
       this.decor.fillStyle(0xd2ae6e).fillRect(298,143,5,14);
       this.decor.fillStyle(0xd2ae6e).fillRect(318,143,5,14);
     }
     if(level>=3) {
+      layer(60);
       this.decor.fillStyle(0x733e36).fillRect(45,43,45,5);
       this.decor.fillStyle(0xe5d1a0).fillRect(49,44,37,2);
       this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
@@ -284,79 +408,124 @@ class GymScene extends Phaser.Scene {
     }
     // New equipment purchases appear as compact floor fixtures.
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-      if(!owned)return;
+      if(!owned||this.saveData.gearStored?.[i])return;
       const pos=this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
-      this.decor.fillStyle([0x9c5146,0xd6a66c,0x7eaaa5,0xd3c17c,0x6b7383,0xa7a46d,0x587b88,0x7a8e9b][i]);
-      this.decor.fillRoundedRect(x-9,y-8,18,16,3);
-      this.decor.lineStyle(1,0xf0dfbc).strokeRoundedRect(x-9,y-8,18,16,3);
-      this.decor.fillStyle(0x243b3e).fillRect(x-4,y-2,8,4);
+      layer(y+GEAR_BOUNDS[i].ry*0.6);
+      // Distinct, readable pixel silhouettes instead of eight identical boxes.
+      const g=this.decor;
+      if([0,2,4,5].includes(i))this.stations.push({
+        x,y,...GEAR_BOUNDS[i],id:'gear-'+i,pose:i<4?'bag':'lift',fixture:i<4?g:undefined
+      });
+      g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
+      if(i===0){ // Heavy bag
+        g.fillStyle(0x2c3335).fillRect(x-2,y-25,4,8);
+        g.fillStyle(0x493339).fillRect(x-8,y-19,16,28).fillRect(x-10,y-16,20,21);
+        g.fillStyle(0xa04a40).fillRect(x-7,y-18,14,25).fillRect(x-8,y-16,16,20);
+        g.fillStyle(0xbd6854).fillRect(x-7,y-13,3,15);
+        g.fillStyle(0x7d413b).fillRect(x+5,y-13,3,16);
+        g.fillStyle(0xd0a777).fillRect(x-9,y-15,18,3);
+        g.fillStyle(0x733b35).fillRect(x-8,y+3,16,3);
+        g.fillStyle(0xe9bd86).fillRect(x-2,y-8,4,1).fillRect(x-3,y-7,6,4).fillRect(x-2,y-3,4,1);
+      }else if(i===1){ // Thai pads
+        g.fillStyle(0x674534).fillRect(x-13,y-4,26,10);
+        g.fillStyle(0xc8915c).fillRoundedRect(x-12,y-10,11,16,3);
+        g.fillStyle(0xc8915c).fillRoundedRect(x+1,y-10,11,16,3);
+        g.fillStyle(0x543b34).fillRect(x-8,y-7,4,11);
+        g.fillStyle(0x543b34).fillRect(x+5,y-7,4,11);
+      }else if(i===2){ // Speed bag
+        g.fillStyle(0x343e43).fillRect(x-2,y-23,4,13);
+        g.fillStyle(0x3b4b50).fillRect(x-12,y-23,24,4);
+        g.fillStyle(0x8b463d).fillRoundedRect(x-6,y-11,12,15,5);
+        g.fillStyle(0xc28e62).fillRect(x-4,y-9,8,2);
+      }else if(i===3){ // Jump rope
+        g.lineStyle(3,0xc5a15b).strokeEllipse(x,y-2,24,16);
+        g.fillStyle(0x34575b).fillRect(x-14,y-5,6,4);
+        g.fillStyle(0x34575b).fillRect(x+8,y-5,6,4);
+      }else if(i===4){ // Bench
+        g.fillStyle(0x353d47).fillRoundedRect(x-13,y-10,26,9,2);
+        g.fillStyle(0x8c989d).fillRect(x-10,y-1,4,12);
+        g.fillStyle(0x8c989d).fillRect(x+6,y-1,4,12);
+        g.fillStyle(0x222c31).fillRect(x-12,y+8,24,3);
+      }else if(i===5){ // Kettlebells
+        for(const dx of [-7,7]){
+          g.lineStyle(3,0x394c4c).strokeRect(x+dx-4,y-12,8,7);
+          g.fillStyle(0x617d76).fillRoundedRect(x+dx-7,y-6,14,14,4);
+          g.fillStyle(0xa7b4a4).fillRect(x+dx-4,y-4,4,3);
+        }
+      }else if(i===6){ // Treadmill
+        g.fillStyle(0x3b4c53).fillRect(x-12,y-6,24,15);
+        g.fillStyle(0x758c91).fillRect(x-9,y-3,18,9);
+        g.fillStyle(0x30383b).fillRect(x-12,y-20,4,17);
+        g.fillStyle(0x30383b).fillRect(x+8,y-20,4,17);
+        g.fillStyle(0x80b9b1).fillRect(x-9,y-22,18,5);
+      }else{ // Assault bike
+        g.lineStyle(3,0x445c61).strokeCircle(x-9,y+3,7);
+        g.lineStyle(3,0x445c61).strokeCircle(x+9,y+3,7);
+        g.lineStyle(3,0x8da8a1).lineBetween(x-9,y+3,x+1,y-11);
+        g.lineBetween(x+1,y-11,x+9,y+3);
+        g.fillStyle(0x364f50).fillRect(x-3,y-14,13,4);
+        g.fillStyle(0xb99d6f).fillRect(x-13,y-17,12,3);
+      }
       if(this.placingGear===i)this.decor.lineStyle(2,0xffe08a).strokeRect(x-12,y-11,24,22);
     });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
     if(decor>=1) {
       const p=pos[0];
+      layer(p.y);
       this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
       this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
       this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
     }
     if(decor>=2) {
       const p=pos[1];
+      layer(p.y);
       this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
       this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
       this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
     }
     if(decor>=3) {
       const p=pos[2];
+      layer(p.y);
       this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
       this.decor.fillStyle(0x4d885c).fillCircle(p.x,p.y-11,12);
       this.decor.fillStyle(0x7ca76d).fillCircle(p.x-5,p.y-14,5);
     }
     if(this.placingDecor>=0) {
       const p=pos[this.placingDecor];
+      layer(p.y);
       this.decor.lineStyle(2,0xffe08a).strokeRect(p.x-27,p.y-22,54,42);
     }
+
   }
   private openGymUpgrades():void {
     if(this.running)return;
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,8,292,254,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(44,40,'MANAGE GYM',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
-    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
-    close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
+    this.clearIntent();
+    this.menuShell('RECEPTION COMPUTER','GYM MANAGEMENT  /  DAY '+this.saveData.day,()=>this.furniturePanel.setVisible(false));
     const actions:[string,()=>void][]=[
-      ['TRAINING EQUIPMENT',()=>this.openGearShop()],
-      ['GYM DECORATIONS',()=>this.openUpgradePurchase('decor')],
+      ['TRAINING GEAR',()=>this.openGearShop()],
+      ['DECORATIONS',()=>this.openUpgradePurchase('decor')],
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
-      ['BUILD / ARRANGE ITEMS',()=>this.openFurniture('build')],
+      ['BUILD / ARRANGE',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
-      ['SCHEDULE CLASSES',()=>this.openClassSchedule()],
-      ['STUDENT GOALS',()=>this.showStudentGoals()],
       ['MATERIALS / CRAFT',()=>this.openMaterials()],
-      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.time.delayedCall(1,()=>{this.rosterPanel.setDepth(80);this.toggleRoster();});}]
+      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.time.delayedCall(1,()=>{this.rosterPanel.setDepth(80);this.toggleRoster();});}],
+      ['NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}]
     ];
-    actions.forEach(([label,fn],i)=>{
-      const row=this.add.text(48,47+i*23,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
-      row.on('pointerdown',fn);this.furniturePanel.add(row);
-    });
-    this.furniturePanel.setVisible(true);
+    actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
   }
   private addShopInventory(y:number):void {
     const stock=this.saveData.materials||[0,0,0];
     const label='YOU HAVE  USD '+this.saveData.money+'  |  '+MATERIAL_NAMES.map((name,i)=>name+' '+(stock[i]||0)).join('  ');
-    this.furniturePanel.add(this.add.rectangle(33,y-4,294,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
-    this.furniturePanel.add(this.add.text(38,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.furniturePanel.add(this.add.rectangle(80,y-4,319,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
+    this.furniturePanel.add(this.add.text(84,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
   }
   private openGearShop():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,8,310,254,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,15,'TRAINING EQUIPMENT',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,15,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    this.menuShell('TRAINING EQUIPMENT','PURCHASE  /  PLACE  /  UPGRADE',()=>this.openGymUpgrades());
     GEAR_ITEMS.forEach((gear,i)=>{
       const owned=this.saveData.ownedGear?.[i]===true;
-      const line=this.add.text(37,40+i*24,gear.name+'  '+(owned?'[MOVE]':'USD '+gear.cost+' / '+materialCost(GEAR_MATERIALS[i])),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:4,y:4}}).setInteractive({useHandCursor:true});
+      const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?'[MOVE]':'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
         if(owned){this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
@@ -365,43 +534,46 @@ class GymScene extends Phaser.Scene {
         this.saveData.materials=spendMaterials(this.saveData.materials,GEAR_MATERIALS[i]);
         if(!this.saveData.ownedGear)this.saveData.ownedGear=Array(8).fill(false);
         this.saveData.ownedGear[i]=true;
-        this.persist();this.refresh();this.beginGearPlacement(i);
-        this.say('Purchased '+gear.name+'. Click the gym floor to place it.');
+        if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
+        this.saveData.gearStored[i]=true;
+        this.persist();this.refresh();this.furniturePanel.setVisible(false);
+        this.say('Purchased '+gear.name+'! Open Build to place it.');
       });this.furniturePanel.add(line);
     });
-    this.addShopInventory(240);
+    this.addShopInventory(189);
+    this.menuAction('GYM UPGRADES',245,213,149,()=>this.openUpgradePurchase('equipment'));
     this.furniturePanel.setVisible(true);
   }
   private beginGearPlacement(index:number):void {
+    this.clearIntent();
     this.placingGear=index;
-    this.selectedFurniture=-1;this.placingDecor=-1;
+    this.selectedFurniture=-1;this.placingDecor=-1;this.buildMode=true;
+    const pos=this.saveData.gearPositions?.[index];this.placementCursor=pos&&!this.saveData.gearStored?.[index]?{...pos}:{x:168,y:144};this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
+    this.updateFurnitureActions();
     this.drawEquipment();
-    this.say('Placing '+GEAR_ITEMS[index].name+': click an open spot on the mat.');
+    this.say('Placing '+GEAR_ITEMS[index].name+'. Tap a clear spot on the mat.');
   }
   private placeGear(x:number,y:number):void {
     if(this.placingGear<0)return;
-    if(x<65||x>285||y<75||y>187){this.say('Place equipment inside the mat.');return;}
-    if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<25)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<25){this.say('Choose a spot away from people.');return;}
-    const occupied=(this.saveData.gearPositions||[]).some((p,i)=>i!==this.placingGear&&this.saveData.ownedGear?.[i]&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<24);
-    if(occupied){this.say('Too close to another piece of equipment.');return;}
+    x=roundPlacement(x);y=roundPlacement(y);
+    const {rx,ry}=GEAR_BOUNDS[this.placingGear];
+    if(!this.validPlacement(x,y,rx,ry,this.placingGear)){this.say('Choose a clear spot inside the mat.');return;}
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
-    this.saveData.gearPositions[this.placingGear]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
+    this.saveData.gearPositions[this.placingGear]={x,y};
     const name=GEAR_ITEMS[this.placingGear].name;
-    this.placingGear=-1;this.persist();this.refresh();
-    this.say(name+' placed. Open Training Equipment to move it again.');
+    if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
+    this.saveData.gearStored[this.placingGear]=false;
+    this.placingGear=-1;this.keyboardPlacement=false;this.buildMode=false;this.updateFurnitureActions();this.persist();this.refresh();
+    this.say(name+' placed. Use Build to move it again.');
   }
   private openMaterials():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,38,'MATERIALS & CRAFTING',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
-    this.furniturePanel.add(this.add.text(36,70,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.menuShell('MATERIALS & CRAFT','GATHER  /  CONVERT  /  EARN',()=>this.openGymUpgrades());
+    this.furniturePanel.add(this.add.text(84,76,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
     const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
       const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
-      const item=this.add.text(36,107+i*51,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:5},wordWrap:{width:275}}).setInteractive();
+      const item=this.add.text(84,108+i*47,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6},wordWrap:{width:302}}).setInteractive();
       item.on('pointerdown',()=>{
         const stock=this.saveData.materials||[0,0,0];
         if(recipe.cost.some((amount,j)=>stock[j]<amount)){this.say('Gather more materials to craft this.');return;}
@@ -421,8 +593,19 @@ class GymScene extends Phaser.Scene {
     this.gatheringPositions.forEach((pos,i)=>{
       if(this.saveData.gatheredToday?.includes(i))return;
       const g=this.add.graphics();
-      g.fillStyle([0xa8a6a0,0xa27851,0xc3a58a][this.resourceKind(i)]).fillRoundedRect(-6,-5,12,10,2);
-      g.lineStyle(1,0xf4e6c7).strokeRect(-5,-4,10,8);
+      g.fillStyle(0x263e3c,0.4).fillEllipse(0,3,15,5);
+      const material=this.resourceKind(i);
+      if(material===0){
+        g.fillStyle(0x4b5556).fillRect(-6,-4,8,6).fillRect(2,-2,4,6);
+        g.fillStyle(0xbcc6ba).fillRect(-5,-3,6,2).fillRect(3,-1,2,3);
+      }else if(material===1){
+        g.fillStyle(0x855e48).fillRect(-7,-2,14,5).fillRect(-4,-5,9,4);
+        g.fillStyle(0xe6b47c).fillRect(-6,-2,12,2).fillRect(-3,-5,7,2);
+      }else{
+        g.fillStyle(0x886b66).fillRect(-6,-4,12,7);
+        g.fillStyle(0xd9a899).fillRect(-5,-3,10,5);
+        g.fillStyle(0xf1d7ab).fillRect(-1,-4,2,7);
+      }
       const node=this.add.container(pos.x,pos.y,[g]).setDepth(6);
       this.gatheringNodes.push(node);
     });
@@ -430,7 +613,12 @@ class GymScene extends Phaser.Scene {
   private collectNodeAt(x:number,y:number):boolean {
     const i=this.gatheringPositions.findIndex((p,index)=>!this.saveData.gatheredToday?.includes(index)&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<13);
     if(i<0)return false;
-    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)>55){this.say('Walk closer and press E to collect.');this.route=this.findRoute({x:this.player.x,y:this.player.y},{x,y});return true;}
+    if(distance(this.player,this.gatheringPositions[i])>55){
+      this.pickupTarget=this.gatheringPositions[i];
+      this.route=this.playerRoute(this.pickupTarget);
+      this.say(this.route.length?'Walking to the materials.':'The path to the materials is blocked.');
+      return true;
+    }
     if(!this.saveData.materials)this.saveData.materials=[0,0,0];
     if(!this.saveData.gatheredToday)this.saveData.gatheredToday=[];
     const kind=this.resourceKind(i),amount=this.resourceYield(i);
@@ -444,16 +632,11 @@ class GymScene extends Phaser.Scene {
     return p?this.collectNodeAt(p.x,p.y):false;
   }
   private openClassSchedule():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     const count=this.saveData.classesToday||0;
-    this.furniturePanel.add(this.add.text(37,39,'SCHEDULE CLASSES  '+count+'/2 TODAY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff'}));
-    const back=this.add.text(275,39,'BACK',{fontFamily:UI_FONT,fontSize:'11px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    this.menuShell('CLASS SCHEDULE',count+'/2 CLASSES TAUGHT TODAY',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((program,i)=>{
       const label=program.name+'  ('+program.stats.map(k=>CORE_STATS[k]).join(' + ')+')';
-      const button=this.add.text(38,76+i*43,label,{fontFamily:UI_FONT,fontSize:'11px',color:count>=2?'#929b9c':'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6}}).setInteractive({useHandCursor:true});
-      button.on('pointerdown',()=>this.simulateClass(i));this.furniturePanel.add(button);
+      this.menuAction(label,84,76+i*36,310,()=>this.simulateClass(i),count>=2);
     });
     this.furniturePanel.setVisible(true);
   }
@@ -497,15 +680,11 @@ class GymScene extends Phaser.Scene {
     });
   }
   private showStudentGoals():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,28,310,242,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,38,'STUDENT GOALS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    this.menuShell('STUDENT GOALS','TRAINING PROGRESS  /  MILESTONES',()=>this.openTrainingBoard());
     this.students.forEach((student,i)=>{
       const goal=(this.saveData.studentGoals||initialGoals())[i];
       const current=this.saveData.studentStats?.[i]?.[goal[1]]||10;
-      this.furniturePanel.add(this.add.text(37,75+i*41,student.name+': '+CORE_STATS[goal[1]]+' '+current+'/'+goal[0]+'  |  Goals '+(this.saveData.completedGoals?.[i]||0),{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff'}));
+      this.furniturePanel.add(this.add.text(84,80+i*34,student.name+'  '+CORE_STATS[goal[1]]+' '+current+'/'+goal[0]+'  |  Completed '+(this.saveData.completedGoals?.[i]||0),{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff'}));
     });
     this.furniturePanel.setVisible(true);
   }
@@ -513,20 +692,18 @@ class GymScene extends Phaser.Scene {
     const level=kind==='equipment'?(this.saveData.equipment||0):(this.saveData.decorLevel||0);
     const names=kind==='equipment'?['Heavy bag','Weight station','Training rack']:['Gym banner','Training poster','Indoor plant'];
     const cost=kind==='equipment'?40+level*35:25+level*25;
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,24,292,228,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(44,41,kind==='equipment'?'TRAINING EQUIPMENT':'GYM DECORATIONS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
-    close.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(close);
-    const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  USD '+cost+' + '+materialCost(DECOR_MATERIALS[level]);
-    this.furniturePanel.add(this.add.text(46,78,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
-    this.furniturePanel.add(this.add.text(46,109,kind==='equipment'?'Adds equipment to the gym and boosts class pay.':'Adds a visible decoration you can move in Build.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:255}}));
+    const back=()=>kind==='equipment'?this.openGearShop():this.openGymUpgrades();
+    this.menuShell(kind==='equipment'?'GYM UPGRADES':'GYM DECORATIONS','LEVEL '+level+' / 3',back);
+    const materials=kind==='decor'&&level<3?' + '+materialCost(DECOR_MATERIALS[level]):'';
+    const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  USD '+cost+materials;
+    this.furniturePanel.add(this.add.text(84,80,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
+    this.furniturePanel.add(this.add.text(84,110,kind==='equipment'?'Adds equipment to the gym and boosts class pay.':'Adds a visible decoration you can move in Build.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:255}}));
     if(level<3){
-      const buy=this.add.text(46,160,'BUY '+names[level].toUpperCase(),{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:8,y:5}}).setInteractive();
+      const buy=this.add.text(84,153,'BUY '+names[level].toUpperCase(),{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:8,y:5}}).setInteractive();
       buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
       this.furniturePanel.add(buy);
     }
-    this.addShopInventory(226);
+    this.addShopInventory(192);
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
@@ -541,47 +718,63 @@ class GymScene extends Phaser.Scene {
   }
   private openFurniture(mode:'shop'|'inventory'|'build'):void {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
-    this.furnitureMode=mode;
     this.furniturePanel.removeAll(true);
-    const bg=this.add.rectangle(32,24,292,mode==='shop'?230:204,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    const bg=this.add.rectangle(67,24,346,222,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.furniturePanel.add(bg);
-    const heading=this.add.text(44,40,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
+    const heading=this.add.text(83,37,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
     this.furniturePanel.add(heading);
-    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
-    close.on('pointerdown',()=>this.furniturePanel.setVisible(false));
+    const close=this.add.text(381,37,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
+    close.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,event:Phaser.Types.Input.EventData)=>{event.stopPropagation();this.closePanel();});
     this.furniturePanel.add(close);
     if(mode==='shop') FURNITURE.forEach((item,i)=>{
       const unlocked=this.saveData.reputation>=item.rep;
-      const row=this.add.text(46,67+i*25,item.name+'  USD '+item.price+' + '+materialCost(FURNITURE_MATERIALS[i]||[1,1,1])+(unlocked?'':'  REP '+item.rep),{fontFamily:UI_FONT,fontSize:'11px',color:unlocked?'#f7e9cb':'#9eabb0',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
+      const row=this.add.text(84,72+i*28,item.name+'  USD '+item.price+' + '+materialCost(FURNITURE_MATERIALS[i]||[1,1,1])+(unlocked?'':'  REP '+item.rep),{fontFamily:UI_FONT,fontSize:'11px',color:unlocked?'#f7e9cb':'#9eabb0',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
       row.on('pointerdown',()=>this.buyFurniture(i));
       this.furniturePanel.add(row);
     });
-    else if(mode==='build') {
-      const owned=this.saveData.decorLevel||0;
-      for(let i=0;i<owned;i++) {
-        const idx=i;
-        const row=this.add.text(46,67+i*23,['Gym banner','Training poster','Indoor plant'][i]+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>{this.placingDecor=idx;this.selectedFurniture=-1;this.furniturePanel.setVisible(false);this.drawEquipment();this.say('Tap a clear spot to move '+['banner','poster','plant'][idx]+'.');});
-        this.furniturePanel.add(row);
-      }
-      const items=this.saveData.furniture||[];
-      items.slice(0,8).forEach((item,i)=>{
-        const y=67+(owned+i)*23;
-        const row=this.add.text(46,y,FURNITURE[item.kind].name+' '+(item.stored?'[STORED]':'[PLACED]')+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
-      });
-      if(owned+items.length===0) this.furniturePanel.add(this.add.text(46,82,'Buy furniture in SHOP first.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
-    }
     else {
-      const items=this.saveData.furniture||[];
-      if(!items.length) this.furniturePanel.add(this.add.text(46,78,'Nothing purchased yet. Visit SHOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
-      items.slice(0,5).forEach((item,i)=>{
-        const row=this.add.text(46,67+i*25,FURNITURE[item.kind].name+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
-        row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
-        const sell=this.add.text(253,67+i*25,'SELL '+Math.floor(FURNITURE[item.kind].price/2),{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#974c40',padding:{x:3,y:3}}).setInteractive();
-        sell.on('pointerdown',()=>this.sellFurniture(i));this.furniturePanel.add(sell);
+      // Unified paginated build inventory: furniture, gear and decorations.
+      const entries:{name:string;status:string;select:()=>void;sell?:()=>void}[]=[];
+      (this.saveData.furniture||[]).forEach((item,i)=>entries.push({
+        name:FURNITURE[item.kind].name,status:item.stored?'STORED':'PLACED',
+        select:()=>this.selectFurniture(i),sell:()=>this.sellFurniture(i)
+      }));
+      (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+        if(owned)entries.push({name:GEAR_ITEMS[i].name,status:this.saveData.gearStored?.[i]?'STORED':'PLACED',select:()=>this.beginGearPlacement(i)});
       });
-      if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
+      for(let i=0;i<(this.saveData.decorLevel||0);i++){
+        const idx=i;
+        entries.push({name:['Gym Banner','Training Poster','Indoor Plant'][i],status:'DECOR',select:()=>{
+          this.placingDecor=idx;this.selectedFurniture=-1;this.placingGear=-1;this.buildMode=true;
+          const p=this.saveData.decorPositions?.[idx];this.placementCursor=p?{...p}:{x:168,y:144};this.keyboardPlacement=true;
+          this.furniturePanel.setVisible(false);this.updateFurnitureActions();this.say('Tap a new spot or use arrows and Enter.');
+        }});
+      }
+      const pageSize=5,pages=Math.max(1,Math.ceil(entries.length/pageSize));
+      this.buildPage=Math.min(this.buildPage,pages-1);
+      this.furniturePanel.add(this.add.text(84,60,'SELECT AN ITEM TO MOVE IT  /  M TO OPEN BUILD',{fontFamily:UI_FONT,fontSize:'9px',color:'#b8d2ca'}));
+      entries.slice(this.buildPage*pageSize,(this.buildPage+1)*pageSize).forEach((entry,i)=>{
+        const y=79+i*27;
+        const row=this.add.rectangle(84,y,310,24,0x34575b).setOrigin(0).setStrokeStyle(1,0x557a78).setInteractive({useHandCursor:true});
+        const label=this.add.text(90,y+6,entry.name+'  ['+entry.status+']',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb'});
+        row.on('pointerdown',entry.select);
+        this.furniturePanel.add([row,label]);
+        if(mode==='inventory'&&entry.sell){
+          const sell=this.add.text(350,y+5,'SELL',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffdbcb',backgroundColor:'#974c40',padding:{x:3,y:2}}).setInteractive({useHandCursor:true});
+          sell.on('pointerdown',entry.sell);this.furniturePanel.add(sell);
+        }
+      });
+      if(!entries.length)this.furniturePanel.add(this.add.text(84,94,'No items yet. Buy gear or furniture at reception.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
+      const pageLabel=this.add.text(229,224,'PAGE '+(this.buildPage+1)+' / '+pages,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
+      this.furniturePanel.add(pageLabel);
+      if(this.buildPage>0){
+        const prev=this.add.text(157,224,'< PREV',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setInteractive({useHandCursor:true});
+        prev.on('pointerdown',()=>{this.buildPage--;this.openFurniture(mode);});this.furniturePanel.add(prev);
+      }
+      if(this.buildPage<pages-1){
+        const next=this.add.text(319,224,'NEXT >',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setInteractive({useHandCursor:true});
+        next.on('pointerdown',()=>{this.buildPage++;this.openFurniture(mode);});this.furniturePanel.add(next);
+      }
     }
     this.rosterPanel.setVisible(false);
     if(mode==='shop')this.addShopInventory(228);
@@ -597,68 +790,73 @@ class GymScene extends Phaser.Scene {
     this.saveData.money-=item.price;
     this.saveData.materials=spendMaterials(this.saveData.materials,FURNITURE_MATERIALS[kind]||[1,1,1]);
     this.saveData.furniture=[...(this.saveData.furniture||[]),{kind,x:160,y:120,rotation:0,stored:true}];
-    this.selectedFurniture=this.saveData.furniture.length-1;
+    this.selectedFurniture=-1;
     this.placingDecor=-1;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
     this.persist();this.refresh();
-    this.say('Purchased '+item.name+'! Tap a clear mat location to place. Q rotate, X store.');
+    this.say('Purchased '+item.name+'! Open Build to place it.');
   }
   private selectFurniture(i:number):void {
-    this.selectedFurniture=i;this.placingDecor=-1;this.furniturePanel.setVisible(false);
+    this.clearIntent();
+    this.selectedFurniture=i;this.placingDecor=-1;this.placingGear=-1;this.buildMode=true;this.furniturePanel.setVisible(false);
+    const position=this.saveData.furniture?.[i];if(position)this.placementCursor={x:position.stored?168:position.x,y:position.stored?144:position.y};this.keyboardPlacement=true;
     this.updateFurnitureActions();this.drawEquipment();
     const item=this.saveData.furniture?.[i];
-    if(item) this.say('Selected '+FURNITURE[item.kind].name+'. Tap mat to move, or use ROTATE / STORE.');
+    if(item) this.say('Moving '+FURNITURE[item.kind].name+'. Arrows move, Enter place, Q rotate, X store, Esc cancel.');
   }
   private updateFurnitureActions():void {
-    const visible=this.selectedFurniture>=0;
-    this.rotateControl.setVisible(visible);
-    this.storeControl.setVisible(visible);
+    this.rotateControl.setVisible(this.selectedFurniture>=0);
+    this.storeControl.setVisible(this.selectedFurniture>=0||this.placingGear>=0);
+    this.cancelControl.setVisible(this.isPlacing());
   }
   private placeFurniture(x:number,y:number):void {
     if(this.running||this.selectedFurniture<0) return;
-    if(x<65||x>285||y<75||y>187) {this.say('Place furniture inside the mat, away from edges.');return;}
-    if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<32)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<32) {this.say('Choose a spot away from people.');return;}
-    const items=this.saveData.furniture||[];
-    if(items.some((v,i)=>i!==this.selectedFurniture&&!v.stored&&Phaser.Math.Distance.Between(v.x,v.y,x,y)<35)) {this.say('Too close to another item.');return;}
-    const item=items[this.selectedFurniture];if(!item)return;
-    item.x=Math.round(x/6)*6;item.y=Math.round(y/6)*6;item.stored=false;
-    this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' placed! Q rotate, X store, or choose another from INVENTORY.');
+    const selected=this.saveData.furniture?.[this.selectedFurniture];if(!selected)return;
+    x=roundPlacement(x);y=roundPlacement(y);
+    const size=this.furnitureSize(selected);
+    if(!this.validPlacement(x,y,size.rx,size.ry,-1,this.selectedFurniture)){this.say('Choose a clear spot inside the mat.');return;}
+    selected.x=x;selected.y=y;selected.stored=false;
+    this.selectedFurniture=-1;this.keyboardPlacement=false;this.buildMode=false;this.updateFurnitureActions();
+    this.persist();this.drawEquipment();this.say(FURNITURE[selected.kind].name+' placed!');
   }
   private rotateFurniture():void {
     const item=this.saveData.furniture?.[this.selectedFurniture];if(!item||this.running)return;
-    item.rotation=(item.rotation+1)%4;this.persist();this.drawEquipment();this.say('Rotated '+FURNITURE[item.kind].name+'.');
+    const rotation=(item.rotation+1)%4;
+    const candidate={...item,rotation},size=this.furnitureSize(candidate);
+    if(!item.stored&&!this.validPlacement(item.x,item.y,size.rx,size.ry,-1,this.selectedFurniture)){
+      this.say('Not enough room to rotate here. Move the item first.');return;
+    }
+    item.rotation=rotation;this.persist();this.drawEquipment();this.say('Rotated '+FURNITURE[item.kind].name+'.');
   }
-  private storeFurniture():void {
-    const item=this.saveData.furniture?.[this.selectedFurniture];if(!item||this.running)return;
-    item.stored=true;this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' returned to inventory.');this.selectedFurniture=-1;this.updateFurnitureActions();
+  private storeSelection():void {
+    if(this.running)return;
+    if(this.placingGear>=0){
+      const index=this.placingGear;
+      this.saveData.gearStored??=Array(8).fill(false);
+      this.saveData.gearStored[index]=true;
+      this.cancelPlacement();this.persist();this.say(GEAR_ITEMS[index].name+' returned to inventory.');
+      return;
+    }
+    const item=this.saveData.furniture?.[this.selectedFurniture];
+    if(!item)return;
+    item.stored=true;
+    this.cancelPlacement();this.persist();this.say(FURNITURE[item.kind].name+' returned to inventory.');
   }
-  private cycleDecorPlacement():void {
-    if(this.running) { this.say('Finish class before decorating.'); return; }
-    const owned=this.saveData.decorLevel||0;
-    if(!owned) { this.say('Buy a decoration first.'); return; }
-    this.selectedFurniture=-1;
-    this.placingDecor=this.placingDecor+1>=owned?-1:this.placingDecor+1;
-    this.route=[]; this.targetStudent=null;
-    this.drawEquipment();
-    this.buildButtonText.setText(this.placingDecor<0?'BUILD':'NEXT');
-    this.buildHint.setText(this.placingDecor<0?'Build mode: click BUILD to arrange your decorations':'BUILD MODE | Click mat to place | NEXT to cycle');
-    this.say(this.placingDecor<0?'Decoration placement closed.':'Moving '+['Gym banner','Training poster','Indoor plant'][this.placingDecor]+'. Tap a free spot on the mat. Press M to switch or exit.');
+  private decorFits(x:number,y:number):boolean {
+    const plant=this.placingDecor===2;
+    const positions=this.saveData.decorPositions??defaults.decorPositions!;
+    return this.validPlacement(x,y,plant?11:25,12,-1,-1,plant)&&
+      !positions.some((p,i)=>i!==this.placingDecor&&i<(this.saveData.decorLevel||0)&&distance(p,{x,y})<44);
   }
   private placeDecor(x:number,y:number):void {
-    if(this.running || this.placingDecor<0) return;
-    if(x<60 || x>290 || y<70 || y>192) { this.say('Place decorations inside the training area, away from the edges.'); return; }
-    if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<30) || Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<30) {
-      this.say('Too close to someone. Choose another spot.'); return;
-    }
-    const positions=this.saveData.decorPositions||defaults.decorPositions!.map(p=>({...p}));
-    if(positions.some((p,i)=>i!==this.placingDecor && i<(this.saveData.decorLevel||0) && Phaser.Math.Distance.Between(p.x,p.y,x,y)<44)) {
-      this.say('Too close to another decoration.'); return;
-    }
-    positions[this.placingDecor]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
+    if(this.running||this.placingDecor<0)return;
+    x=roundPlacement(x);y=roundPlacement(y);
+    if(!this.decorFits(x,y)){this.say('Choose a clear spot inside the mat.');return;}
+    const positions=this.saveData.decorPositions??defaults.decorPositions!.map(p=>({...p}));
+    positions[this.placingDecor]={x,y};
     this.saveData.decorPositions=positions;
-    this.persist(); this.drawEquipment();
-    this.say('Decoration moved and saved! Press M to choose another or exit.');
+    this.cancelPlacement();this.persist();this.say('Decoration moved and saved.');
   }
   private buyDecor():void {
     if(this.running) { this.say('Shop after class.'); return; }
@@ -671,6 +869,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.money-=cost;
     this.saveData.decorLevel=level+1;
     this.persist(); this.refresh();
+    this.recoverActors();
     this.showFeedback('GYM DECOR +1');
     this.say('Added '+['Gym banner','Training poster','Indoor plant'][level]+'! Your gym is growing.');
   }
@@ -681,12 +880,14 @@ class GymScene extends Phaser.Scene {
       return s.name+'  |  '+rank+'\n  '+(this.saveData.studentStats?.[this.students.indexOf(s)]||[10,10,10,10]).map((v,i)=>CORE_STATS[i].slice(0,3)+' '+v).join('  ')+'\n  Bond '+s.friendship;
     });
     this.rosterText.setText('STUDENT ROSTER  (tap to close)\n\n'+lines.join('\n\n'));
+    this.clearIntent();
     this.rosterPanel.setVisible(!this.rosterPanel.visible);
   }
   private showStudentCard(student:Student):void {
     const rank=student.skill>=10?'Advanced':student.skill>=5?'Intermediate':'Beginner';
     this.studentCard.setText(student.name+' | '+rank+' | Skill '+student.skill+' | Bond '+student.friendship).setVisible(true);
-    this.time.delayedCall(2800,()=>this.studentCard.setVisible(false));
+    this.cardTimer?.remove();
+    this.cardTimer=this.time.delayedCall(2800,()=>this.studentCard.setVisible(false));
   }
   private upgradeEquipment():void {
     if(this.running) { this.say('Finish class before upgrading.'); return; }
@@ -697,6 +898,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.money-=cost;
     this.saveData.equipment=level+1;
     this.persist(); this.refresh();
+    this.recoverActors();
     this.showFeedback('GEAR LEVEL '+(level+1));
     this.say('Purchased '+['Heavy bag','Weight station','Training rack'][level]+'! Gym gear adds $'+((level+1)*5)+' per class.');
   }
@@ -716,7 +918,9 @@ class GymScene extends Phaser.Scene {
     const nearest=target??[...this.students].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
-    this.showStudentCard(nearest);
+    nearest.routine=this.idleRoutine(nearest,3,'talk');
+    nearest.actor?.face(this.player.x-nearest.x,this.player.y-nearest.y);
+    this.coach.face(nearest.x-this.player.x,nearest.y-this.player.y);
     if(this.running) {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
@@ -729,7 +933,7 @@ class GymScene extends Phaser.Scene {
       const task = this.tasks[i] || 'Assistance';
       this.showFeedback((this.requestAge[i]<=7?'QUICK +$2 | ':'HELPED | ')+task+' | '+nearest.name);
       this.say(nearest.name+': Thanks for the '+task.toLowerCase()+' help, coach!');
-      this.tweens.add({targets:nearest.body,y:nearest.y-7,duration:140,yoyo:true,repeat:1});
+
       if(!this.requests.length && !this.pendingRequests.length) this.finishClass();
     } else {
       const lastTalk=this.saveData.lastTalkDays||[0,0,0,0];
@@ -740,13 +944,14 @@ class GymScene extends Phaser.Scene {
         this.saveData.lastTalkDays=lastTalk;
         this.persist();
       }
+      this.showStudentCard(nearest);
       const lines=[['My jab needs work.','I want to compete someday.'],['I brought snacks!','I love this gym community.'],['I studied some fight footage.','I am working on combinations.'],['I am sore today.','I keep showing up!']];
       const milestone=nearest.friendship===3?' You are becoming regular training partners.':nearest.friendship===5?' Friendship milestone: Trusted teammate!':'';
       this.say(nearest.name+': '+lines[i][Math.max(0,nearest.friendship-1)%2]+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
   private openArcade(mode:TrainingMode):void {
-    if(this.running) return;
+    if(this.running||this.isPlacing()) return;
     if(this.saveData.playedActivities?.[mode]===this.saveData.day) {this.say('Already played today. Close gym for a new day.');return;}
     if(Object.values(this.saveData.playedActivities||{}).filter(day=>day===this.saveData.day).length>=2){this.say('Two minigames already played today.');return;}
     this.persist();
@@ -762,8 +967,6 @@ class GymScene extends Phaser.Scene {
     this.selectedFurniture=-1;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
-    this.buildButtonText.setText('BUILD');
-    this.buildHint.setText('Build mode: click BUILD to arrange your decorations');
     this.drawEquipment();
     this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
     const offset=(this.saveData.day-1)%4;
@@ -809,6 +1012,8 @@ class GymScene extends Phaser.Scene {
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
     this.saveData.day++;
+    this.clearIntent();
+    this.students.forEach((student,i)=>{student.routine=this.idleRoutine(student,0.5+i);student.chatCooldown=10+i*4;});
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
     this.saveData.completed=false;
@@ -816,42 +1021,274 @@ class GymScene extends Phaser.Scene {
     this.persist(); this.refresh();
     this.timer.setText('');
   }
-  private reset():void {
-    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0],studentStats:initialStats(),studentXP:initialXP(),studentGoals:initialGoals(),completedGoals:[0,0,0,0],gearPositions:Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180})),classesToday:0,ownedGear:Array(8).fill(false),materials:[0,0,0],gatheredToday:[]};
-    this.running=false; this.placingDecor=-1; this.selectedFurniture=-1; this.updateFurnitureActions(); this.buildButtonText.setText('BUILD'); this.buildHint.setText('Build mode: click BUILD to arrange your decorations'); this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
-    this.scene.restart();
+  // The same solid-object footprints drive movement, routing and placement.
+  // Feet are the character's anchor; leave room for the sprite around each fixture.
+  private furnitureSize(item:Furniture):{rx:number;ry:number} {
+    const side=item.rotation%2===1;
+    if(item.kind===1)return {rx:side?9:22,ry:side?22:9};
+    if(item.kind===2)return {rx:side?11:18,ry:side?18:11};
+    if(item.kind===3)return {rx:11,ry:11};
+    if(item.kind===4)return {rx:10,ry:13};
+    return {rx:9,ry:9};
   }
-  private findRoute(start:Point,end:Point):Point[] {
-    const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
-    const key=(x:number,y:number)=>y*cols+x;
-    const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.floor(p.x/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.floor(p.y/CELL),0,rows-1)});
-    const s=cell(start),goal=cell(end);
-    const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&walkable(x*CELL+CELL/2,y*CELL+CELL/2);
-    if(!valid(goal.x,goal.y)) return [];
-    const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
-    let found=false;
-    for(let head=0;head<queue.length;head++) {
-      const cur=queue[head];
-      if(cur.x===goal.x&&cur.y===goal.y) { found=true; break; }
-      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const x=cur.x+dx,y=cur.y+dy,id=key(x,y);
-        if(!valid(x,y)||visited.has(id)) continue;
-        visited.add(id); previous.set(id,key(cur.x,cur.y)); queue.push({x,y});
+  private validPlacement(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1,excludePlant=false):boolean {
+    // Check the full footprint, including margins, rather than only its center.
+    if(x-rx<38||x+rx>309||y-ry<84||y+ry>204)return false;
+    if(!this.canPlace(x,y,rx,ry,excludeGear,excludeFurniture,excludePlant))return false;
+    if(this.students.some(s=>Math.abs(s.x-x)<rx+11&&Math.abs(s.y-y)<ry+8))return false;
+    if(Math.abs(this.player.x-x)<rx+9&&Math.abs(this.player.y-y)<ry+7)return false;
+    return true;
+  }
+  private isPlacing():boolean {
+    return this.placingGear>=0||this.placingDecor>=0||this.selectedFurniture>=0;
+  }
+  private cancelPlacement():void {
+    this.placingGear=-1;this.placingDecor=-1;this.selectedFurniture=-1;this.buildMode=false;this.keyboardPlacement=false;
+    this.placementPreview.clear();this.placementHint.setVisible(false);
+    this.updateFurnitureActions();this.drawEquipment();this.say('Placement cancelled.');
+  }
+  private toggleBuildMode():void {
+    if(this.running)return;
+    this.clearIntent();
+    if(this.isPlacing())this.cancelPlacement();
+    if(this.furniturePanel.visible&&this.buildMode){this.furniturePanel.setVisible(false);this.buildMode=false;return;}
+    this.buildMode=true;
+    this.openFurniture('build');
+  }
+  private movePlacement(dx:number,dy:number):void {
+    if(!this.isPlacing()||this.furniturePanel.visible)return;
+    this.keyboardPlacement=true;
+    this.placementCursor.x=Phaser.Math.Clamp(this.placementCursor.x+dx,38,310);
+    this.placementCursor.y=Phaser.Math.Clamp(this.placementCursor.y+dy,83,207);
+  }
+  private confirmPlacement():void {
+    if(!this.isPlacing()||this.furniturePanel.visible)return;
+    const {x,y}=this.placementCursor;
+    if(this.selectedFurniture>=0)this.placeFurniture(x,y);
+    else if(this.placingGear>=0)this.placeGear(x,y);
+    else if(this.placingDecor>=0)this.placeDecor(x,y);
+  }
+  private updatePlacementPreview():void {
+    const g=this.placementPreview;g.clear();
+    if(!this.isPlacing()||this.furniturePanel.visible||this.running){this.placementHint.setVisible(false);return;}
+    const pointer=this.input.activePointer,x=roundPlacement(this.keyboardPlacement?this.placementCursor.x:pointer.worldX),y=roundPlacement(this.keyboardPlacement?this.placementCursor.y:pointer.worldY);
+    let rx=12,ry=11,valid=false;
+    if(this.selectedFurniture>=0){
+      const item=this.saveData.furniture?.[this.selectedFurniture];
+      if(!item)return;
+      ({rx,ry}=this.furnitureSize(item));
+      valid=this.validPlacement(x,y,rx,ry,-1,this.selectedFurniture);
+    }else if(this.placingGear>=0){
+      ({rx,ry}=GEAR_BOUNDS[this.placingGear]);
+      valid=this.validPlacement(x,y,rx,ry,this.placingGear);
+    }else{
+      rx=this.placingDecor===2?11:25;ry=12;
+      valid=this.decorFits(x,y);
+    }
+    const color=valid?0x83d7ac:0xe57770;
+    g.fillStyle(color,0.24).fillRect(x-rx,y-ry,rx*2,ry*2);
+    g.lineStyle(1,color,0.95).strokeRect(x-rx,y-ry,rx*2,ry*2);
+    this.placementHint.setText((valid?'READY':'BLOCKED')+'  TAP TO PLACE  /  ARROWS + ENTER').setVisible(true);
+  }
+  private solidFootprints(excludeGear=-1,excludeFurniture=-1,excludePlant=false):Footprint[] {
+    const solids:Footprint[]=[];
+    (this.saveData.furniture||[]).forEach((item,i)=>{
+      if(!item.stored&&i!==excludeFurniture)solids.push({...item,...this.furnitureSize(item)});
+    });
+    (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+      if(owned&&!this.saveData.gearStored?.[i]&&i!==excludeGear){
+        solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
+      }
+    });
+    if(!excludePlant&&(this.saveData.decorLevel||0)>=3)solids.push({...this.saveData.decorPositions![2],rx:11,ry:12});
+    if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:13});
+    if((this.saveData.equipment||0)>=2)solids.push({x:310,y:150,rx:15,ry:9});
+    return solids;
+  }
+  private canStand(x:number,y:number):boolean {
+    return walkable(x,y)&&!this.footprints.some(o=>Math.abs(x-o.x)<o.rx+6&&Math.abs(y-o.y)<o.ry+4);
+  }
+  private canPlace(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1,excludePlant=false):boolean {
+    return !this.solidFootprints(excludeGear,excludeFurniture,excludePlant).some(o=>
+      Math.abs(x-o.x)<o.rx+rx+3&&Math.abs(y-o.y)<o.ry+ry+3);
+  }
+  private recoverActors():void {
+    this.coach.place(...this.actorPosition(this.player));
+    for(const student of this.students){
+      Object.assign(student,this.navigation.recover(student));
+      student.actor?.place(student.x,student.y);
+      student.indicator?.setPosition(student.x,student.y-38);
+    }
+  }
+  private actorPosition(point:Point):[number,number] {
+    const {x,y}=this.navigation.recover(point);
+    return [x,y];
+  }
+  private idleRoutine(student:Student,remaining:number,pose:Pose='idle'):Routine {
+    return {pose,goal:{x:student.x,y:student.y},route:[],remaining,elapsed:0};
+  }
+  private studentSpace(student:Student,x:number,y:number):boolean {
+    const point={x,y};
+    return !closeFeet(this.player,point)&&this.students.every(other=>other===student||!closeFeet(other,point));
+  }
+  private planStudent(student:Student,index:number):Routine {
+    const preferred:Pose[][]=[
+      ['bag','shadow','shadow','stretch','rest'],
+      ['stretch','rest','shadow','bag','stretch'],
+      ['lift','lift','stretch','shadow','rest'],
+      ['bag','rest','bag','shadow','lift'],
+    ];
+    const options=preferred[index];
+    const pose=options[(Math.floor(Math.random()*options.length)+this.saveData.day)%options.length];
+    const open=(x:number,y:number)=>this.studentSpace(student,x,y);
+    const plan=(goal:Point,action:Pose,station?:Station):Routine|undefined=>{
+      if(!this.canStand(goal.x,goal.y)||!open(goal.x,goal.y))return;
+      if(this.students.some(other=>other!==student&&other.routine&&
+        (closeFeet(goal,other.routine.goal)||(station&&other.routine.station?.id===station.id))))return;
+      const route=this.navigation.route(student,goal,open,true);
+      if(!route.length)return;
+      return {pose:action,goal,route,remaining:3+Math.random()*3+index*0.25,elapsed:0,station};
+    };
+    if(student.chatCooldown<=0){
+      const partner=this.students.find(other=>other!==student&&other.routine&&!other.routine.route.length&&
+        !other.routine.station&&other.routine.pose!=='talk'&&distance(other,student)<85&&
+        this.students.every(peer=>peer.routine?.partner!==other));
+      if(partner){
+        for(const dx of [22,-22]){
+          const routine=plan({x:partner.x+dx,y:partner.y},'talk');
+          if(routine){
+            student.chatCooldown=24+index*4;
+            partner.chatCooldown=student.chatCooldown;
+            partner.routine=this.idleRoutine(partner,6);
+            return {...routine,partner,remaining:2.5};
+          }
+        }
+      }
+      student.chatCooldown=4+index;
+    }
+    if(pose==='bag'||pose==='lift'||pose==='rest'){
+      const stations=this.stations.filter(s=>s.pose===pose).sort((a,b)=>distance(a,student)-distance(b,student));
+      for(const station of stations){
+        const side=station.rx+7,front=station.ry+6;
+        const goals=[{x:station.x-side,y:station.y+3},{x:station.x+side,y:station.y+3},{x:station.x,y:station.y+front}];
+        for(const goal of goals){
+          const routine=plan(goal,pose,station);
+          if(routine)return routine;
+        }
       }
     }
-    if(!found) return [];
-    const route:Point[]=[];
-    let current=key(goal.x,goal.y),origin=key(s.x,s.y);
-    while(current!==origin) {
-      route.unshift({x:(current%cols)*CELL+CELL/2,y:Math.floor(current/cols)*CELL+CELL/2});
-      const parent=previous.get(current);
-      if(parent===undefined) return [];
-      current=parent;
+    const action=pose==='bag'?'shadow':pose==='lift'?'stretch':pose;
+    for(let i=0;i<6;i++){
+      const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
+      const routine=plan({x,y},action);
+      if(routine)return routine;
     }
-    if(walkable(end.x,end.y)) route.push(end);
-    return route;
+    return this.idleRoutine(student,1+index*0.3);
+  }
+  private updateStudentLife(dt:number):void {
+    const paused=this.running||this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
+    for(const station of this.stations)station.fixture?.setX(0);
+    for(const [i,student] of this.students.entries()){
+      const actor=student.actor!;
+      if(paused){actor.animate('idle',dt);continue;}
+      student.chatCooldown-=dt;
+      let routine=student.routine!;
+      if(routine.station&&!this.stations.includes(routine.station))routine=this.idleRoutine(student,0.3+i*0.2);
+      if(routine.remaining<=0)routine=this.planStudent(student,i);
+      student.routine=routine;
+      const waypoint=routine.route[0];
+      if(waypoint){
+        const length=distance(student,waypoint);
+        const t=length>0?Math.min(1,dt*(27+i*1.5)/length):1;
+        const dx=waypoint.x-student.x,dy=waypoint.y-student.y;
+        const next={x:student.x+dx*t,y:student.y+dy*t};
+        const open=(x:number,y:number)=>this.canStand(x,y)&&this.studentSpace(student,x,y);
+        if(clearSegment(student,next,open)){
+          Object.assign(student,next);
+          actor.face(dx,dy);
+          actor.animate('walk',dt);
+          if(t===1)routine.route.shift();
+        }else{
+          routine.route=this.navigation.route(student,routine.goal,open,true);
+          if(!routine.route.length)student.routine=this.idleRoutine(student,0.55+i*0.3);
+          actor.animate('idle',dt);
+        }
+      }else{
+        const target=routine.partner??routine.station;
+        if(target)actor.face(target.x-student.x,target.y-student.y);
+        if(routine.partner){
+          const partner=routine.partner;
+          if(distance(student,partner)>30){student.routine=this.idleRoutine(student,0.5);continue;}
+          if(partner.routine?.pose==='idle'){
+            partner.routine=this.idleRoutine(partner,routine.remaining,'talk');
+            partner.actor?.face(student.x-partner.x,student.y-partner.y);
+          }
+        }
+        routine.remaining-=dt;
+        routine.elapsed+=dt;
+        actor.animate(routine.pose,dt);
+        if(routine.pose==='bag'&&routine.station?.fixture){
+          const impact=Math.floor(routine.elapsed*7)%2;
+          routine.station.fixture.setX(impact*Math.sign(routine.station.x-student.x)*2);
+        }
+      }
+      actor.place(student.x,student.y);
+      student.indicator?.setPosition(student.x,student.y-38);
+    }
+  }
+  private moveCoach(dt:number):void {
+    const dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
+    const dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
+    const manual=!!(dx||dy);
+    if(manual)this.clearIntent();
+    if(this.targetStudent){
+      this.targetRefresh-=dt;
+      if(this.targetRefresh<=0||distance(this.player,this.targetStudent)<NEAR)this.followStudent();
+    }
+    if(this.pickupTarget&&distance(this.player,this.pickupTarget)<=55){
+      const {x,y}=this.pickupTarget;
+      this.clearIntent();this.collectNodeAt(x,y);
+    }
+    const waypoint=this.route[0];
+    const heading=manual?{x:dx,y:dy}:waypoint?{x:waypoint.x-this.player.x,y:waypoint.y-this.player.y}:null;
+    if(!heading){this.coach.animate('idle',dt);return;}
+    const length=Math.hypot(heading.x,heading.y);
+    const step=manual?dt*this.speed:Math.min(length,dt*this.speed);
+    const ratio=length?step/length:0;
+    const from={x:this.player.x,y:this.player.y};
+    const nx=from.x+heading.x*ratio,ny=from.y+heading.y*ratio;
+    const open=(x:number,y:number)=>this.canStand(x,y)&&this.students.every(s=>!closeFeet(s,{x,y}));
+    let next={x:nx,y:ny};
+    if(!clearSegment(from,next,open)){
+      next=from;
+      if(manual){
+        if(clearSegment(from,{x:nx,y:from.y},open))next={x:nx,y:from.y};
+        else if(clearSegment(from,{x:from.x,y:ny},open))next={x:from.x,y:ny};
+      }else{
+        const goal=this.route[this.route.length-1];
+        this.route=this.playerRoute(goal,!!this.stationTarget);
+        if(!this.route.length&&!this.targetStudent){this.clearIntent();this.say('Path blocked. Try another approach.');}
+        this.coach.animate('idle',dt);
+        return;
+      }
+    }
+    this.coach.face(heading.x,heading.y);
+    this.coach.place(next.x,next.y);
+    this.coach.animate(distance(from,next)>0.01?'walk':'idle',dt);
+    if(!manual&&step===length){
+      this.route.shift();
+      if(!this.route.length&&this.stationTarget){
+        const station=this.stationTarget;
+        this.clearIntent();
+        if(station==='board')this.openTrainingBoard();
+        else this.openGymUpgrades();
+      }
+    }
   }
   update(_time:number,delta:number):void {
+    const dt=Math.min(delta,50)/1000;
+    this.updateStudentLife(dt);
+    this.updatePlacementPreview();
     if(this.running) {
       const dt=Math.min(delta,100)/1000;
       this.seconds-=dt;
@@ -868,26 +1305,8 @@ class GymScene extends Phaser.Scene {
       this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
       if(this.seconds<=0) this.finishClass();
     }
-    let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
-    let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
-    if(dx||dy) { this.route=[]; this.targetStudent=null; }
-    else if(this.route.length) {
-      const target=this.route[0];
-      const distance=Phaser.Math.Distance.Between(this.player.x,this.player.y,target.x,target.y);
-      if(distance<2) { this.route.shift(); if(!this.route.length && this.targetStudent) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); } return; }
-      dx=(target.x-this.player.x)/distance; dy=(target.y-this.player.y)/distance;
-    }
-    const length=Math.hypot(dx,dy);
-    if(!length) { this.player.setScale(1); return; }
-    this.walkingClock+=delta;
-    this.player.setScale(1,1+Math.sin(this.walkingClock/95)*0.035);
-    const step=Math.min(delta,50)/1000*this.speed;
-    const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
-    const move=Math.min(step,remaining);
-    const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
-    if(walkable(nx,this.player.y)) this.player.x=nx;
-    if(walkable(this.player.x,ny)) this.player.y=ny;
-    if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
+    if(this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)this.coach.animate('idle',dt);
+    else this.moveCoach(dt);
   }
 }
 
