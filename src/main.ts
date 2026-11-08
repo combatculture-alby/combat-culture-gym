@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 const W = 480, H = 270, CELL = 6;
 const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Point = { x: number; y: number };
-type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
+type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text; nameTag?: Phaser.GameObjects.Text; activityTag?: Phaser.GameObjects.Text; ai?: {target:Point; timer:number; activity:number; phase:number} };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
 type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[] };
@@ -171,7 +171,9 @@ class GymScene extends Phaser.Scene {
       const skin = [0xc68c66,0xe5b08e,0x9c674c,0xe0bc91][this.students.indexOf(s)];
       const hair = [0x29252a,0x503329,0x171a22,0x755039][this.students.indexOf(s)];
       s.body = this.makeCharacter(s.x,s.y,s.color,skin,hair,0x354e56,false);
-      this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5).setDepth(10+s.y/100+0.1);
+      s.nameTag=this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5).setDepth(10+s.y/100+0.1);
+      s.activityTag=this.add.text(s.x,s.y-48,'',{fontFamily:UI_FONT,fontSize:'8px',color:'#f5dfb6',backgroundColor:'#34575b',padding:{x:3,y:1}}).setOrigin(0.5).setDepth(10+s.y/100+0.1).setVisible(false);
+      s.ai={target:{x:s.x,y:s.y},timer:1+this.students.indexOf(s)*1.4,activity:0,phase:0};
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
     this.status = this.add.text(111,5,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(30);
@@ -1186,7 +1188,54 @@ class GymScene extends Phaser.Scene {
     }
     return true;
   }
+  private updateStudentLife(delta:number):void {
+    // Autonomous ambient behavior is cosmetic: it never changes saved stats or interrupts a class.
+    if(this.running||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
+    const dt=Math.min(delta,70)/1000;
+    const routines=['SHADOWBOX','BAG WORK','STRENGTH','STRETCH','SOCIAL','REST'];
+    this.students.forEach((s,i)=>{
+      const ai=s.ai;if(!ai||!s.body)return;
+      ai.timer-=dt;
+      if(ai.timer<=0){
+        // Each student has a preferred discipline and a different daily rhythm.
+        const preferred=[0,3,2,1][i];
+        ai.activity=Math.random()<0.53?preferred:Math.floor(Math.random()*routines.length);
+        const available=(this.saveData.ownedGear||[]).map((owned,j)=>owned&&!this.saveData.gearStored?.[j]?j:-1).filter(j=>j>=0);
+        let goal:Point;
+        if(ai.activity===1&&available.length){
+          const gear=available[(i+this.saveData.day)%available.length];
+          const p=this.saveData.gearPositions?.[gear]||{x:100,y:130};
+          goal={x:p.x+24,y:p.y+14};
+        }else if(ai.activity===4){
+          const friend=this.students[(i+1)%this.students.length];
+          goal={x:friend.x+22,y:friend.y};
+        }else {
+          goal={x:75+Math.floor(Math.random()*34)*6,y:94+Math.floor(Math.random()*16)*6};
+        }
+        if(this.canStand(goal.x,goal.y)&&this.students.every(other=>other===s||Phaser.Math.Distance.Between(goal.x,goal.y,other.x,other.y)>24)){
+          ai.target=goal;
+        }else ai.target={x:s.x,y:s.y};
+        ai.timer=7+Math.random()*9+i*0.6;
+      }
+      const distance=Phaser.Math.Distance.Between(s.x,s.y,ai.target.x,ai.target.y);
+      if(distance>3){
+        const speed=13+i*1.5,step=Math.min(distance,speed*dt);
+        const vx=(ai.target.x-s.x)/distance*step,vy=(ai.target.y-s.y)/distance*step;
+        const nx=s.x+vx,ny=s.y+vy;
+        if(this.canStand(nx,ny)&&this.students.every(other=>other===s||Phaser.Math.Distance.Between(nx,ny,other.x,other.y)>19)){
+          s.x=nx;s.y=ny;
+        }else {ai.target={x:s.x,y:s.y};ai.timer=Math.min(ai.timer,2);}
+      }
+      ai.phase+=dt*(ai.activity===0||ai.activity===1?11:5);
+      s.body.setPosition(s.x,s.y).setDepth(10+s.y/100);
+      s.body.setScale(1,1+(distance<3?Math.sin(ai.phase)*0.035:Math.sin(ai.phase*2)*0.06));
+      s.nameTag?.setPosition(s.x,s.y-36).setDepth(10+s.y/100+0.1);
+      s.indicator?.setPosition(s.x,s.y-55);
+      s.activityTag?.setPosition(s.x,s.y-49).setDepth(10+s.y/100+0.1).setVisible(distance<8).setText(routines[ai.activity]);
+    });
+  }
   update(_time:number,delta:number):void {
+    this.updateStudentLife(delta);
     this.updatePlacementPreview();
     if(this.running) {
       const dt=Math.min(delta,100)/1000;
