@@ -1206,9 +1206,42 @@ class GymScene extends Phaser.Scene {
       if(Math.random()<0.3)this.say(dialogue[i][(this.saveData.day+i)%2]);
     }
   }
+  private animateStudent(s:Student,moving:boolean):void {
+    const ai=s.ai,body=s.body;if(!ai||!body)return;
+    // Animate actual sprite parts rather than scaling the entire character.
+    // makeCharacter inserts shadow, legs, shoes, shorts, waist, arms in this order.
+    const parts=body.list as Phaser.GameObjects.GameObject[];
+    const leftLeg=parts[1] as Phaser.GameObjects.Rectangle;
+    const rightLeg=parts[2] as Phaser.GameObjects.Rectangle;
+    const leftArm=parts[6] as Phaser.GameObjects.Rectangle;
+    const rightArm=parts[7] as Phaser.GameObjects.Rectangle;
+    const swing=Math.sin(ai.phase);
+    leftLeg.y=13+(moving?swing*2:0);
+    rightLeg.y=13-(moving?swing*2:0);
+    if(moving){
+      leftArm.y=-5-swing*3;rightArm.y=-5+swing*3;
+      leftArm.angle=swing*15;rightArm.angle=-swing*15;
+    }else if(ai.activity===0||ai.activity===1){
+      // Shadowboxing and bag drills: alternating punches.
+      leftArm.y=-12;rightArm.y=-12;
+      leftArm.angle=30+swing*38;rightArm.angle=-30-swing*38;
+    }else if(ai.activity===2){
+      // Strength training: rhythmic presses.
+      leftArm.y=-10-swing*5;rightArm.y=-10-swing*5;
+      leftArm.angle=15;rightArm.angle=-15;
+    }else if(ai.activity===3){
+      // Stretching: arms reach outward.
+      leftArm.y=-8;rightArm.y=-8;leftArm.angle=65;rightArm.angle=-65;
+    }else{
+      leftArm.y=-5;rightArm.y=-5;leftArm.angle=0;rightArm.angle=0;
+    }
+  }
   private updateStudentLife(delta:number):void {
     // Autonomous ambient behavior is cosmetic: it never changes saved stats or interrupts a class.
-    if(this.running||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
+    if(this.running||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible){
+      this.students.forEach(s=>{s.activityTag?.setVisible(false);if(s.ai){s.ai.activity=5;this.animateStudent(s,false);}});
+      return;
+    }
     const dt=Math.min(delta,70)/1000;
     const routines=['SHADOWBOX','BAG WORK','STRENGTH','STRETCH','SOCIAL','REST'];
     this.students.forEach((s,i)=>{
@@ -1260,7 +1293,7 @@ class GymScene extends Phaser.Scene {
       }
       ai.phase+=dt*(ai.activity===0||ai.activity===1?11:5);
       s.body.setPosition(s.x,s.y).setDepth(10+s.y/100);
-      s.body.setScale(1+(distance<3&&ai.activity===1?Math.sin(ai.phase)*0.055:0),1+(distance<3?Math.sin(ai.phase)*0.035:Math.sin(ai.phase*2)*0.06));
+      this.animateStudent(s,distance>1);
       s.nameTag?.setPosition(s.x,s.y-36).setDepth(10+s.y/100+0.1);
       s.indicator?.setPosition(s.x,s.y-55);
       s.activityTag?.setPosition(s.x,s.y-49).setDepth(10+s.y/100+0.1).setVisible(ai.route.length===0).setText(routines[ai.activity]);
