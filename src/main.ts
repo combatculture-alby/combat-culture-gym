@@ -321,7 +321,7 @@ class GymScene extends Phaser.Scene {
   private openGymUpgrades():void {
     if(this.running)return;
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,10,292,298,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(32,8,292,254,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     this.furniturePanel.add(this.add.text(44,40,'MANAGE GYM',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
     const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
@@ -337,7 +337,7 @@ class GymScene extends Phaser.Scene {
       ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.time.delayedCall(1,()=>{this.rosterPanel.setDepth(80);this.toggleRoster();});}]
     ];
     actions.forEach(([label,fn],i)=>{
-      const row=this.add.text(48,48+i*28,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
+      const row=this.add.text(48,47+i*23,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
       row.on('pointerdown',fn);this.furniturePanel.add(row);
     });
     this.furniturePanel.setVisible(true);
@@ -350,13 +350,13 @@ class GymScene extends Phaser.Scene {
   }
   private openGearShop():void {
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,287,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,26,'TRAINING EQUIPMENT',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,26,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
+    this.furniturePanel.add(this.add.rectangle(25,8,310,254,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(36,15,'TRAINING EQUIPMENT',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
+    const back=this.add.text(275,15,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
     back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
     GEAR_ITEMS.forEach((gear,i)=>{
       const owned=this.saveData.ownedGear?.[i]===true;
-      const line=this.add.text(37,54+i*29,gear.name+' | '+(owned?'MOVE':'USD '+gear.cost+' + '+materialCost(GEAR_MATERIALS[i])),{fontFamily:UI_FONT,fontSize:'10px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:4,y:4}}).setInteractive({useHandCursor:true});
+      const line=this.add.text(37,40+i*24,gear.name+'  '+(owned?'[MOVE]':'USD '+gear.cost+' / '+materialCost(GEAR_MATERIALS[i])),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:4,y:4}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
         if(owned){this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
@@ -369,7 +369,7 @@ class GymScene extends Phaser.Scene {
         this.say('Purchased '+gear.name+'. Click the gym floor to place it.');
       });this.furniturePanel.add(line);
     });
-    this.addShopInventory(279);
+    this.addShopInventory(240);
     this.furniturePanel.setVisible(true);
   }
   private beginGearPlacement(index:number):void {
@@ -393,7 +393,7 @@ class GymScene extends Phaser.Scene {
   }
   private openMaterials():void {
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,28,310,245,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     this.furniturePanel.add(this.add.text(36,38,'MATERIALS & CRAFTING',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
     const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
     back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
@@ -445,7 +445,7 @@ class GymScene extends Phaser.Scene {
   }
   private openClassSchedule():void {
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,28,310,250,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     const count=this.saveData.classesToday||0;
     this.furniturePanel.add(this.add.text(37,39,'SCHEDULE CLASSES  '+count+'/2 TODAY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff'}));
     const back=this.add.text(275,39,'BACK',{fontFamily:UI_FONT,fontSize:'11px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
@@ -514,7 +514,7 @@ class GymScene extends Phaser.Scene {
     const names=kind==='equipment'?['Heavy bag','Weight station','Training rack']:['Gym banner','Training poster','Indoor plant'];
     const cost=kind==='equipment'?40+level*35:25+level*25;
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,32,292,180,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(32,24,292,228,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     this.furniturePanel.add(this.add.text(44,41,kind==='equipment'?'TRAINING EQUIPMENT':'GYM DECORATIONS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
     const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(close);
@@ -526,7 +526,7 @@ class GymScene extends Phaser.Scene {
       buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
       this.furniturePanel.add(buy);
     }
-    this.addShopInventory(190);
+    this.addShopInventory(226);
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
@@ -543,7 +543,7 @@ class GymScene extends Phaser.Scene {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
     this.furnitureMode=mode;
     this.furniturePanel.removeAll(true);
-    const bg=this.add.rectangle(32,32,292,mode==='shop'?203:178,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    const bg=this.add.rectangle(32,24,292,mode==='shop'?230:204,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.furniturePanel.add(bg);
     const heading=this.add.text(44,40,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
     this.furniturePanel.add(heading);
@@ -584,7 +584,7 @@ class GymScene extends Phaser.Scene {
       if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
     }
     this.rosterPanel.setVisible(false);
-    if(mode==='shop')this.addShopInventory(207);
+    if(mode==='shop')this.addShopInventory(228);
     this.furniturePanel.setVisible(true);
     this.say(mode==='build'?'Build mode open: choose an owned item to move.':mode==='shop'?'Furniture shop open.':'Inventory open.');
   }
