@@ -79,26 +79,38 @@ class GymScene extends Phaser.Scene {
   create(): void {
     this.students.forEach((s,i) => { s.friendship = this.saveData.friendships[i]; s.skill = this.saveData.skills[i]; });
     const g = this.add.graphics();
-    g.fillStyle(0xc9ae86).fillRect(0,0,W,H);
-    g.fillStyle(0x426f70).fillRect(32,32,286,178);
+    g.fillStyle(0xc9ae86).fillRect(0,0,W,330);
+    // Warm timber wall, windows, posters, and a clear right-side control desk.
+    g.fillStyle(0x73563e).fillRect(0,0,480,31);
+    g.fillStyle(0xe4d3ac).fillRect(0,31,480,194);
+    g.fillStyle(0x927452).fillRect(0,224,480,106);
+    g.fillStyle(0x203b42).fillRoundedRect(333,34,139,292,7);
+    g.lineStyle(2,0xe1bc76).strokeRoundedRect(333,34,139,292,7);
+    g.fillStyle(0x86b8bd).fillRect(48,39,73,36);
+    g.fillStyle(0xe9d9b6).fillRect(82,39,4,36);
+    g.fillStyle(0xe9d9b6).fillRect(48,55,73,3);
+    g.fillStyle(0x36545b).fillRect(199,38,84,26);
+    g.fillStyle(0xe0c38c).fillRect(204,43,74,16);
+    g.fillStyle(0x6b4636).fillRect(0,216,330,9);
+    g.fillStyle(0x426f70).fillRect(32,78,286,132);
     g.lineStyle(1,0x639596,0.7);
-    for(let x=32;x<=318;x+=32) g.lineBetween(x,32,x,210);
-    for(let y=32;y<=210;y+=32) g.lineBetween(32,y,318,y);
+    for(let x=32;x<=318;x+=32) g.lineBetween(x,78,x,210);
+    for(let y=78;y<=210;y+=32) g.lineBetween(32,y,318,y);
     g.fillStyle(0x963d35).fillRoundedRect(368,62,38,80,10);
     g.fillStyle(0x342e2d).fillRect(367,57,40,6);
     g.fillStyle(0xe0bc83).fillRect(367,140,40,4);
-    g.fillStyle(0x735a3d).fillRect(33,30,285,4);
+    g.fillStyle(0x735a3d).fillRect(33,76,285,4);
     g.fillStyle(0x254b4b).fillRoundedRect(341,148,106,25,4);
     g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(346,180,92,34);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
-    this.add.text(12,235,'COMBAT CULTURE GYM | Prototype 8.0',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
+    this.add.text(12,302,'COMBAT CULTURE GYM | Prototype 8.1',{fontFamily:UI_FONT,fontSize:'11px',color:'#29383b'});
     this.decor=this.add.graphics().setDepth(1);
     this.classOverlay=this.add.graphics().setDepth(2);
-    this.modeLabel=this.add.text(12,17,'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
-    this.shopLabel=this.add.text(344,225,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.equipmentLabel=this.add.text(344,119,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
-    this.add.text(344,217,'RECEPTION',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
+    this.modeLabel=this.add.text(12,17,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
+    this.shopLabel=this.add.text(344,110,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.equipmentLabel=this.add.text(344,95,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'});
+    this.add.text(344,43,'GYM MANAGEMENT',{fontFamily:UI_FONT,fontSize:'11px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
     for(const s of this.students) {
@@ -108,28 +120,28 @@ class GymScene extends Phaser.Scene {
       this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
-    this.status = this.add.text(340,17,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}}).setDepth(10);
+    this.status = this.add.text(341,52,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:4}}).setDepth(10);
     this.studentCard=this.add.text(12,16,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(10).setVisible(false);
-    this.message = this.add.text(12,220,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
-    this.timer = this.add.text(12,207,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
+    this.message = this.add.text(12,237,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
+    this.timer = this.add.text(12,225,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.buildHint=this.add.text(12,250,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.add.text(12,260,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(340,149,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
-    this.addButton(340,169,124,17,'CHANGE CLASS',() => this.changeClass());
-    this.addButton(340,189,124,17,'START CLASS',() => this.startClass());
-    this.addButton(340,209,124,17,'CLOSE GYM',() => this.nextDay());
-    this.addButton(340,245,60,16,'DECOR',() => this.buyDecor());
-    this.addButton(404,245,60,16,'ROSTER',() => this.toggleRoster());
-    this.buildButtonText=this.addButton(404,265,60,16,'BUILD',() => this.openFurniture('build'));
+    this.buildHint=this.add.text(12,285,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.addButton(341,133,124,17,'BUY GYM GEAR',() => this.upgradeEquipment());
+    this.addButton(341,153,124,17,'CHANGE CLASS',() => this.changeClass());
+    this.addButton(341,173,124,17,'START CLASS',() => this.startClass());
+    this.addButton(341,193,124,17,'CLOSE GYM',() => this.nextDay());
+    this.addButton(341,213,60,16,'DECOR',() => this.buyDecor());
+    this.addButton(405,213,60,16,'ROSTER',() => this.toggleRoster());
+    this.buildButtonText=this.addButton(405,232,60,16,'BUILD',() => this.openFurniture('build'));
     this.buildButtonText.setDepth(40);
-    this.addButton(340,265,60,16,'SHOP',() => this.openFurniture('shop'));
-    this.addButton(340,285,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(404,285,60,17,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(340,323,60,17,'DEFENSE',()=>this.openArcade('Defense'));
-    this.addButton(404,323,60,17,'COMPETE',()=>this.openArcade('Competition'));
-    this.add.text(342,302,'TRAINING DRILLS',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(340,103,124,17,'INVENTORY',() => this.openFurniture('inventory'));
+    this.addButton(341,232,60,16,'SHOP',() => this.openFurniture('shop'));
+    this.add.text(344,247,'TRAINING & SPARRING',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
+    this.addButton(341,270,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
+    this.addButton(405,270,60,17,'BAG WORK',()=>this.openArcade('Memory'));
+    this.addButton(341,291,60,17,'DEFENSE',()=>this.openArcade('Defense'));
+    this.addButton(405,291,60,17,'COMPETE',()=>this.openArcade('Competition'));
+    this.addButton(341,313,124,17,'INVENTORY',() => this.openFurniture('inventory'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
@@ -154,11 +166,11 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
       // Explicitly route HUD clicks before world placement. Phaser input can hit the scene and UI together.
-      if(p.worldX>=404 && p.worldX<=464 && p.worldY>=249 && p.worldY<=265) { this.openFurniture('build'); return; }
+      if(p.worldX>=405 && p.worldX<=465 && p.worldY>=216 && p.worldY<=232) { this.openFurniture('build'); return; }
       if(this.furniturePanel.visible) return;
       if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
-      if(p.worldX >= 330 || p.worldY >= 215) return;
+      if(p.worldX >= 330 || p.worldY >= 225) return;
       if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
@@ -192,7 +204,7 @@ class GymScene extends Phaser.Scene {
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Text {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
     const t=this.add.text(x+w/2,y-h/2,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}).setOrigin(0.5).setInteractive();
-    b.on('pointerdown',fn); t.on('pointerdown',fn);
+    b.on('pointerdown',()=>{playGymCue('tap');fn();}); t.on('pointerdown',()=>{playGymCue('tap');fn();});
     return t;
   }
   private makeActionControl(x:number,y:number,label:string,fn:()=>void):Phaser.GameObjects.Container {
@@ -207,7 +219,7 @@ class GymScene extends Phaser.Scene {
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
   }
   private refresh():void {
-    this.status.setText(['DAY '+this.saveData.day+'   $'+this.saveData.money,'REP '+this.saveData.reputation+'   CLASSES '+(this.saveData.classesTaught||0),'EARNED $'+(this.saveData.lifetimeEarnings||0),this.saveData.completed?'CLASS DONE':'CLASS READY']);
+    this.status.setText(['DAY '+this.saveData.day+'  |  $'+this.saveData.money,'REP '+this.saveData.reputation+'  |  CLASSES '+(this.saveData.classesTaught||0)]);
     const level=this.saveData.equipment||0;
     this.equipmentLabel.setText('GEAR '+level+'/3 | '+(level===3?'MAXED':'$'+(40+level*35)));
     const decor=this.saveData.decorLevel||0;
