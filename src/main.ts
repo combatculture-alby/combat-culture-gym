@@ -195,9 +195,9 @@ class GymScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.furniturePanel.setVisible(false);return;}if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
-    this.input.keyboard!.on('keydown-C',() => this.openArcade('Rush'));
-    this.input.keyboard!.on('keydown-P',()=>this.openArcade('Rhythm'));
-    this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
+    this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
+    this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
+    this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
     this.input.keyboard!.on('keydown-N',() => this.nextDay());
     this.input.keyboard!.on('keydown-R',() => this.reset());
     this.input.keyboard!.on('keydown-B',() => this.openGymUpgrades());
@@ -495,18 +495,14 @@ class GymScene extends Phaser.Scene {
   private addShopInventory(y:number):void {
     const stock=this.saveData.materials||[0,0,0];
     const label='YOU HAVE  USD '+this.saveData.money+'  |  '+MATERIAL_NAMES.map((name,i)=>name+' '+(stock[i]||0)).join('  ');
-    this.furniturePanel.add(this.add.rectangle(33,y-4,294,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
-    this.furniturePanel.add(this.add.text(38,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.furniturePanel.add(this.add.rectangle(80,y-4,319,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
+    this.furniturePanel.add(this.add.text(84,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
   }
   private openGearShop():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,8,310,254,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,15,'TRAINING EQUIPMENT',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,15,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    this.menuShell('TRAINING EQUIPMENT','PURCHASE  /  PLACE  /  UPGRADE',()=>this.openGymUpgrades());
     GEAR_ITEMS.forEach((gear,i)=>{
       const owned=this.saveData.ownedGear?.[i]===true;
-      const line=this.add.text(37,40+i*24,gear.name+'  '+(owned?'[MOVE]':'USD '+gear.cost+' / '+materialCost(GEAR_MATERIALS[i])),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:4,y:4}}).setInteractive({useHandCursor:true});
+      const line=this.add.text(84+(i%2)*161,77+Math.floor(i/2)*36,gear.name+'  '+(owned?'[MOVE]':'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
         if(owned){this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
@@ -519,7 +515,7 @@ class GymScene extends Phaser.Scene {
         this.say('Purchased '+gear.name+'. Click the gym floor to place it.');
       });this.furniturePanel.add(line);
     });
-    this.addShopInventory(240);
+    this.addShopInventory(203);
     this.furniturePanel.setVisible(true);
   }
   private beginGearPlacement(index:number):void {
@@ -542,16 +538,12 @@ class GymScene extends Phaser.Scene {
     this.say(name+' placed. Open Training Equipment to move it again.');
   }
   private openMaterials():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,38,'MATERIALS & CRAFTING',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
-    this.furniturePanel.add(this.add.text(36,70,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.menuShell('MATERIALS & CRAFT','GATHER  /  CONVERT  /  EARN',()=>this.openGymUpgrades());
+    this.furniturePanel.add(this.add.text(84,76,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
     const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
       const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
-      const item=this.add.text(36,107+i*51,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:5},wordWrap:{width:275}}).setInteractive();
+      const item=this.add.text(84,108+i*47,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6},wordWrap:{width:302}}).setInteractive();
       item.on('pointerdown',()=>{
         const stock=this.saveData.materials||[0,0,0];
         if(recipe.cost.some((amount,j)=>stock[j]<amount)){this.say('Gather more materials to craft this.');return;}
@@ -594,16 +586,11 @@ class GymScene extends Phaser.Scene {
     return p?this.collectNodeAt(p.x,p.y):false;
   }
   private openClassSchedule():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     const count=this.saveData.classesToday||0;
-    this.furniturePanel.add(this.add.text(37,39,'SCHEDULE CLASSES  '+count+'/2 TODAY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff'}));
-    const back=this.add.text(275,39,'BACK',{fontFamily:UI_FONT,fontSize:'11px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
-    back.on('pointerdown',()=>this.openTrainingBoard());this.furniturePanel.add(back);
+    this.menuShell('CLASS SCHEDULE',count+'/2 CLASSES TAUGHT TODAY',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((program,i)=>{
       const label=program.name+'  ('+program.stats.map(k=>CORE_STATS[k]).join(' + ')+')';
-      const button=this.add.text(38,76+i*43,label,{fontFamily:UI_FONT,fontSize:'11px',color:count>=2?'#929b9c':'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6}}).setInteractive({useHandCursor:true});
-      button.on('pointerdown',()=>this.simulateClass(i));this.furniturePanel.add(button);
+      this.menuAction(label,84,76+i*36,310,()=>this.simulateClass(i),count>=2);
     });
     this.furniturePanel.setVisible(true);
   }
@@ -647,15 +634,11 @@ class GymScene extends Phaser.Scene {
     });
   }
   private showStudentGoals():void {
-    this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,28,310,242,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(36,38,'STUDENT GOALS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
-    back.on('pointerdown',()=>this.openTrainingBoard());this.furniturePanel.add(back);
+    this.menuShell('STUDENT GOALS','TRAINING PROGRESS  /  MILESTONES',()=>this.openTrainingBoard());
     this.students.forEach((student,i)=>{
       const goal=(this.saveData.studentGoals||initialGoals())[i];
       const current=this.saveData.studentStats?.[i]?.[goal[1]]||10;
-      this.furniturePanel.add(this.add.text(37,75+i*41,student.name+': '+CORE_STATS[goal[1]]+' '+current+'/'+goal[0]+'  |  Goals '+(this.saveData.completedGoals?.[i]||0),{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff'}));
+      this.furniturePanel.add(this.add.text(84,80+i*34,student.name+'  '+CORE_STATS[goal[1]]+' '+current+'/'+goal[0]+'  |  Completed '+(this.saveData.completedGoals?.[i]||0),{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff'}));
     });
     this.furniturePanel.setVisible(true);
   }
@@ -666,7 +649,7 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.removeAll(true);
     this.furniturePanel.add(this.add.rectangle(32,24,292,228,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     this.furniturePanel.add(this.add.text(44,41,kind==='equipment'?'TRAINING EQUIPMENT':'GYM DECORATIONS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
-    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
+    const close=this.add.text(381,37,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(close);
     const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  USD '+cost+' + '+materialCost(DECOR_MATERIALS[level]);
     this.furniturePanel.add(this.add.text(46,78,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
@@ -693,16 +676,16 @@ class GymScene extends Phaser.Scene {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
     this.furnitureMode=mode;
     this.furniturePanel.removeAll(true);
-    const bg=this.add.rectangle(32,24,292,mode==='shop'?230:204,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
+    const bg=this.add.rectangle(67,24,346,222,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.furniturePanel.add(bg);
-    const heading=this.add.text(44,40,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
+    const heading=this.add.text(83,37,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
     this.furniturePanel.add(heading);
     const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.furniturePanel.setVisible(false));
     this.furniturePanel.add(close);
     if(mode==='shop') FURNITURE.forEach((item,i)=>{
       const unlocked=this.saveData.reputation>=item.rep;
-      const row=this.add.text(46,67+i*25,item.name+'  USD '+item.price+' + '+materialCost(FURNITURE_MATERIALS[i]||[1,1,1])+(unlocked?'':'  REP '+item.rep),{fontFamily:UI_FONT,fontSize:'11px',color:unlocked?'#f7e9cb':'#9eabb0',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
+      const row=this.add.text(84,72+i*28,item.name+'  USD '+item.price+' + '+materialCost(FURNITURE_MATERIALS[i]||[1,1,1])+(unlocked?'':'  REP '+item.rep),{fontFamily:UI_FONT,fontSize:'11px',color:unlocked?'#f7e9cb':'#9eabb0',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
       row.on('pointerdown',()=>this.buyFurniture(i));
       this.furniturePanel.add(row);
     });
@@ -710,7 +693,7 @@ class GymScene extends Phaser.Scene {
       const owned=this.saveData.decorLevel||0;
       for(let i=0;i<owned;i++) {
         const idx=i;
-        const row=this.add.text(46,67+i*23,['Gym banner','Training poster','Indoor plant'][i]+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
+        const row=this.add.text(84,72+i*25,['Gym banner','Training poster','Indoor plant'][i]+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
         row.on('pointerdown',()=>{this.placingDecor=idx;this.selectedFurniture=-1;this.furniturePanel.setVisible(false);this.drawEquipment();this.say('Tap a clear spot to move '+['banner','poster','plant'][idx]+'.');});
         this.furniturePanel.add(row);
       }
