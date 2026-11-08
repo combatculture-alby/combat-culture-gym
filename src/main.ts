@@ -928,6 +928,31 @@ function fightDamage(a:FightMove,b:FightMove,sp:number):number {
   if(sp<10)n=Math.ceil(n*.75);
   return n;
 }
+// Short synthesized cues avoid external audio assets and play only after player interaction.
+function playFightSound(kind:'attack'|'big'|'defend'|'breath'|'win'|'lose'):void {
+  try {
+    const AudioCtx=window.AudioContext;
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const now=ctx.currentTime;
+    const tones:Record<typeof kind,[number,number,number,string]>={
+      attack:[180,85,.11,'triangle'],big:[115,48,.23,'sawtooth'],
+      defend:[420,260,.09,'square'],breath:[320,570,.3,'sine'],
+      win:[530,790,.32,'sine'],lose:[240,110,.35,'triangle']
+    };
+    const [start,end,duration,wave]=tones[kind];
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.type=wave as OscillatorType;
+    osc.frequency.setValueAtTime(start,now);
+    osc.frequency.exponentialRampToValueAtTime(end,now+duration);
+    gain.gain.setValueAtTime(.0001,now);
+    gain.gain.exponentialRampToValueAtTime(.075,now+.012);
+    gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.start(now);osc.stop(now+duration+.015);
+    osc.onended=()=>{void ctx.close();};
+  }catch{/* Audio is optional if the browser blocks playback. */}
+}
 class CompetitionScene extends Phaser.Scene {
   private difficulty:FightDifficulty='normal';
   private hp=100;private sp=50;private enemyHp=100;private enemySp=50;private turn=1;
@@ -1043,6 +1068,7 @@ class CompetitionScene extends Phaser.Scene {
     this.enemyHp=Phaser.Math.Clamp(this.enemyHp-dealt+(enemy==='breath'?8:0),0,100);
     this.sp=Phaser.Math.Clamp(this.sp-FIGHT_COST[move],0,50);
     this.enemySp=Phaser.Math.Clamp(this.enemySp-FIGHT_COST[enemy],0,50);
+    playFightSound(move);
     this.history.push(move);this.turn++;
     this.status.setText('YOU: '+FIGHT_LABEL[move]+'  |  AI: '+FIGHT_LABEL[enemy]+'\nDealt '+dealt+'  /  Took '+taken);
     this.renderStats();
@@ -1058,6 +1084,7 @@ class CompetitionScene extends Phaser.Scene {
     const factor=this.difficulty==='hard'?2:this.difficulty==='normal'?1.5:1;
     const cash=Math.round((win?40:draw?15:8)*factor),rep=win?Math.round(factor):0;
     awardArcade(cash,rep,false);
+    playFightSound(win?'win':'lose');
     this.controls.forEach(c=>c.destroy());this.controls=[];
     this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED 
     arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
