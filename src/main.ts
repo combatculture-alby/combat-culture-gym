@@ -215,7 +215,6 @@ class GymScene extends Phaser.Scene {
       }
       if(p.worldY >= 225) return;
       if(this.useStationAt(p.worldX,p.worldY))return;
-      if(this.collectNodeAt(p.worldX,p.worldY))return;
       const student=[...this.students].sort((a,b)=>b.y-a.y).find(s=>
         Math.abs(s.x-p.worldX)<15&&p.worldY>=s.y-33&&p.worldY<=s.y+8);
       if(student){
@@ -225,7 +224,9 @@ class GymScene extends Phaser.Scene {
           this.targetRefresh=0;
           this.followStudent();
         }
-      }else this.route=this.playerRoute({x:p.worldX,y:p.worldY});
+      }else if(!this.collectNodeAt(p.worldX,p.worldY)){
+        this.route=this.playerRoute({x:p.worldX,y:p.worldY});
+      }
     });
   }
   private clearIntent():void {
