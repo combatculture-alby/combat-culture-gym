@@ -193,6 +193,24 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x9d7554).fillRect(329,31,3,192);
     g.fillStyle(0x523c30).fillRect(332,31,2,192);
     g.fillStyle(0xc6a37a).fillRect(0,220,480,2);
+    // Wall-mounted training timetable, hooks, and small potted greenery.
+    g.fillStyle(0x4b3c31).fillRect(137,36,47,29);
+    g.fillStyle(0xe4d3b0).fillRect(140,39,41,23);
+    g.fillStyle(0x8e5147).fillRect(144,43,33,4);
+    for(let k=0;k<3;k++){
+      g.fillStyle(0x9e947a).fillRect(144,50+k*4,24-k*3,1);
+      g.fillStyle(0x597f73).fillRect(172,50+k*4,5,2);
+    }
+    g.fillStyle(0x6d513d).fillRect(298,38,20,4);
+    for(let k=0;k<3;k++){
+      g.fillStyle(0x343a3c).fillRect(301+k*6,42,2,6);
+      g.fillStyle(0xd6ba88).fillRect(301+k*6,47,2,2);
+    }
+    g.fillStyle(0x8c6047).fillRect(460,142,14,11);
+    g.fillStyle(0x4c7150).fillRect(466,132,4,12);
+    g.fillStyle(0x70976b).fillRect(460,136,7,5);
+    g.fillStyle(0x70976b).fillRect(469,134,6,7);
+    g.fillStyle(0x9ab586).fillRect(464,132,5,5);
     this.add.text(346,127,'TRAINING BOARD',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
     this.add.text(385,226,'RECEPTION',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
     this.decor=this.add.graphics().setDepth(1);
@@ -363,6 +381,14 @@ class GymScene extends Phaser.Scene {
     rect(-5,17,6,2,0x6b8185);
     rect(5,17,6,2,0x6b8185);
     rect(0,11,12,2,0x273e45);
+    if(!owner){
+      // Each student's training outfit has a unique stripe and glove palette.
+      const accent=shirt===0xd9a06c?0x7b443b:shirt===0x8cbaaa?0x397b6d:shirt===0xaaa4d5?0x68628c:0xa56d38;
+      rect(-8,-5,3,11,accent);
+      rect(8,-5,3,11,accent);
+      rect(-5,5,4,3,accent);rect(5,5,4,3,accent);
+      rect(0,7,8,2,accent);
+    }
     if(owner) {
       rect(0,-27,24,4,0xc82f31);
       rect(0,-5,8,8,0xc97c36);
