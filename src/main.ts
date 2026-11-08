@@ -126,7 +126,8 @@ class GymScene extends Phaser.Scene {
     this.addButton(340,265,60,16,'SHOP',() => this.openFurniture('shop'));
     this.addButton(340,285,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
     this.addButton(404,285,60,17,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(340,323,124,17,'DEFENSE',()=>this.openArcade('Defense'));
+    this.addButton(340,323,60,17,'DEFENSE',()=>this.openArcade('Defense'));
+    this.addButton(404,323,60,17,'COMPETE',()=>this.openArcade('Competition'));
     this.add.text(342,302,'TRAINING DRILLS',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.addButton(340,103,124,17,'INVENTORY',() => this.openFurniture('inventory'));
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
@@ -484,7 +485,7 @@ class GymScene extends Phaser.Scene {
       this.say(nearest.name+': '+lines[i][Math.max(0,nearest.friendship-1)%2]+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
-  private openArcade(mode:'Rhythm'|'Memory'|'Defense'):void {
+  private openArcade(mode:'Rhythm'|'Memory'|'Defense'|'Competition'):void {
     if(this.running) return;
     this.persist();
     this.scene.start(mode);
@@ -811,12 +812,12 @@ class RhythmScene extends Phaser.Scene {
   private exit():void {this.active=false;this.scene.start('Gym');}
 }
 class MemoryScene extends Phaser.Scene {
-  private sequence:number[]=[];private position=0;private round=0;private showing=false;private active=false;
+  private sequence:number[]=[];private position=0;private round=0;private showing=false;private active=false;private mistakes=0;private successes=0;
   private info!:Phaser.GameObjects.Text;private coach!:Phaser.GameObjects.Text;private pads:Phaser.GameObjects.Rectangle[]=[];
   private keys:Phaser.Input.Keyboard.Key[]=[];
   constructor(){super('Memory');}
   create():void {
-    this.active=true;this.sequence=[];this.round=0;this.position=0;this.showing=false;this.pads=[];
+    this.active=true;this.sequence=[];this.round=0;this.position=0;this.showing=false;this.pads=[];this.mistakes=0;this.successes=0;
     arcadeFrame(this,'BAG WORK CLASS','Remember the combination. Call out each move and your student hits the bag.');
     this.info=this.add.text(24,78,'',{fontFamily:UI_FONT,fontSize:'13px',color:cream});
     this.coach=this.add.text(240,111,'COACH: READY!',{fontFamily:UI_FONT,fontSize:'19px',fontStyle:'bold',color:'#ffe29b'}).setOrigin(0.5);
@@ -833,9 +834,9 @@ class MemoryScene extends Phaser.Scene {
   update():void {if(!this.active)return;for(let i=0;i<this.keys.length;i++)if(Phaser.Input.Keyboard.JustDown(this.keys[i])){this.choose(i);break;}}
   private nextRound():void {
     if(!this.active)return;
-    this.round++;this.position=0;const count=this.round<=2?3:this.round<=4?4:6;
-    this.sequence=Array.from({length:Math.min(2+this.round,7)},()=>Phaser.Math.Between(0,count-1));
-    this.showing=true;this.info.setText('ROUND '+this.round+'/5  |  MEMORIZE '+this.sequence.length+' MOVES');
+    this.round++;this.position=0;const count=this.round<=3?3:this.round<=6?4:6;
+    this.sequence=Array.from({length:Math.min(2+this.round,10)},()=>Phaser.Math.Between(0,count-1));
+    this.showing=true;this.info.setText('ROUND '+this.round+'/10  |  MEMORIZE '+this.sequence.length+' MOVES');
     this.coach.setText('WATCH THE COMBINATION');
     this.sequence.forEach((n,i)=>this.time.delayedCall(500+i*650,()=>{
       if(!this.active)return;this.coach.setText(TECHNIQUES[n]+'!');
@@ -844,24 +845,24 @@ class MemoryScene extends Phaser.Scene {
     }));
     this.time.delayedCall(750+this.sequence.length*650,()=>{
       if(!this.active)return;this.showing=false;this.coach.setText('YOUR TURN, COACH!');
-      this.info.setText('ROUND '+this.round+'/5  |  CALL THE COMBINATION: 0/'+this.sequence.length);
+      this.info.setText('ROUND '+this.round+'/10  |  CALL THE COMBINATION: 0/'+this.sequence.length);
     });
   }
   private choose(n:number):void {
     if(!this.active||this.showing)return;
-    if(this.sequence[this.position]!==n){this.coach.setText('WRONG CALL!');this.finish(false);return;}
+    if(this.sequence[this.position]!==n){this.mistakes++;this.coach.setText('WRONG CALL! TRY THE NEXT ROUND');this.showing=true;this.time.delayedCall(850,()=>this.nextRound());return;}
     this.position++;this.coach.setText('COACH: '+TECHNIQUES[n]+'!  |  STUDENT: HIT!');
-    this.info.setText('ROUND '+this.round+'/5  |  COMBINATION '+this.position+'/'+this.sequence.length);
+    this.info.setText('ROUND '+this.round+'/10  |  COMBINATION '+this.position+'/'+this.sequence.length);
     if(this.position===this.sequence.length){
-      this.showing=true;if(this.round>=5)this.finish(true);
+      this.successes++;this.showing=true;if(this.round>=10)this.finish();
       else this.time.delayedCall(650,()=>this.nextRound());
     }
   }
-  private finish(won:boolean):void {
-    this.active=false;const earned=won?35:Math.max(0,(this.round-1)*5);awardArcade(earned,won?2:0,false);
+  private finish():void {
+    this.active=false;const earned=10+this.successes*7;awardArcade(earned,Math.floor(this.successes/3),false);
     this.add.rectangle(240,164,345,170,ink).setStrokeStyle(2,gold);
-    this.add.text(240,115,won?'CLASS MASTERED':'CLASS ENDED',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
-    this.add.text(240,153,'Round '+this.round+'/5  |  Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
+    this.add.text(240,115,'BAG WORK COMPLETE',{fontFamily:UI_FONT,fontSize:'21px',color:cream}).setOrigin(0.5);
+    this.add.text(240,153,'Round '+this.round+'/10  |  Earned $'+earned,{fontFamily:UI_FONT,fontSize:'14px',color:cream}).setOrigin(0.5);
     arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
   private exit():void {this.active=false;this.scene.start('Gym');}
@@ -910,6 +911,114 @@ class DefenseScene extends Phaser.Scene {
     arcadeButton(this,240,206,160,35,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
   private exit():void {this.active=false;this.scene.start('Gym');}
+}
+
+
+type FightMove='attack'|'defend'|'big'|'breath';
+type FightDifficulty='easy'|'normal'|'hard';
+const FIGHT_MOVES:FightMove[]=['attack','defend','big','breath'];
+const FIGHT_COST:Record<FightMove,number>={attack:5,defend:-5,big:20,breath:-15};
+const FIGHT_LABEL:Record<FightMove,string>={attack:'ATTACK',defend:'DEFEND',big:'BIG ATTACK',breath:'CATCH BREATH'};
+function fightDamage(a:FightMove,b:FightMove,sp:number):number {
+  let n=a==='attack'?12:a==='big'?28:0;
+  if(b==='defend')n=a==='big'?3:Math.ceil(n*.25);
+  if(a==='big'&&b==='breath')n=40;
+  if(a==='attack'&&b==='breath')n=18;
+  if(a==='attack'&&b==='big')n=18;
+  if(sp<10)n=Math.ceil(n*.75);
+  return n;
+}
+class CompetitionScene extends Phaser.Scene {
+  private difficulty:FightDifficulty='normal';
+  private hp=100;private sp=50;private enemyHp=100;private enemySp=50;private turn=1;
+  private history:FightMove[]=[];private active=false;private status!:Phaser.GameObjects.Text;
+  private bars!:Phaser.GameObjects.Text;private controls:Phaser.GameObjects.Container[]=[];
+  constructor(){super('Competition');}
+  create():void {
+    arcadeFrame(this,'COMPETITION','Predict your opponent. Both fighters choose simultaneously.');
+    arcadeButton(this,420,35,72,27,'EXIT',()=>this.scene.start('Gym'));
+    this.add.text(24,88,'CHOOSE DIFFICULTY',{fontFamily:UI_FONT,fontSize:'14px',color:cream});
+    (['easy','normal','hard'] as FightDifficulty[]).forEach((d,i)=>
+      arcadeButton(this,105+i*135,139,117,37,d.toUpperCase(),()=>this.startFight(d)));
+    this.status=this.add.text(240,208,'Equal HP and stamina at every difficulty.',{fontFamily:UI_FONT,fontSize:'13px',color:cream,align:'center'}).setOrigin(.5);
+    this.bars=this.add.text(240,240,'',{fontFamily:UI_FONT,fontSize:'13px',color:cream}).setOrigin(.5);
+  }
+  private startFight(d:FightDifficulty):void {
+    this.difficulty=d;this.hp=100;this.sp=50;this.enemyHp=100;this.enemySp=50;this.turn=1;this.history=[];this.active=true;
+    this.children.list.filter(o=>o instanceof Phaser.GameObjects.Rectangle && o.y===139).forEach(o=>o.destroy());
+    this.controls.forEach(o=>o.destroy());this.controls=[];
+    const descriptions=['-5 SP / 12 DMG','+5 SP / BLOCK','-20 SP / POWER','+15 SP / +8 HP'];
+    FIGHT_MOVES.forEach((move,i)=>{
+      const x=126+(i%2)*227,y=250+Math.floor(i/2)*47;
+      const rect=this.add.rectangle(x,y,208,39,0x376b70).setStrokeStyle(2,gold).setInteractive({useHandCursor:true});
+      const label=this.add.text(x,y,FIGHT_LABEL[move]+'  '+descriptions[i],{fontFamily:UI_FONT,fontSize:'11px',color:cream}).setOrigin(.5);
+      rect.on('pointerdown',()=>this.choose(move));
+      this.controls.push(this.add.container(0,0,[rect,label]));
+    });
+    this.status.setPosition(240,194).setText('Fight! Read the opponent and choose your move.');
+    this.bars.setPosition(240,114);this.renderStats();
+  }
+  private probabilities():Record<FightMove,number> {
+    const w:Record<FightMove,number>={attack:3,defend:1.5,big:2,breath:1.5};
+    if(this.sp<15){w.breath+=8;w.big=0;}
+    if(this.hp<30)w.breath+=2;
+    if(this.difficulty!=='easy'){
+      for(const m of this.history.slice(this.difficulty==='hard'?-8:-3))w[m]+=this.difficulty==='hard'?2.5:1;
+      const last=this.history[this.history.length-1];if(last)w[last]+=this.difficulty==='hard'?3:1;
+    }
+    const legal=FIGHT_MOVES.filter(m=>FIGHT_COST[m]<=this.sp);
+    const total=legal.reduce((s,m)=>s+w[m],0);
+    return {attack:legal.includes('attack')?w.attack/total:0,defend:w.defend/total,big:legal.includes('big')?w.big/total:0,breath:w.breath/total};
+  }
+  private opponentMove():FightMove {
+    const legal=FIGHT_MOVES.filter(m=>FIGHT_COST[m]<=this.enemySp);
+    if(this.difficulty==='easy'&&Math.random()<.65)return Phaser.Utils.Array.GetRandom(legal);
+    const probs=this.probabilities();
+    const scored=legal.map(move=>{
+      let score=0;
+      for(const other of FIGHT_MOVES){
+        const p=probs[other];if(!p)continue;
+        const dealt=fightDamage(move,other,this.enemySp),taken=fightDamage(other,move,this.sp);
+        const heal=move==='breath'?Math.min(8,100-this.enemyHp):0;
+        const delta=Math.min(50,this.enemySp-FIGHT_COST[move])-this.enemySp;
+        score+=p*(dealt*1.1-taken*1.3+heal+delta*(this.difficulty==='hard'?.4:.2));
+        if(dealt>=this.hp)score+=p*60;
+        if(taken>=this.enemyHp)score-=p*70;
+      }
+      return {move,score};
+    }).sort((a,b)=>b.score-a.score);
+    const error=this.difficulty==='easy'?.4:this.difficulty==='normal'?.18:.035;
+    if(Math.random()<error)return Phaser.Utils.Array.GetRandom(legal);
+    if(this.difficulty==='hard')return scored[0].move;
+    return scored[Math.random()<.8?0:Math.min(1,scored.length-1)].move;
+  }
+  private choose(move:FightMove):void {
+    if(!this.active||FIGHT_COST[move]>this.sp)return;
+    const enemy=this.opponentMove();
+    const dealt=fightDamage(move,enemy,this.sp),taken=fightDamage(enemy,move,this.enemySp);
+    this.hp=Phaser.Math.Clamp(this.hp-taken+(move==='breath'?8:0),0,100);
+    this.enemyHp=Phaser.Math.Clamp(this.enemyHp-dealt+(enemy==='breath'?8:0),0,100);
+    this.sp=Phaser.Math.Clamp(this.sp-FIGHT_COST[move],0,50);
+    this.enemySp=Phaser.Math.Clamp(this.enemySp-FIGHT_COST[enemy],0,50);
+    this.history.push(move);this.turn++;
+    this.status.setText('YOU: '+FIGHT_LABEL[move]+'  |  AI: '+FIGHT_LABEL[enemy]+'\nDealt '+dealt+'  /  Took '+taken);
+    this.renderStats();
+    if(this.hp<=0||this.enemyHp<=0)this.finish();
+  }
+  private renderStats():void {
+    this.bars.setText('YOU  HP '+this.hp+'/100  SP '+this.sp+'/50\nAI     HP '+this.enemyHp+'/100  SP '+this.enemySp+'/50\nTURN '+this.turn+'  |  '+this.difficulty.toUpperCase());
+  }
+  private finish():void {
+    this.active=false;
+    const win=this.hp>0&&this.enemyHp<=0,draw=this.hp<=0&&this.enemyHp<=0;
+    const factor=this.difficulty==='hard'?2:this.difficulty==='normal'?1.5:1;
+    const cash=Math.round((win?40:draw?15:8)*factor),rep=win?Math.round(factor):0;
+    awardArcade(cash,rep,false);
+    this.controls.forEach(c=>c.destroy());this.controls=[];
+    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene]});
++cash);
+    arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
+  }
 }
 
 new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene,DefenseScene]});
