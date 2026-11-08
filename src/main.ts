@@ -39,7 +39,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<6):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(65,Math.min(285,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(187,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(65,Math.min(285,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(187,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -391,7 +391,7 @@ class GymScene extends Phaser.Scene {
     const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
     back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
     this.furniturePanel.add(this.add.text(36,70,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
-    const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Recycled Decor',cost:[2,2,2],reward:60}];
+    const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
       const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
       const item=this.add.text(36,107+i*51,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:5},wordWrap:{width:275}}).setInteractive();
@@ -405,13 +405,16 @@ class GymScene extends Phaser.Scene {
     });
     this.furniturePanel.setVisible(true);
   }
-  private gatheringPositions:Point[]=[{x:53,y:113},{x:130,y:199},{x:230,y:74},{x:281,y:137},{x:55,y:185},{x:247,y:199}];
+  // Deterministic daily material locations. No real-time timers or mandatory cleanup.
+  private gatheringPositions:Point[]=Array.from({length:12},(_,i)=>({x:49+(i%6)*46,y:i<6?92:183}));
+  private resourceKind(index:number):number {return (index+this.saveData.day)%3;}
+  private resourceYield(index:number):number {return (index+this.saveData.day)%5===0?2:1;}
   private drawGatheringNodes():void {
     this.gatheringNodes.forEach(node=>node.destroy());this.gatheringNodes=[];
     this.gatheringPositions.forEach((pos,i)=>{
       if(this.saveData.gatheredToday?.includes(i))return;
       const g=this.add.graphics();
-      g.fillStyle([0xa8a6a0,0xa27851,0xc3a58a][i%3]).fillRoundedRect(-6,-5,12,10,2);
+      g.fillStyle([0xa8a6a0,0xa27851,0xc3a58a][this.resourceKind(i)]).fillRoundedRect(-6,-5,12,10,2);
       g.lineStyle(1,0xf4e6c7).strokeRect(-5,-4,10,8);
       const node=this.add.container(pos.x,pos.y,[g]).setDepth(6);
       this.gatheringNodes.push(node);
@@ -423,9 +426,10 @@ class GymScene extends Phaser.Scene {
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)>55){this.say('Walk closer and press E to collect.');this.route=this.findRoute({x:this.player.x,y:this.player.y},{x,y});return true;}
     if(!this.saveData.materials)this.saveData.materials=[0,0,0];
     if(!this.saveData.gatheredToday)this.saveData.gatheredToday=[];
-    this.saveData.materials[i%3]+=1;this.saveData.gatheredToday.push(i);
-    this.persist();this.refresh();this.showFeedback('+1 '+MATERIAL_NAMES[i%3]);
-    this.say('Collected '+MATERIAL_NAMES[i%3]+'. Use materials in Manage Gym > Craft.');
+    const kind=this.resourceKind(i),amount=this.resourceYield(i);
+    this.saveData.materials[kind]+=amount;this.saveData.gatheredToday.push(i);
+    this.persist();this.refresh();this.showFeedback('+'+amount+' '+MATERIAL_NAMES[kind]);
+    this.say('Collected '+amount+' '+MATERIAL_NAMES[kind]+'. Save materials for equipment, furniture and decor.');
     return true;
   }
   private collectNearby():boolean {
@@ -799,7 +803,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
     this.saveData.completed=false;
-    this.say('New day! Gather resources, teach up to two classes, and work toward student goals.');
+    this.say('New day! Twelve material pickups have respawned. Gather whenever you like.');
     this.persist(); this.refresh();
     this.timer.setText('');
   }
