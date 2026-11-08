@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 const W = 480, H = 270, CELL = 12;
-const UI_FONT = 'Arial, Helvetica, sans-serif';
+const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
@@ -99,30 +99,55 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0xc9ae86).fillRect(0,0,W,330);
     // Warm timber wall, windows, posters, and a clear right-side control desk.
     g.fillStyle(0x73563e).fillRect(0,0,480,31);
-    g.fillStyle(0xe4d3ac).fillRect(0,31,480,194);
-    g.fillStyle(0x927452).fillRect(0,224,480,106);
+    // Layered 32px retro-RPG tiles: timber floor, textured wall, and stitched training mats.
+    g.fillStyle(0xe3cfaa).fillRect(0,31,480,194);
+    for(let y=32;y<225;y+=16)for(let x=0;x<480;x+=32){
+      const offset=(Math.floor(y/16)%2)*16;
+      g.fillStyle((Math.floor(x/32)+Math.floor(y/16))%3===0?0xd8c19b:0xe9d7b5,0.55).fillRect(x+offset,y,30,15);
+      g.fillStyle(0xb99e79,0.25).fillRect(x+offset,y+14,30,1);
+    }
+    g.fillStyle(0x8a674c).fillRect(0,224,480,46);
+    for(let y=225;y<270;y+=11) {
+      g.fillStyle(0xa27b58).fillRect(0,y,480,1);
+      for(let x=(Math.floor(y/11)%2)*34;x<480;x+=68)g.fillStyle(0x6d513e).fillRect(x,y,2,11);
+    }
     g.fillStyle(0xe4d3ac).fillRect(330,31,150,194);
+    g.fillStyle(0x71533e).fillRect(43,35,83,44);
     g.fillStyle(0x86b8bd).fillRect(48,39,73,36);
     g.fillStyle(0xe9d9b6).fillRect(82,39,4,36);
     g.fillStyle(0xe9d9b6).fillRect(48,55,73,3);
+    g.fillStyle(0x5d4638).fillRect(195,34,92,34);
     g.fillStyle(0x36545b).fillRect(199,38,84,26);
     g.fillStyle(0xe0c38c).fillRect(204,43,74,16);
     g.fillStyle(0x6b4636).fillRect(0,216,330,9);
-    g.fillStyle(0x426f70).fillRect(32,78,286,132);
-    g.lineStyle(1,0x639596,0.7);
-    for(let x=32;x<=318;x+=32) g.lineBetween(x,78,x,210);
-    for(let y=78;y<=210;y+=32) g.lineBetween(32,y,318,y);
+    g.fillStyle(0x243f43).fillRect(28,74,294,141);
+    g.fillStyle(0x537d7b).fillRect(33,79,284,131);
+    for(let y=79;y<210;y+=32)for(let x=33;x<317;x+=32){
+      const alternate=(Math.floor((x-33)/32)+Math.floor((y-79)/32))%2===0;
+      g.fillStyle(alternate?0x5b8782:0x517b79).fillRect(x,y,31,31);
+      g.fillStyle(0x83a69c,0.55).fillRect(x,y,31,1);
+      g.fillStyle(0x2e5b5b,0.6).fillRect(x+30,y,1,31);
+    }
+    g.fillStyle(0x9b5149).fillRect(32,79,5,131);
+    g.fillStyle(0x9b5149).fillRect(312,79,5,131);
+    g.fillStyle(0xc49a72).fillRect(26,72,297,5);
+    g.fillStyle(0x644a39).fillRect(26,211,297,5);
     // Training board and reception desk are physical interaction points.
     g.fillStyle(0x795a3f).fillRect(344,51,112,69);
     g.fillStyle(0xd9c18e).fillRect(349,56,102,58);
     g.lineStyle(2,0x644a35).strokeRect(349,56,102,58);
     g.fillStyle(0x476c69).fillRect(359,65,80,13);
+    g.fillStyle(0xe7d8b3).fillRect(357,59,14,3);
+    g.fillStyle(0xe7d8b3).fillRect(423,59,17,3);
     g.fillStyle(0xa34f42).fillRect(359,84,46,5);
     g.fillStyle(0x8d9f87).fillRect(359,95,70,5);
     g.fillStyle(0x8a6242).fillRect(390,185,78,36);
     g.fillStyle(0xc9a477).fillRect(388,182,82,8);
     g.fillStyle(0x263b3c).fillRect(409,163,40,23);
     g.fillStyle(0x77ada9).fillRect(413,167,32,15);
+    g.fillStyle(0x315f63).fillRect(416,170,26,9);
+    g.fillStyle(0xc7e0c7).fillRect(418,172,12,2);
+    g.fillStyle(0x97c4bb).fillRect(418,176,19,1);
     g.fillStyle(0xe6d2a8).fillRect(410,191,39,5);
     g.fillStyle(0x735a3d).fillRect(33,76,285,4);
     g.fillStyle(0x254b4b).fillRoundedRect(341,148,106,25,4);
@@ -136,26 +161,26 @@ class GymScene extends Phaser.Scene {
     this.modeLabel=this.add.text(12,17,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
     this.shopLabel=this.add.text(0,0,'',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
     this.equipmentLabel=this.add.text(0,0,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px'}).setVisible(false);
-    this.add.text(338,141,'CLICK BOARD FOR CLASSES',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
+    this.add.text(338,141,'CLASSES & TRAINING',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
     for(const s of this.students) {
       const skin = [0xc68c66,0xe5b08e,0x9c674c,0xe0bc91][this.students.indexOf(s)];
       const hair = [0x29252a,0x503329,0x171a22,0x755039][this.students.indexOf(s)];
       s.body = this.makeCharacter(s.x,s.y,s.color,skin,hair,0x354e56,false);
-      this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5);
+      this.add.text(s.x,s.y-36,s.name,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40'}).setOrigin(0.5).setDepth(10+s.y/100+0.1);
       s.indicator = this.add.text(s.x,s.y-55,'!',{fontFamily:UI_FONT,fontSize:'16px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:5,y:1}}).setOrigin(0.5).setVisible(false).setDepth(4);
     }
     this.status = this.add.text(120,5,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(30);
     this.studentCard=this.add.text(12,16,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(10).setVisible(false);
-    this.message = this.add.text(12,237,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
+    this.message = this.add.text(12,232,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:430}}).setDepth(30);
     this.timer = this.add.text(12,225,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.buildHint=this.add.text(12,285,'Arrange decorations from MANAGE GYM > BUILD',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.buildHint=this.add.text(12,281,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'}).setVisible(false);
+    this.add.text(12,263,'WASD / ARROWS TO MOVE',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,253,'E: INTERACT  |  CLICK: WALK / USE',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
     this.add.text(350,239,'COMPUTER: MANAGE GYM',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
-    this.dailyStatus=this.add.text(12,18,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#f5e8cc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setDepth(30);
+    this.dailyStatus=this.add.text(320,5,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#f5e8cc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setDepth(30);
     const panelBack=this.add.rectangle(34,26,294,244,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,35,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(80).setVisible(false);
@@ -242,16 +267,25 @@ class GymScene extends Phaser.Scene {
   }
   private makeCharacter(x:number,y:number,shirt:number,skin:number,hair:number,shorts:number,owner:boolean):Phaser.GameObjects.Container {
     const parts: Phaser.GameObjects.GameObject[] = [];
+    // Pixel-art silhouette, 2px highlights and strong outlines at the feet anchor.
     const rect=(px:number,py:number,w:number,h:number,color:number) => {
       parts.push(this.add.rectangle(px,py,w,h,color).setStrokeStyle(1,0x283137));
     };
     parts.push(this.add.ellipse(0,14,23,6,0x193b3c,0.3));
     rect(-5,13,6,7,skin); rect(5,13,6,7,skin);
+    rect(-5,17,9,3,0x35454b);rect(5,17,9,3,0x35454b);
     rect(0,5,21,14,shorts);
+    rect(0,1,18,2,0xd5b98c);
     rect(-12,-5,6,15,skin); rect(12,-5,6,15,skin);
     rect(0,-5,21,19,shirt);
+    rect(-5,-10,7,2,owner?0x69747b:0xd5b98c);
+    rect(7,-2,3,12,0x263b3c);
     rect(0,-21,22,19,skin);
+    rect(-5,-22,3,3,0xf4d3b0);
+    rect(5,-22,3,3,0xf4d3b0);
     rect(0,-30,23,8,hair);
+    rect(-8,-32,7,3,hair);
+    rect(5,-34,10,3,hair);
     rect(-8,-25,6,10,hair);
     if(owner) {
       rect(0,-27,24,4,0xc82f31);
