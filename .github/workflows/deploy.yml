@@ -23,6 +23,22 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      # Keep the production game at the root. Build the unmerged overhaul
+      # separately under /preview/ so playtesting never replaces production.
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/gym-world-overhaul
+          path: preview-source
+      - name: Build overhaul preview
+        working-directory: preview-source
+        run: |
+          npm install --no-audit --no-fund
+          npx tsc --noEmit
+          npx vite build --base=/combat-culture-gym/preview/
+      - name: Add preview alongside production
+        run: |
+          mkdir -p dist/preview
+          cp -R preview-source/dist/. dist/preview/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
