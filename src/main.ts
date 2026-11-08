@@ -1213,8 +1213,8 @@ class GymScene extends Phaser.Scene {
     const parts=body.list as Phaser.GameObjects.GameObject[];
     const leftLeg=parts[1] as Phaser.GameObjects.Rectangle;
     const rightLeg=parts[2] as Phaser.GameObjects.Rectangle;
-    const leftArm=parts[6] as Phaser.GameObjects.Rectangle;
-    const rightArm=parts[7] as Phaser.GameObjects.Rectangle;
+    const leftArm=parts[7] as Phaser.GameObjects.Rectangle;
+    const rightArm=parts[8] as Phaser.GameObjects.Rectangle;
     const swing=Math.sin(ai.phase);
     leftLeg.y=13+(moving?swing*2:0);
     rightLeg.y=13-(moving?swing*2:0);
