@@ -1259,8 +1259,7 @@ class ConditioningScene extends Phaser.Scene {
     awardArcade(earned,Math.max(0,3-this.hits),false);playGymCue('complete');
     this.add.rectangle(240,165,365,160,ink).setStrokeStyle(2,gold).setDepth(50);
     this.add.text(240,132,'COURSE COMPLETE',{fontFamily:UI_FONT,fontSize:'22px',color:cream}).setOrigin(.5).setDepth(51);
-    this.add.text(240,171,'Hits: '+this.hits+'   Earned ,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
-+earned,{fontFamily:UI_FONT,fontSize:'13px',color:cream}).setOrigin(.5).setDepth(51);
+    this.add.text(240,171,'Hits: '+this.hits+'   Earned USD '+earned,{fontFamily:UI_FONT,fontSize:'13px',color:cream}).setOrigin(.5).setDepth(51);
     arcadeButton(this,240,210,170,33,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
