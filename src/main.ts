@@ -150,8 +150,6 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x97c4bb).fillRect(418,176,19,1);
     g.fillStyle(0xe6d2a8).fillRect(410,191,39,5);
     g.fillStyle(0x735a3d).fillRect(33,76,285,4);
-    g.fillStyle(0x254b4b).fillRoundedRect(341,148,106,25,4);
-    g.lineStyle(2,0xe5c58c).strokeRoundedRect(341,148,106,25,4);
     g.fillStyle(0x765337).fillRect(385,217,88,6);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
     this.add.text(346,127,'TRAINING BOARD',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
@@ -161,7 +159,6 @@ class GymScene extends Phaser.Scene {
     this.modeLabel=this.add.text(12,5,'OPEN MAT',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6e8c8',backgroundColor:'#294f52',padding:{x:5,y:3}}).setDepth(12);
     this.shopLabel=this.add.text(0,0,'',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
     this.equipmentLabel=this.add.text(0,0,'EQUIPMENT',{fontFamily:UI_FONT,fontSize:'10px'}).setVisible(false);
-    this.add.text(338,141,'CLASSES & TRAINING',{fontFamily:UI_FONT,fontSize:'9px',color:'#493e33'});
     // Pixel-inspired owner: black hair, red headband, dark hoodie and Muay Thai shorts.
     this.player = this.makeCharacter(170,150,0x26292e,0xe6b28e,0x18191e,0xb8242c,true);
     for(const s of this.students) {
