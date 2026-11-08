@@ -6,7 +6,9 @@ type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[] };
+const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
+const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const CORE_STATS=['Striking','Speed','Strength','Conditioning'] as const;
 const CLASS_PROGRAMS=[{name:'Boxing',stats:[0,1]},{name:'Muay Thai',stats:[0,2]},{name:'Grappling',stats:[2,3]},{name:'HIIT',stats:[1,3]}];
 const statThreshold=(value:number):number=>value<20?30:value<40?55:value<60?90:value<80?140:220;
@@ -30,7 +32,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<6):[], studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -154,9 +156,10 @@ class GymScene extends Phaser.Scene {
     this.storeControl=this.makeActionControl(112,238,'STORE',()=>this.storeFurniture());
     this.updateFurnitureActions();
     this.refresh();
+    this.drawGatheringNodes();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
-    this.input.keyboard!.on('keydown-E',() => this.interact());
+    this.input.keyboard!.on('keydown-E',() => this.collectNearby() || this.interact());
     this.input.keyboard!.on('keydown-C',() => this.openArcade('Rush'));
     this.input.keyboard!.on('keydown-P',()=>this.openArcade('Rhythm'));
     this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
@@ -168,13 +171,13 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
-      // Explicitly route HUD clicks before world placement. Phaser input can hit the scene and UI together.
-      if(p.worldX>=405 && p.worldX<=465 && p.worldY>=216 && p.worldY<=232) { this.openFurniture('build'); return; }
+      // Keep world clicks from passing through open management panels.
+      if(this.rosterPanel.visible){this.rosterPanel.setVisible(false);return;}
       if(this.furniturePanel.visible) return;
       if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
       if(p.worldX >= 330 || p.worldY >= 225) return;
-      if(this.rosterPanel.visible) { this.rosterPanel.setVisible(false); return; }
+      if(this.collectNodeAt(p.worldX,p.worldY))return;
       const student = this.students.find(s => Phaser.Math.Distance.Between(s.x,s.y,p.worldX,p.worldY) < 23);
       if(student) {
         if(Phaser.Math.Distance.Between(this.player.x,this.player.y,student.x,student.y) < 42) this.interact(student);
@@ -222,6 +225,7 @@ class GymScene extends Phaser.Scene {
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
   }
   private dailyStatus!:Phaser.GameObjects.Text;
+  private gatheringNodes:Phaser.GameObjects.Container[]=[];
   private refresh():void {
     this.status.setText(['DAY '+this.saveData.day+'  |  $'+this.saveData.money,'REP '+this.saveData.reputation+'  |  CLASSES '+(this.saveData.classesTaught||0)]);
     const level=this.saveData.equipment||0;
@@ -229,6 +233,7 @@ class GymScene extends Phaser.Scene {
     const decor=this.saveData.decorLevel||0;
     this.shopLabel.setText('DECOR '+decor+'/3 '+(decor===3?'MAX':'$'+(25+decor*25)));
     this.drawEquipment();
+    this.drawGatheringNodes();
     this.dailyStatus.setText('GAMES '+(['Rush','Rhythm','Memory','Defense','Competition','Conditioning'] as TrainingMode[]).filter(m=>this.saveData.playedActivities?.[m]===this.saveData.day).length+'/2 | CLASS '+(this.saveData.classesToday||0)+'/2');
   }
   private drawEquipment():void {
@@ -268,6 +273,15 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
       this.decor.fillStyle(0xd9bd80).fillRect(86,48,3,13);
     }
+    // New equipment purchases appear as compact floor fixtures.
+    (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+      if(!owned)return;
+      const x=65+(i%4)*57,y=i<4?73:181;
+      this.decor.fillStyle([0x9c5146,0xd6a66c,0x7eaaa5,0xd3c17c,0x6b7383,0xa7a46d,0x587b88,0x7a8e9b][i]);
+      this.decor.fillRoundedRect(x-9,y-8,18,16,3);
+      this.decor.lineStyle(1,0xf0dfbc).strokeRoundedRect(x-9,y-8,18,16,3);
+      this.decor.fillStyle(0x243b3e).fillRect(x-4,y-2,8,4);
+    });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
     if(decor>=1) {
@@ -296,24 +310,94 @@ class GymScene extends Phaser.Scene {
   private openGymUpgrades():void {
     if(this.running)return;
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,32,292,270,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(32,20,292,282,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     this.furniturePanel.add(this.add.text(44,40,'MANAGE GYM',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
     const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
     const actions:[string,()=>void][]=[
-      ['TRAINING EQUIPMENT',()=>this.openUpgradePurchase('equipment')],
+      ['TRAINING EQUIPMENT',()=>this.openGearShop()],
       ['GYM DECORATIONS',()=>this.openUpgradePurchase('decor')],
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
       ['BUILD / ARRANGE ITEMS',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
       ['SCHEDULE CLASSES',()=>this.openClassSchedule()],
+      ['MATERIALS / CRAFT',()=>this.openMaterials()],
       ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.rosterPanel.setDepth(80);this.toggleRoster();}]
     ];
     actions.forEach(([label,fn],i)=>{
-      const row=this.add.text(48,70+i*28,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
+      const row=this.add.text(48,59+i*28,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
       row.on('pointerdown',fn);this.furniturePanel.add(row);
     });
     this.furniturePanel.setVisible(true);
+  }
+  private openGearShop():void {
+    this.furniturePanel.removeAll(true);
+    this.furniturePanel.add(this.add.rectangle(25,18,310,287,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(36,26,'TRAINING EQUIPMENT',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
+    const back=this.add.text(275,26,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
+    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    GEAR_ITEMS.forEach((gear,i)=>{
+      const owned=this.saveData.ownedGear?.[i]===true;
+      const line=this.add.text(37,54+i*29,gear.name+' | '+CORE_STATS[gear.stat]+' | '+(owned?'OWNED':'USD '+gear.cost),{fontFamily:UI_FONT,fontSize:'10px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:4,y:4}}).setInteractive({useHandCursor:true});
+      line.on('pointerdown',()=>{
+        if(owned)return;
+        if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
+        this.saveData.money-=gear.cost;
+        if(!this.saveData.ownedGear)this.saveData.ownedGear=Array(8).fill(false);
+        this.saveData.ownedGear[i]=true;
+        this.persist();this.refresh();this.openGearShop();
+        this.say('Purchased '+gear.name+'. Training in '+CORE_STATS[gear.stat]+' is more effective.');
+      });this.furniturePanel.add(line);
+    });
+    this.furniturePanel.setVisible(true);
+  }
+  private openMaterials():void {
+    this.furniturePanel.removeAll(true);
+    this.furniturePanel.add(this.add.rectangle(25,28,310,245,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(36,38,'MATERIALS & CRAFTING',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
+    const back=this.add.text(275,38,'BACK',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}).setInteractive();
+    back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
+    this.furniturePanel.add(this.add.text(36,70,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Recycled Decor',cost:[2,2,2],reward:60}];
+    recipes.forEach((recipe,i)=>{
+      const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
+      const item=this.add.text(36,107+i*51,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:5},wordWrap:{width:275}}).setInteractive();
+      item.on('pointerdown',()=>{
+        const stock=this.saveData.materials||[0,0,0];
+        if(recipe.cost.some((amount,j)=>stock[j]<amount)){this.say('Gather more materials to craft this.');return;}
+        recipe.cost.forEach((amount,j)=>stock[j]-=amount);
+        this.saveData.materials=stock;this.saveData.money+=recipe.reward;
+        this.persist();this.refresh();this.openMaterials();this.say('Crafted '+recipe.name+' and earned USD '+recipe.reward+'.');
+      });this.furniturePanel.add(item);
+    });
+    this.furniturePanel.setVisible(true);
+  }
+  private gatheringPositions:Point[]=[{x:53,y:113},{x:130,y:199},{x:230,y:74},{x:281,y:137},{x:55,y:185},{x:247,y:199}];
+  private drawGatheringNodes():void {
+    this.gatheringNodes.forEach(node=>node.destroy());this.gatheringNodes=[];
+    this.gatheringPositions.forEach((pos,i)=>{
+      if(this.saveData.gatheredToday?.includes(i))return;
+      const g=this.add.graphics();
+      g.fillStyle([0xa8a6a0,0xa27851,0xc3a58a][i%3]).fillRoundedRect(-6,-5,12,10,2);
+      g.lineStyle(1,0xf4e6c7).strokeRect(-5,-4,10,8);
+      const node=this.add.container(pos.x,pos.y,[g]).setDepth(6);
+      this.gatheringNodes.push(node);
+    });
+  }
+  private collectNodeAt(x:number,y:number):boolean {
+    const i=this.gatheringPositions.findIndex((p,index)=>!this.saveData.gatheredToday?.includes(index)&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<13);
+    if(i<0)return false;
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)>55){this.say('Walk closer to collect that material.');this.route=this.findRoute({x:this.player.x,y:this.player.y},{x,y});return true;}
+    if(!this.saveData.materials)this.saveData.materials=[0,0,0];
+    if(!this.saveData.gatheredToday)this.saveData.gatheredToday=[];
+    this.saveData.materials[i%3]+=1;this.saveData.gatheredToday.push(i);
+    this.persist();this.refresh();this.showFeedback('+1 '+MATERIAL_NAMES[i%3]);
+    this.say('Collected '+MATERIAL_NAMES[i%3]+'. Use materials in Manage Gym > Craft.');
+    return true;
+  }
+  private collectNearby():boolean {
+    const p=this.gatheringPositions.find((p,i)=>!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
+    return p?this.collectNodeAt(p.x,p.y):false;
   }
   private openClassSchedule():void {
     this.furniturePanel.removeAll(true);
@@ -337,7 +421,8 @@ class GymScene extends Phaser.Scene {
     if(!this.saveData.studentXP)this.saveData.studentXP=initialXP();
     for(let student=0;student<4;student++){
       for(const stat of program.stats){
-        const gearBonus=stat===0&&(this.saveData.equipment||0)>=1?5:0;
+        const matching=GEAR_ITEMS.filter((item,i)=>item.stat===stat&&this.saveData.ownedGear?.[i]).length;
+        const gearBonus=matching>0?5:0;
         let xp=(this.saveData.studentXP[student][stat]||0)+10+gearBonus;
         let value=this.saveData.studentStats[student][stat]||10;
         while(value<100 && xp>=statThreshold(value)){xp-=statThreshold(value);value++;}
@@ -646,13 +731,14 @@ class GymScene extends Phaser.Scene {
     if(this.running) { this.say('Finish class first.'); return; }
     this.saveData.day++;
     this.saveData.classesToday=0;
+    this.saveData.gatheredToday=[];
     this.saveData.completed=false;
     this.say('New day! '+this.classNames[this.saveData.classType||0]+' is scheduled. Save earnings for gym upgrades.');
     this.persist(); this.refresh();
     this.timer.setText('');
   }
   private reset():void {
-    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0],studentStats:initialStats(),studentXP:initialXP(),classesToday:0};
+    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0],studentStats:initialStats(),studentXP:initialXP(),classesToday:0,ownedGear:Array(8).fill(false),materials:[0,0,0],gatheredToday:[]};
     this.running=false; this.placingDecor=-1; this.selectedFurniture=-1; this.updateFurnitureActions(); this.buildButtonText.setText('BUILD'); this.buildHint.setText('Build mode: click BUILD to arrange your decorations'); this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
