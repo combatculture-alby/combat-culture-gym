@@ -213,7 +213,7 @@ class GymScene extends Phaser.Scene {
     } else {
       rect(-5,-21,2,2,0x302a2a); rect(5,-21,2,2,0x302a2a);
     }
-    return this.add.container(x,y,parts);
+    return this.add.container(x,y,parts).setDepth(10+y/100);
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void):Phaser.GameObjects.Text {
     const b=this.add.rectangle(x,y,w,h,0x294f52).setOrigin(0,1).setStrokeStyle(1,0xd5b786).setInteractive();
@@ -384,7 +384,7 @@ class GymScene extends Phaser.Scene {
     if(x<65||x>285||y<75||y>187){this.say('Place equipment inside the mat.');return;}
     if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<25)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<25){this.say('Choose a spot away from people.');return;}
     const occupied=(this.saveData.gearPositions||[]).some((p,i)=>i!==this.placingGear&&this.saveData.ownedGear?.[i]&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<24);
-    if(occupied){this.say('Too close to another piece of equipment.');return;}
+    if(occupied||!this.canPlace(x,y,12,11,this.placingGear)){this.say('Too close to another object.');return;}
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
     this.saveData.gearPositions[this.placingGear]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
     const name=GEAR_ITEMS[this.placingGear].name;
@@ -620,7 +620,7 @@ class GymScene extends Phaser.Scene {
     if(x<65||x>285||y<75||y>187) {this.say('Place furniture inside the mat, away from edges.');return;}
     if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<32)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<32) {this.say('Choose a spot away from people.');return;}
     const items=this.saveData.furniture||[];
-    if(items.some((v,i)=>i!==this.selectedFurniture&&!v.stored&&Phaser.Math.Distance.Between(v.x,v.y,x,y)<35)) {this.say('Too close to another item.');return;}
+    if(!this.canPlace(x,y,22,19,-1,this.selectedFurniture)) {this.say('Too close to another item.');return;}
     const item=items[this.selectedFurniture];if(!item)return;
     item.x=Math.round(x/6)*6;item.y=Math.round(y/6)*6;item.stored=false;
     this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' placed! Q rotate, X store, or choose another from INVENTORY.');
@@ -821,13 +821,56 @@ class GymScene extends Phaser.Scene {
     this.running=false; this.placingDecor=-1; this.selectedFurniture=-1; this.updateFurnitureActions(); this.buildButtonText.setText('BUILD'); this.buildHint.setText('Build mode: click BUILD to arrange your decorations'); this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
+  // The same solid-object footprints drive movement, routing and placement.
+  // Feet are the character's anchor; leave room for the sprite around each fixture.
+  private solidFootprints(excludeGear=-1,excludeFurniture=-1):{x:number;y:number;rx:number;ry:number}[] {
+    const solids:{x:number;y:number;rx:number;ry:number}[]=[];
+    (this.saveData.furniture||[]).forEach((item,i)=>{
+      if(item.stored||i===excludeFurniture)return;
+      const side=item.rotation%2===1;
+      const rx=item.kind===1?(side?9:22):item.kind===2?(side?11:18):item.kind===3?11:12;
+      const ry=item.kind===1?(side?22:9):item.kind===2?(side?18:11):item.kind===0?9:16;
+      solids.push({x:item.x,y:item.y,rx,ry});
+    });
+    (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+      if(!owned||i===excludeGear)return;
+      const pos=this.saveData.gearPositions?.[i]||{x:65+(i%4)*57,y:i<4?80:180};
+      solids.push({x:pos.x,y:pos.y,rx:12,ry:11});
+    });
+    const level=this.saveData.decorLevel||0;
+    (this.saveData.decorPositions||defaults.decorPositions!).slice(0,level).forEach((p,i)=>{
+      solids.push({x:p.x,y:p.y,rx:i===2?11:25,ry:i===2?12:11});
+    });
+    if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:21});
+    if((this.saveData.equipment||0)>=2)solids.push({x:310,y:150,rx:15,ry:9});
+    return solids;
+  }
+  private canStand(x:number,y:number,excludeGear=-1,excludeFurniture=-1):boolean {
+    if(!walkable(x,y))return false;
+    return !this.solidFootprints(excludeGear,excludeFurniture).some(o=>
+      Math.abs(x-o.x)<o.rx+8&&Math.abs(y-o.y)<o.ry+5);
+  }
+  private canPlace(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1):boolean {
+    return !this.solidFootprints(excludeGear,excludeFurniture).some(o=>
+      Math.abs(x-o.x)<o.rx+rx+3&&Math.abs(y-o.y)<o.ry+ry+3);
+  }
   private findRoute(start:Point,end:Point):Point[] {
     const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
     const key=(x:number,y:number)=>y*cols+x;
     const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.floor(p.x/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.floor(p.y/CELL),0,rows-1)});
     const s=cell(start),goal=cell(end);
-    const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&walkable(x*CELL+CELL/2,y*CELL+CELL/2);
-    if(!valid(goal.x,goal.y)) return [];
+    const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&this.canStand(x*CELL+CELL/2,y*CELL+CELL/2);
+    if(!valid(goal.x,goal.y)) {
+      // Route to the nearest free tile instead of walking into the object.
+      let nearest:{x:number;y:number}|null=null,dist=Infinity;
+      for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+        if(!valid(x,y))continue;
+        const d=(x-goal.x)**2+(y-goal.y)**2;
+        if(d<dist){dist=d;nearest={x,y};}
+      }
+      if(!nearest)return [];
+      goal.x=nearest.x;goal.y=nearest.y;
+    }
     const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
     let found=false;
     for(let head=0;head<queue.length;head++) {
@@ -848,7 +891,7 @@ class GymScene extends Phaser.Scene {
       if(parent===undefined) return [];
       current=parent;
     }
-    if(walkable(end.x,end.y)) route.push(end);
+    if(this.canStand(end.x,end.y)) route.push(end);
     return route;
   }
   update(_time:number,delta:number):void {
@@ -879,14 +922,14 @@ class GymScene extends Phaser.Scene {
     }
     const length=Math.hypot(dx,dy);
     if(!length) { this.player.setScale(1); return; }
-    this.walkingClock+=delta;
+    this.player.setDepth(10+this.player.y/100);\n    this.walkingClock+=delta;
     this.player.setScale(1,1+Math.sin(this.walkingClock/95)*0.035);
     const step=Math.min(delta,50)/1000*this.speed;
     const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
     const move=Math.min(step,remaining);
     const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
-    if(walkable(nx,this.player.y)) this.player.x=nx;
-    if(walkable(this.player.x,ny)) this.player.y=ny;
+    if(this.canStand(nx,this.player.y)) this.player.x=nx;
+    if(this.canStand(this.player.x,ny)) this.player.y=ny;
     if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
   }
 }
