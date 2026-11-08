@@ -29,10 +29,12 @@ jobs:
       # separately under /preview/ so playtesting never replaces production.
       - uses: actions/checkout@v4
         with:
-          ref: feat/gym-world-overhaul
+          ref: feat/living-gym-ai
           path: preview-source
-      - name: Build overhaul preview
+      - name: Build Living Gym preview
         working-directory: preview-source
+        env:
+          VITE_ISOLATE_SAVE: '1'
         run: |
           npm install --no-audit --no-fund
           npx tsc --noEmit
