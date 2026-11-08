@@ -171,6 +171,7 @@ class GymScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
+    this.input.keyboard!.on('keydown-SPACE',(event:KeyboardEvent)=>{if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;event.preventDefault();if(!this.collectNearby())this.say('Move closer to a material pile to pick it up.');});
     this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
     this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
@@ -577,20 +578,26 @@ class GymScene extends Phaser.Scene {
     this.say(name+' placed. Use Build to move it again.');
   }
   private openMaterials():void {
-    this.menuShell('MATERIALS & CRAFT','GATHER  /  CONVERT  /  EARN',()=>this.openGymUpgrades());
-    this.furniturePanel.add(this.add.text(84,76,MATERIAL_NAMES.map((name,i)=>name+': '+(this.saveData.materials?.[i]||0)).join('   '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    const collected=this.saveData.gatheredToday?.length||0;
+    this.menuShell('MATERIALS & CRAFT',collected+'/12 pickups collected today',()=>this.openGymUpgrades());
+    const stock=this.saveData.materials||[0,0,0];
+    this.furniturePanel.add(this.add.text(84,75,MATERIAL_NAMES.map((name,i)=>name+': '+(stock[i]||0)).join('    '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
+    this.furniturePanel.add(this.add.text(84,94,collected>=12?'All pickups collected. New materials appear tomorrow.':'Tap scattered material piles in the gym to collect them.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b9d6c8',wordWrap:{width:310}}));
     const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
-      const label=recipe.name+'  ('+recipe.cost.map((v,j)=>v+' '+MATERIAL_NAMES[j]).join(', ')+')';
-      const item=this.add.text(84,108+i*47,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6},wordWrap:{width:302}}).setInteractive();
-      item.on('pointerdown',()=>{
-        const stock=this.saveData.materials||[0,0,0];
-        if(recipe.cost.some((amount,j)=>stock[j]<amount)){this.say('Gather more materials to craft this.');return;}
-        recipe.cost.forEach((amount,j)=>stock[j]-=amount);
-        this.saveData.materials=stock;this.saveData.money+=recipe.reward;
-        this.persist();this.refresh();this.openMaterials();this.say('Crafted '+recipe.name+' and earned USD '+recipe.reward+'.');
-      });this.furniturePanel.add(item);
+      const canCraft=recipe.cost.every((amount,j)=>stock[j]>=amount);
+      const cost=recipe.cost.map((amount,j)=>amount?amount+' '+MATERIAL_NAMES[j]:'').filter(Boolean).join(' + ');
+      this.panelButton(this.furniturePanel,recipe.name+'  +$'+recipe.reward,84,122+i*43,310,35,()=>{
+        const current=this.saveData.materials||[0,0,0];
+        if(recipe.cost.some((amount,j)=>current[j]<amount)){this.say('Not enough materials. Gather more piles in the gym.');return;}
+        recipe.cost.forEach((amount,j)=>current[j]-=amount);
+        this.saveData.materials=current;
+        this.saveData.money+=recipe.reward;
+        this.persist();this.refresh();this.openMaterials();
+        this.say('Crafted '+recipe.name+' and earned $'+recipe.reward+'.');
+      },!canCraft,0x39735f,cost);
     });
+    this.furniturePanel.add(this.add.text(166,220,'Materials also pay for equipment and furniture.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
     this.furniturePanel.setVisible(true);
   }
   // Deterministic daily material locations. No real-time timers or mandatory cleanup.
@@ -640,13 +647,30 @@ class GymScene extends Phaser.Scene {
     const p=this.gatheringPositions.find((p,i)=>!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
     return p?this.collectNodeAt(p.x,p.y):false;
   }
+  private selectedClass=0;
   private openClassSchedule():void {
     const count=this.saveData.classesToday||0;
-    this.menuShell('CLASS SCHEDULE',count+'/2 CLASSES TAUGHT TODAY',()=>this.openTrainingBoard());
+    const remaining=Math.max(0,2-count);
+    this.menuShell('CLASS SCHEDULE',remaining+' of 2 class slots remaining today',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((program,i)=>{
-      const label=program.name+'  ('+program.stats.map(k=>CORE_STATS[k]).join(' + ')+')';
-      this.menuAction(label,84,76+i*36,310,()=>this.simulateClass(i),count>=2);
+      const selected=i===this.selectedClass;
+      const label=(selected?'› ':'')+program.name;
+      this.panelButton(this.furniturePanel,label,84,72+i*31,142,27,()=>{
+        this.selectedClass=i;
+        this.openClassSchedule();
+      },false,selected?0x527f74:0x355b5d);
     });
+    const program=CLASS_PROGRAMS[this.selectedClass];
+    const x=238;
+    this.furniturePanel.add(this.add.text(x,77,program.name.toUpperCase(),{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:'#ffe4b0'}));
+    this.furniturePanel.add(this.add.text(x,101,'Trains: '+program.stats.map(k=>CORE_STATS[k]).join(' + '),{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:155}}));
+    const gear=GEAR_ITEMS.filter((item,i)=>program.stats.includes(item.stat)&&this.saveData.ownedGear?.[i]);
+    this.furniturePanel.add(this.add.text(x,132,'Gear bonus: '+(gear.length?'ACTIVE':'NONE'),{fontFamily:UI_FONT,fontSize:'9px',color:gear.length?'#aee0b0':'#dbc2a3'}));
+    this.furniturePanel.add(this.add.text(x,148,'Reward: $15 + student XP',{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2'}));
+    this.panelButton(this.furniturePanel,remaining?'TEACH CLASS':'DAILY LIMIT',238,176,157,31,()=>{
+      if(remaining)this.simulateClass(this.selectedClass);
+    },!remaining,0x39735f);
+    this.furniturePanel.add(this.add.text(165,220,'Select a program, then teach it to your students.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
     this.furniturePanel.setVisible(true);
   }
   private simulateClass(index:number):void {
@@ -703,16 +727,19 @@ class GymScene extends Phaser.Scene {
     const cost=kind==='equipment'?40+level*35:25+level*25;
     const back=()=>kind==='equipment'?this.openGearShop():this.openGymUpgrades();
     this.menuShell(kind==='equipment'?'GYM UPGRADES':'GYM DECORATIONS','LEVEL '+level+' / 3',back);
-    const materials=kind==='decor'&&level<3?' + '+materialCost(DECOR_MATERIALS[level]):'';
-    const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  USD '+cost+materials;
-    this.furniturePanel.add(this.add.text(84,80,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
-    this.furniturePanel.add(this.add.text(84,110,kind==='equipment'?'Adds equipment to the gym and boosts class pay.':'Adds a visible decoration you can move in Build.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:255}}));
-    if(level<3){
-      const buy=this.add.text(84,153,'BUY '+names[level].toUpperCase(),{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:8,y:5}}).setInteractive();
-      buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
-      this.furniturePanel.add(buy);
-    }
-    this.addShopInventory(192);
+    const complete=level>=3;
+    const materials=kind==='decor'&&!complete?DECOR_MATERIALS[level]:[0,0,0];
+    const canPay=!complete&&this.saveData.money>=cost&&hasMaterials(this.saveData.materials,materials);
+    const next=complete?'MAX LEVEL REACHED':'NEXT: '+names[level].toUpperCase();
+    this.furniturePanel.add(this.add.text(84,80,next,{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:'#f7e9cb'}));
+    this.furniturePanel.add(this.add.text(84,109,complete?'All upgrades purchased.':('Price: $'+cost+(kind==='decor'?' + '+materialCost(materials):'')),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c',wordWrap:{width:310}}));
+    this.furniturePanel.add(this.add.text(84,134,kind==='equipment'?'Unlocks gym fixtures and improves class rewards.':'Adds a visible decoration you can reposition in Build mode.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:305}}));
+    if(!complete)this.panelButton(this.furniturePanel,canPay?'PURCHASE UPGRADE':'INSUFFICIENT RESOURCES',84,168,310,33,()=>{
+      if(!canPay)return;
+      if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();
+      this.openUpgradePurchase(kind);
+    },!canPay,0x39735f);
+    this.addShopInventory(207);
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
@@ -1193,7 +1220,11 @@ class GymScene extends Phaser.Scene {
         }
       }
     }
-    const action=pose==='bag'?'shadow':pose==='lift'?'stretch':pose;
+    // Unavailable stations should never trigger pretend bag, lifting or resting interactions.
+    // Without a real station or conversation partner, students practice shadowboxing.
+    // Floor stretching and drinking from a personal bottle are valid solo activities.
+    // Sitting/resting is reserved for an actual bench or rest station.
+    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?'drink':pose==='lift'?'stretch':'shadow';
     for(let i=0;i<6;i++){
       const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
       const routine=plan({x,y},action);
