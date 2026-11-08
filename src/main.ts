@@ -317,7 +317,9 @@ class GymScene extends Phaser.Scene {
     this.selectedFurniture=-1;this.placingDecor=-1;
     this.updateFurnitureActions();this.persist();this.refresh();
     this.openFurniture('inventory');
-    this.say('Sold '+FURNITURE[item.kind].name+' for 
+    this.say('Sold '+FURNITURE[item.kind].name+' for USD '+refund+' (50% resale).');
+  }
+  private openFurniture(mode:'shop'|'inventory'|'build'):void {
     if(this.running) { this.say('Finish class before using the shop.'); return; }
     this.furnitureMode=mode;
     this.furniturePanel.removeAll(true);
@@ -356,7 +358,9 @@ class GymScene extends Phaser.Scene {
       items.slice(0,5).forEach((item,i)=>{
         const row=this.add.text(46,67+i*25,FURNITURE[item.kind].name+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
         row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
-        const sell=this.add.text(253,67+i*25,'SELL 
+        const sell=this.add.text(253,67+i*25,'SELL '+Math.floor(FURNITURE[item.kind].price/2),{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff',backgroundColor:'#974c40',padding:{x:3,y:3}}).setInteractive();
+        sell.on('pointerdown',()=>this.sellFurniture(i));this.furniturePanel.add(sell);
+      });
       if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
     }
     this.rosterPanel.setVisible(false);
