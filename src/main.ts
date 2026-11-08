@@ -526,7 +526,6 @@ class GymScene extends Phaser.Scene {
       buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
       this.furniturePanel.add(buy);
     }
-    if(mode==='shop')this.addShopInventory(207);
     this.addShopInventory(190);
     this.furniturePanel.setVisible(true);
   }
@@ -585,6 +584,7 @@ class GymScene extends Phaser.Scene {
       if(items.length>5) this.furniturePanel.add(this.add.text(46,196,'Showing first 5 items',{fontFamily:UI_FONT,fontSize:'9px',color:'#ffffff'}));
     }
     this.rosterPanel.setVisible(false);
+    if(mode==='shop')this.addShopInventory(207);
     this.furniturePanel.setVisible(true);
     this.say(mode==='build'?'Build mode open: choose an owned item to move.':mode==='shop'?'Furniture shop open.':'Inventory open.');
   }
