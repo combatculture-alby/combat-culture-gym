@@ -171,6 +171,7 @@ class GymScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
+    this.input.keyboard!.on('keydown-SPACE',(event:KeyboardEvent)=>{if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;event.preventDefault();if(!this.collectNearby())this.say('Move closer to a material pile to pick it up.');});
     this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
     this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
@@ -1219,7 +1220,9 @@ class GymScene extends Phaser.Scene {
         }
       }
     }
-    const action=pose==='bag'?'shadow':pose==='lift'?'stretch':pose;
+    // Unavailable stations should never trigger pretend bag, lifting or resting interactions.
+    // Without a real station or conversation partner, students practice shadowboxing.
+    const action:Pose='shadow';
     for(let i=0;i<6;i++){
       const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
       const routine=plan({x,y},action);
