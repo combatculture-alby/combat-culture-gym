@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-const W = 480, H = 270, CELL = 12;
+const W = 480, H = 270, CELL = 6;
 const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
@@ -965,68 +965,111 @@ class GymScene extends Phaser.Scene {
       const ry=item.kind===1?(side?22:9):item.kind===2?(side?18:11):item.kind===0?9:16;
       solids.push({x:item.x,y:item.y,rx,ry});
     });
+    const gearBounds:[number,number][]=[[9,12],[13,10],[8,11],[12,8],[14,10],[14,10],[13,13],[13,12]];
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
       if(!owned||i===excludeGear)return;
       const pos=this.saveData.gearPositions?.[i]||{x:65+(i%4)*57,y:i<4?80:180};
-      solids.push({x:pos.x,y:pos.y,rx:12,ry:11});
+      const [rx,ry]=gearBounds[i]||[12,11];
+      solids.push({x:pos.x,y:pos.y,rx,ry});
     });
     const level=this.saveData.decorLevel||0;
     (this.saveData.decorPositions||defaults.decorPositions!).slice(0,level).forEach((p,i)=>{
-      solids.push({x:p.x,y:p.y,rx:i===2?11:25,ry:i===2?12:11});
+      // Wall banners and posters are flat; only the floor plant blocks walking.
+      if(i===2)solids.push({x:p.x,y:p.y,rx:11,ry:12});
     });
-    if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:21});
+    if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:13});
     if((this.saveData.equipment||0)>=2)solids.push({x:310,y:150,rx:15,ry:9});
     return solids;
   }
   private canStand(x:number,y:number,excludeGear=-1,excludeFurniture=-1):boolean {
     if(!walkable(x,y))return false;
     return !this.solidFootprints(excludeGear,excludeFurniture).some(o=>
-      Math.abs(x-o.x)<o.rx+8&&Math.abs(y-o.y)<o.ry+5);
+      Math.abs(x-o.x)<o.rx+6&&Math.abs(y-o.y)<o.ry+4);
   }
   private canPlace(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1):boolean {
     return !this.solidFootprints(excludeGear,excludeFurniture).some(o=>
       Math.abs(x-o.x)<o.rx+rx+3&&Math.abs(y-o.y)<o.ry+ry+3);
   }
   private findRoute(start:Point,end:Point):Point[] {
+    // Eight-way A* on a 6px navigation grid, using the same collision check as manual movement.
     const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
     const key=(x:number,y:number)=>y*cols+x;
-    const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.floor(p.x/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.floor(p.y/CELL),0,rows-1)});
-    const s=cell(start),goal=cell(end);
+    const cell=(p:Point)=>({x:Phaser.Math.Clamp(Math.round((p.x-CELL/2)/CELL),0,cols-1),y:Phaser.Math.Clamp(Math.round((p.y-CELL/2)/CELL),0,rows-1)});
+    const startCell=cell(start),goal=cell(end);
     const valid=(x:number,y:number)=>x>=0&&x<cols&&y>=0&&y<rows&&this.canStand(x*CELL+CELL/2,y*CELL+CELL/2);
-    if(!valid(goal.x,goal.y)) {
-      // Route to the nearest free tile instead of walking into the object.
-      let nearest:{x:number;y:number}|null=null,dist=Infinity;
-      for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
-        if(!valid(x,y))continue;
-        const d=(x-goal.x)**2+(y-goal.y)**2;
-        if(d<dist){dist=d;nearest={x,y};}
-      }
+    if(!valid(startCell.x,startCell.y)) {
+      // Old saves can contain objects overlapping the coach. Do not lock movement permanently.
+      const nearest=this.nearestWalkable(start);
+      if(!nearest)return [];
+      startCell.x=nearest.x;startCell.y=nearest.y;
+    }
+    if(!valid(goal.x,goal.y)){
+      const nearest=this.nearestWalkable(end);
       if(!nearest)return [];
       goal.x=nearest.x;goal.y=nearest.y;
     }
-    if(!valid(s.x,s.y))return [];
-    const queue=[s],visited=new Set<number>([key(s.x,s.y)]),previous=new Map<number,number>();
-    let found=false;
-    for(let head=0;head<queue.length;head++) {
-      const cur=queue[head];
-      if(cur.x===goal.x&&cur.y===goal.y) { found=true; break; }
-      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-        const x=cur.x+dx,y=cur.y+dy,id=key(x,y);
-        if(!valid(x,y)||visited.has(id)) continue;
-        visited.add(id); previous.set(id,key(cur.x,cur.y)); queue.push({x,y});
+    const heuristic=(x:number,y:number)=>Math.hypot(goal.x-x,goal.y-y);
+    const origin=key(startCell.x,startCell.y),dest=key(goal.x,goal.y);
+    const open=[origin],closed=new Set<number>(),gScore=new Map<number,number>([[origin,0]]);
+    const cameFrom=new Map<number,number>();
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    while(open.length){
+      let best=0,bestScore=Infinity;
+      for(let i=0;i<open.length;i++){
+        const id=open[i],score=(gScore.get(id)??Infinity)+heuristic(id%cols,Math.floor(id/cols));
+        if(score<bestScore){best=i;bestScore=score;}
+      }
+      const current=open.splice(best,1)[0];
+      if(current===dest)break;
+      closed.add(current);
+      const cx=current%cols,cy=Math.floor(current/cols);
+      for(const [dx,dy] of dirs){
+        const x=cx+dx,y=cy+dy,id=key(x,y);
+        if(!valid(x,y)||closed.has(id))continue;
+        if(dx&&dy&&(!valid(cx+dx,cy)||!valid(cx,cy+dy)))continue; // No corner clipping.
+        const tentative=(gScore.get(current)??Infinity)+Math.hypot(dx,dy);
+        if(tentative>=(gScore.get(id)??Infinity))continue;
+        cameFrom.set(id,current);gScore.set(id,tentative);
+        if(!open.includes(id))open.push(id);
       }
     }
-    if(!found) return [];
-    const route:Point[]=[];
-    let current=key(goal.x,goal.y),origin=key(s.x,s.y);
-    while(current!==origin) {
-      route.unshift({x:(current%cols)*CELL+CELL/2,y:Math.floor(current/cols)*CELL+CELL/2});
-      const parent=previous.get(current);
-      if(parent===undefined) return [];
+    if(origin!==dest&&!cameFrom.has(dest))return [];
+    const path:Point[]=[];let current=dest;
+    while(current!==origin){
+      path.unshift({x:(current%cols)*CELL+CELL/2,y:Math.floor(current/cols)*CELL+CELL/2});
+      const parent=cameFrom.get(current);
+      if(parent===undefined)return [];
       current=parent;
     }
-    if(this.canStand(end.x,end.y)) route.push(end);
-    return route;
+    // Remove unnecessary waypoints only if the entire segment is walkable.
+    const simplified:Point[]=[];
+    let anchor=start;
+    for(let i=0;i<path.length;i++){
+      const next=path[i+1];
+      if(next&&this.clearWalkSegment(anchor,next))continue;
+      simplified.push(path[i]);anchor=path[i];
+    }
+    if(this.canStand(end.x,end.y)&&this.clearWalkSegment(anchor,end))simplified.push(end);
+    return simplified;
+  }
+  private nearestWalkable(p:Point):{x:number;y:number}|null {
+    const cols=Math.ceil(W/CELL),rows=Math.ceil(H/CELL);
+    let nearest:null|{x:number;y:number}=null,best=Infinity;
+    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+      const px=x*CELL+CELL/2,py=y*CELL+CELL/2;
+      if(!this.canStand(px,py))continue;
+      const distance=(px-p.x)**2+(py-p.y)**2;
+      if(distance<best){best=distance;nearest={x,y};}
+    }
+    return nearest;
+  }
+  private clearWalkSegment(a:Point,b:Point):boolean {
+    const steps=Math.ceil(Phaser.Math.Distance.Between(a.x,a.y,b.x,b.y)/3);
+    for(let i=1;i<=steps;i++){
+      const t=i/Math.max(steps,1);
+      if(!this.canStand(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t))return false;
+    }
+    return true;
   }
   update(_time:number,delta:number):void {
     if(this.running) {
@@ -1064,8 +1107,15 @@ class GymScene extends Phaser.Scene {
     const remaining=this.route.length?Phaser.Math.Distance.Between(this.player.x,this.player.y,this.route[0].x,this.route[0].y):step;
     const move=Math.min(step,remaining);
     const nx=this.player.x+dx/length*move,ny=this.player.y+dy/length*move;
+    const beforeX=this.player.x,beforeY=this.player.y;
     if(this.canStand(nx,this.player.y)) this.player.x=nx;
     if(this.canStand(this.player.x,ny)) this.player.y=ny;
+    if(this.route.length&&Phaser.Math.Distance.Between(beforeX,beforeY,this.player.x,this.player.y)<0.01){
+      // A fixture moved into the route. Replan rather than vibrating against it.
+      const destination=this.route[this.route.length-1];
+      this.route=this.findRoute({x:this.player.x,y:this.player.y},destination);
+      if(!this.route.length){this.stationTarget=null;this.targetStudent=null;this.say('Path blocked. Try another approach.');}
+    }
     if(this.targetStudent && !this.route.length) { const s=this.targetStudent; this.targetStudent=null; this.interact(s); }
   }
 }
