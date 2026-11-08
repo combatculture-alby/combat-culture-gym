@@ -65,6 +65,8 @@ class GymScene extends Phaser.Scene {
   private walkingClock = 0;
   private decor!: Phaser.GameObjects.Graphics;
   private worldFixtures:Phaser.GameObjects.Graphics[]=[];
+  private placementPreview!:Phaser.GameObjects.Graphics;
+  private placementHint!:Phaser.GameObjects.Text;
   private stationTarget:'board'|'desk'|null=null;
   private studentCard!: Phaser.GameObjects.Text;
   private rosterPanel!: Phaser.GameObjects.Container;
@@ -182,6 +184,8 @@ class GymScene extends Phaser.Scene {
     this.rosterText=this.add.text(83,39,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',lineSpacing:4});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(80).setVisible(false);
     this.furniturePanel=this.add.container(0,0).setDepth(60).setVisible(false);
+    this.placementPreview=this.add.graphics().setDepth(45);
+    this.placementHint=this.add.text(240,219,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#203d40',padding:{x:5,y:3}}).setOrigin(0.5).setDepth(46).setVisible(false);
     // Legacy decoration controls still update this label; keep it initialized without exposing a duplicate button.
     this.buildButtonText=this.add.text(0,0,'BUILD',{fontFamily:UI_FONT,fontSize:'9px'}).setVisible(false);
     this.rotateControl=this.makeActionControl(36,238,'ROTATE',()=>this.rotateFurniture());
@@ -195,19 +199,20 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
     this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
-    this.input.keyboard!.on('keydown-N',() => this.nextDay());
-    this.input.keyboard!.on('keydown-R',() => this.reset());
-    this.input.keyboard!.on('keydown-B',() => this.openGymUpgrades());
+    this.input.keyboard!.on('keydown-N',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.nextDay();});
+    this.input.keyboard!.on('keydown-R',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.reset();});
+    this.input.keyboard!.on('keydown-B',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.openGymUpgrades();});
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
-    this.input.keyboard!.on('keydown-M',() => this.openFurniture('build'));
+    this.input.keyboard!.on('keydown-M',() => {if(!this.furniturePanel.visible)this.openFurniture('build');});
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
+    this.input.keyboard!.on('keydown-ESC',()=>{if(this.furniturePanel.visible)this.furniturePanel.setVisible(false);else this.cancelPlacement();});
     this.input.on('pointerdown',(p:Phaser.Input.Pointer) => {
       // Keep world clicks from passing through open management panels.
       if(this.rosterPanel.visible){this.rosterPanel.setVisible(false);return;}
       if(this.furniturePanel.visible) return;
-      if(this.placingGear>=0){if(p.worldX<330&&p.worldY>=32&&p.worldY<=215)this.placeGear(p.worldX,p.worldY);return;}
-      if(this.selectedFurniture>=0) { if(p.worldX<330 && p.worldY>=32 && p.worldY<=215) this.placeFurniture(p.worldX,p.worldY); return; }
+      if(this.placingGear>=0){this.placeGear(p.worldX,p.worldY);return;}
+      if(this.selectedFurniture>=0) {this.placeFurniture(p.worldX,p.worldY);return;}
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
       if(p.worldY >= 225) return;
       if(this.useStationAt(p.worldX,p.worldY))return;
@@ -524,7 +529,7 @@ class GymScene extends Phaser.Scene {
   }
   private placeGear(x:number,y:number):void {
     if(this.placingGear<0)return;
-    if(x<65||x>285||y<75||y>187){this.say('Place equipment inside the mat.');return;}
+    if(!this.validPlacement(x,y,12,11,this.placingGear,-1)){this.say('Choose a clear spot inside the mat.');return;}
     if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<25)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<25){this.say('Choose a spot away from people.');return;}
     const occupied=(this.saveData.gearPositions||[]).some((p,i)=>i!==this.placingGear&&this.saveData.ownedGear?.[i]&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<24);
     if(occupied||!this.canPlace(x,y,12,11,this.placingGear)){this.say('Too close to another object.');return;}
@@ -677,7 +682,7 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.add(bg);
     const heading=this.add.text(83,37,mode==='shop'?'FURNITURE SHOP':mode==='build'?'BUILD MODE':'YOUR INVENTORY',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff'});
     this.furniturePanel.add(heading);
-    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
+    const close=this.add.text(381,37,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.furniturePanel.setVisible(false));
     this.furniturePanel.add(close);
     if(mode==='shop') FURNITURE.forEach((item,i)=>{
@@ -697,10 +702,10 @@ class GymScene extends Phaser.Scene {
       const items=this.saveData.furniture||[];
       items.slice(0,8).forEach((item,i)=>{
         const y=67+(owned+i)*23;
-        const row=this.add.text(46,y,FURNITURE[item.kind].name+' '+(item.stored?'[STORED]':'[PLACED]')+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
+        const row=this.add.text(84,y,FURNITURE[item.kind].name+' '+(item.stored?'[STORED]':'[PLACED]')+'  MOVE',{fontFamily:UI_FONT,fontSize:'10px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:5,y:3}}).setInteractive();
         row.on('pointerdown',()=>this.selectFurniture(i));this.furniturePanel.add(row);
       });
-      if(owned+items.length===0) this.furniturePanel.add(this.add.text(46,82,'Buy furniture in SHOP first.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
+      if(owned+items.length===0) this.furniturePanel.add(this.add.text(84,82,'Buy furniture in SHOP first.',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff'}));
     }
     else {
       const items=this.saveData.furniture||[];
@@ -747,17 +752,24 @@ class GymScene extends Phaser.Scene {
   }
   private placeFurniture(x:number,y:number):void {
     if(this.running||this.selectedFurniture<0) return;
-    if(x<65||x>285||y<75||y>187) {this.say('Place furniture inside the mat, away from edges.');return;}
+    const selected=this.saveData.furniture?.[this.selectedFurniture];if(!selected)return;
+    const size=this.furnitureSize(selected);
+    if(!this.validPlacement(x,y,size.rx,size.ry,-1,this.selectedFurniture)){this.say('Choose a clear spot inside the mat.');return;}
     if(this.students.some(s=>Phaser.Math.Distance.Between(s.x,s.y,x,y)<32)||Phaser.Math.Distance.Between(this.player.x,this.player.y,x,y)<32) {this.say('Choose a spot away from people.');return;}
     const items=this.saveData.furniture||[];
-    if(!this.canPlace(x,y,22,19,-1,this.selectedFurniture)) {this.say('Too close to another item.');return;}
+    if(!this.canPlace(x,y,size.rx,size.ry,-1,this.selectedFurniture)) {this.say('Too close to another item.');return;}
     const item=items[this.selectedFurniture];if(!item)return;
     item.x=Math.round(x/6)*6;item.y=Math.round(y/6)*6;item.stored=false;
     this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' placed! Q rotate, X store, or choose another from INVENTORY.');
   }
   private rotateFurniture():void {
     const item=this.saveData.furniture?.[this.selectedFurniture];if(!item||this.running)return;
-    item.rotation=(item.rotation+1)%4;this.persist();this.drawEquipment();this.say('Rotated '+FURNITURE[item.kind].name+'.');
+    const rotation=(item.rotation+1)%4;
+    const candidate={...item,rotation},size=this.furnitureSize(candidate);
+    if(!item.stored&&!this.validPlacement(item.x,item.y,size.rx,size.ry,-1,this.selectedFurniture)){
+      this.say('Not enough room to rotate here. Move the item first.');return;
+    }
+    item.rotation=rotation;this.persist();this.drawEquipment();this.say('Rotated '+FURNITURE[item.kind].name+'.');
   }
   private storeFurniture():void {
     const item=this.saveData.furniture?.[this.selectedFurniture];if(!item||this.running)return;
@@ -953,13 +965,56 @@ class GymScene extends Phaser.Scene {
   }
   // The same solid-object footprints drive movement, routing and placement.
   // Feet are the character's anchor; leave room for the sprite around each fixture.
+  private furnitureSize(item:Furniture):{rx:number;ry:number} {
+    const side=item.rotation%2===1;
+    if(item.kind===1)return {rx:side?9:22,ry:side?22:9};
+    if(item.kind===2)return {rx:side?11:18,ry:side?18:11};
+    if(item.kind===3)return {rx:11,ry:11};
+    if(item.kind===4)return {rx:10,ry:13};
+    return {rx:9,ry:9};
+  }
+  private validPlacement(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1):boolean {
+    // Check the full footprint, including margins, rather than only its center.
+    if(x-rx<38||x+rx>309||y-ry<84||y+ry>204)return false;
+    if(!this.canPlace(x,y,rx,ry,excludeGear,excludeFurniture))return false;
+    if(this.students.some(s=>Math.abs(s.x-x)<rx+11&&Math.abs(s.y-y)<ry+8))return false;
+    if(Math.abs(this.player.x-x)<rx+9&&Math.abs(this.player.y-y)<ry+7)return false;
+    return true;
+  }
+  private isPlacing():boolean {
+    return this.placingGear>=0||this.placingDecor>=0||this.selectedFurniture>=0;
+  }
+  private cancelPlacement():void {
+    this.placingGear=-1;this.placingDecor=-1;this.selectedFurniture=-1;
+    this.placementPreview.clear();this.placementHint.setVisible(false);
+    this.updateFurnitureActions();this.drawEquipment();this.say('Placement cancelled.');
+  }
+  private updatePlacementPreview():void {
+    const g=this.placementPreview;g.clear();
+    if(!this.isPlacing()||this.furniturePanel.visible||this.running){this.placementHint.setVisible(false);return;}
+    const pointer=this.input.activePointer,x=Math.round(pointer.worldX/6)*6,y=Math.round(pointer.worldY/6)*6;
+    let rx=12,ry=11,valid=false;
+    if(this.selectedFurniture>=0){
+      const item=this.saveData.furniture?.[this.selectedFurniture];
+      if(!item)return;
+      ({rx,ry}=this.furnitureSize(item));
+      valid=this.validPlacement(x,y,rx,ry,-1,this.selectedFurniture);
+    }else if(this.placingGear>=0){
+      valid=this.validPlacement(x,y,rx,ry,this.placingGear);
+    }else{
+      rx=this.placingDecor===2?12:25;ry=12;
+      valid=this.validPlacement(x,y,rx,ry);
+    }
+    const color=valid?0x83d7ac:0xe57770;
+    g.fillStyle(color,0.24).fillRect(x-rx,y-ry,rx*2,ry*2);
+    g.lineStyle(1,color,0.95).strokeRect(x-rx,y-ry,rx*2,ry*2);
+    this.placementHint.setText(valid?'CLICK TO PLACE  |  ESC CANCEL':'BLOCKED  |  ESC CANCEL').setVisible(true);
+  }
   private solidFootprints(excludeGear=-1,excludeFurniture=-1):{x:number;y:number;rx:number;ry:number}[] {
     const solids:{x:number;y:number;rx:number;ry:number}[]=[];
     (this.saveData.furniture||[]).forEach((item,i)=>{
       if(item.stored||i===excludeFurniture)return;
-      const side=item.rotation%2===1;
-      const rx=item.kind===1?(side?9:22):item.kind===2?(side?11:18):item.kind===3?11:12;
-      const ry=item.kind===1?(side?22:9):item.kind===2?(side?18:11):item.kind===0?9:16;
+      const {rx,ry}=this.furnitureSize(item);
       solids.push({x:item.x,y:item.y,rx,ry});
     });
     const gearBounds:[number,number][]=[[9,12],[13,10],[8,11],[12,8],[14,10],[14,10],[13,13],[13,12]];
@@ -1069,6 +1124,7 @@ class GymScene extends Phaser.Scene {
     return true;
   }
   update(_time:number,delta:number):void {
+    this.updatePlacementPreview();
     if(this.running) {
       const dt=Math.min(delta,100)/1000;
       this.seconds-=dt;
