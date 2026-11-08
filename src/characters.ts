@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 export type Facing = 'down' | 'up' | 'side';
-export type Pose = 'idle' | 'walk' | 'shadow' | 'bag' | 'lift' | 'stretch' | 'rest' | 'talk';
+export type Pose = 'idle' | 'walk' | 'shadow' | 'bag' | 'lift' | 'stretch' | 'rest' | 'talk' | 'drink';
 
 const looks = [
   { skin:'#dfab81', shade:'#a36452', hair:'#292735', light:'#504557', top:'#354754', dark:'#23343e', trim:'#d56b50', pants:'#a74a43', cut:0 },
@@ -11,7 +11,7 @@ const looks = [
   { skin:'#e2bc8c', shade:'#a77a57', hair:'#79543d', light:'#af7849', top:'#e4bc69', dark:'#a77d45', trim:'#f6e2af', pants:'#566358', cut:4 },
 ];
 const directions: Facing[] = ['down','up','side'];
-const poses: Pose[] = ['idle','walk','shadow','bag','lift','stretch','rest','talk'];
+const poses: Pose[] = ['idle','walk','shadow','bag','lift','stretch','rest','talk','drink'];
 const frameSize = 40;
 const foot = 36;
 const ink = '#282934';
@@ -29,7 +29,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], fa
   };
   const side=facing==='side', back=facing==='up';
   const stride=pose==='walk'?[0,2,0,-2][frame]:0;
-  const crouch=pose==='rest'?4:pose==='lift'&&frame<2?2:0;
+  const crouch=pose==='rest'?7:pose==='lift'&&frame<2?2:0;
   const bob=crouch+(pose==='walk'&&frame%2===0?1:0);
   const center=20, bodyX=side?15:13, bodyW=side?10:14;
   const leg=(x:number,y:number,far=false) => {
@@ -42,7 +42,11 @@ function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], fa
     pixel(look.shade,x+1,y+length-5,3,3);
     pixel(pose==='bag'||pose==='shadow'?look.trim:look.skin,x+1,y+length-4,3,2);
   };
-  if(side){
+  if(pose==='rest'){
+    // Seated pose: folded legs and lowered torso, with feet resting on the floor.
+    silhouette(look.pants,side?13:10,29,side?17:20,5);
+    pixel(look.dark,side?12:9,33,side?19:22,2);
+  }else if(side){
     leg(17+stride,27,true);
     leg(18-stride,28);
   }else{
@@ -68,11 +72,21 @@ function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], fa
     silhouette('#52626a',handle-9,height+1,4,6);
     silhouette('#52626a',handle+5,height+1,4,6);
   }else if(pose==='stretch'){
-    const reach=frame<2?4:2;
-    silhouette(look.top,bodyX-reach-3,19+bob,reach+5,5);
-    silhouette(look.top,bodyX+bodyW-1,17+bob,reach+5,5);
-    pixel(look.skin,bodyX-reach-2,20+bob,3,2);
-    pixel(look.skin,bodyX+bodyW+reach,18+bob,3,2);
+    // Alternate overhead reaches and side bends instead of static raised arms.
+    const reach=frame%2===0?3:6;
+    const tilt=frame>=2?3:0;
+    silhouette(look.top,bodyX-reach-2-tilt,12+bob,5,13);
+    silhouette(look.top,bodyX+bodyW+tilt-2,12+bob,5,13);
+    pixel(look.skin,bodyX-reach-1-tilt,10+bob,3,4);
+    pixel(look.skin,bodyX+bodyW+tilt-1,10+bob,3,4);
+  }else if(pose==='drink'){
+    // A personal water bottle rises to the mouth, pauses, then lowers.
+    const raised=frame===1||frame===2;
+    arm(side?15:25,raised?12+bob:19+bob,9);
+    const bx=side?25:29,by=raised?13+bob:25+bob;
+    silhouette('#579cae',bx,by,5,8);
+    pixel('#e6f4e9',bx+1,by+2,3,2);
+    pixel('#294f62',bx+1,by-2,3,2);
   }else if(punch){
     if(side){
       const extension=[5,14,6,12][frame];
@@ -159,7 +173,7 @@ export class GymCharacter {
     if(this.pose!==pose){this.pose=pose;this.elapsed=0;}
     this.elapsed+=dt;
     const phase=pose==='idle'?[0,0,0,0,0,0,0,3][Math.floor(this.elapsed*5)%8]:
-      Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:1,talk:3}[pose]))%4;
+      Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:2,talk:3,drink:2}[pose]))%4;
     const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
     if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
     this.image.setFlipX(this.left);
