@@ -1,9 +1,8 @@
 name: Build check
 on:
   push:
-    branches: [main]
+    branches: [main, feat/living-gym-ai]
   pull_request:
-    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest
