@@ -67,6 +67,9 @@ class GymScene extends Phaser.Scene {
   private worldFixtures:Phaser.GameObjects.Graphics[]=[];
   private placementPreview!:Phaser.GameObjects.Graphics;
   private placementHint!:Phaser.GameObjects.Text;
+  private buildMode=false;
+  private placementCursor:Point={x:168,y:144};
+  private keyboardPlacement=false;
   private stationTarget:'board'|'desk'|null=null;
   private studentCard!: Phaser.GameObjects.Text;
   private rosterPanel!: Phaser.GameObjects.Container;
@@ -203,7 +206,13 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-R',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.reset();});
     this.input.keyboard!.on('keydown-B',() => {if(!this.furniturePanel.visible&&!this.isPlacing())this.openGymUpgrades();});
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
-    this.input.keyboard!.on('keydown-M',() => {if(!this.furniturePanel.visible)this.openFurniture('build');});
+    this.input.keyboard!.on('keydown-M',()=>this.toggleBuildMode());
+    this.input.keyboard!.on('keydown-ENTER',()=>this.confirmPlacement());
+    this.input.keyboard!.on('keydown-SPACE',()=>this.confirmPlacement());
+    this.input.keyboard!.on('keydown-UP',()=>this.movePlacement(0,-6));
+    this.input.keyboard!.on('keydown-DOWN',()=>this.movePlacement(0,6));
+    this.input.keyboard!.on('keydown-LEFT',()=>this.movePlacement(-6,0));
+    this.input.keyboard!.on('keydown-RIGHT',()=>this.movePlacement(6,0));
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
     this.input.keyboard!.on('keydown-X',() => this.storeFurniture());
     this.input.keyboard!.on('keydown-ESC',()=>{if(this.furniturePanel.visible)this.furniturePanel.setVisible(false);else this.cancelPlacement();});
@@ -214,6 +223,16 @@ class GymScene extends Phaser.Scene {
       if(this.placingGear>=0){this.placeGear(p.worldX,p.worldY);return;}
       if(this.selectedFurniture>=0) {this.placeFurniture(p.worldX,p.worldY);return;}
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
+      if(this.buildMode&&p.worldX<330&&p.worldY<220){
+        const fi=(this.saveData.furniture||[]).findIndex(item=>!item.stored&&Math.abs(item.x-p.worldX)<25&&Math.abs(item.y-p.worldY)<22);
+        if(fi>=0){this.selectFurniture(fi);return;}
+        const gi=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
+          const pos=this.saveData.gearPositions?.[i];
+          return owned&&pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
+        });
+        if(gi>=0){this.beginGearPlacement(gi);return;}
+        this.say('Click an item to move, or press M for inventory.');return;
+      }
       if(p.worldY >= 225) return;
       if(this.useStationAt(p.worldX,p.worldY))return;
       if(this.collectNodeAt(p.worldX,p.worldY))return;
@@ -522,7 +541,8 @@ class GymScene extends Phaser.Scene {
   }
   private beginGearPlacement(index:number):void {
     this.placingGear=index;
-    this.selectedFurniture=-1;this.placingDecor=-1;
+    this.selectedFurniture=-1;this.placingDecor=-1;this.buildMode=true;
+    const pos=this.saveData.gearPositions?.[index];this.placementCursor=pos?{...pos}:{x:168,y:144};this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.drawEquipment();
     this.say('Placing '+GEAR_ITEMS[index].name+': click an open spot on the mat.');
@@ -536,7 +556,7 @@ class GymScene extends Phaser.Scene {
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
     this.saveData.gearPositions[this.placingGear]={x:Math.round(x/6)*6,y:Math.round(y/6)*6};
     const name=GEAR_ITEMS[this.placingGear].name;
-    this.placingGear=-1;this.persist();this.refresh();
+    this.placingGear=-1;this.keyboardPlacement=false;this.persist();this.refresh();
     this.say(name+' placed. Open Training Equipment to move it again.');
   }
   private openMaterials():void {
@@ -732,18 +752,19 @@ class GymScene extends Phaser.Scene {
     this.saveData.money-=item.price;
     this.saveData.materials=spendMaterials(this.saveData.materials,FURNITURE_MATERIALS[kind]||[1,1,1]);
     this.saveData.furniture=[...(this.saveData.furniture||[]),{kind,x:160,y:120,rotation:0,stored:true}];
-    this.selectedFurniture=this.saveData.furniture.length-1;
+    this.selectedFurniture=-1;
     this.placingDecor=-1;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
     this.persist();this.refresh();
-    this.say('Purchased '+item.name+'! Tap a clear mat location to place. Q rotate, X store.');
+    this.say('Purchased '+item.name+'! Stored in inventory. Press M to enter Build Mode and place it.');
   }
   private selectFurniture(i:number):void {
-    this.selectedFurniture=i;this.placingDecor=-1;this.furniturePanel.setVisible(false);
+    this.selectedFurniture=i;this.placingDecor=-1;this.placingGear=-1;this.buildMode=true;this.furniturePanel.setVisible(false);
+    const position=this.saveData.furniture?.[i];if(position)this.placementCursor={x:position.stored?168:position.x,y:position.stored?144:position.y};this.keyboardPlacement=true;
     this.updateFurnitureActions();this.drawEquipment();
     const item=this.saveData.furniture?.[i];
-    if(item) this.say('Selected '+FURNITURE[item.kind].name+'. Tap mat to move, or use ROTATE / STORE.');
+    if(item) this.say('Moving '+FURNITURE[item.kind].name+'. Arrows move, Enter place, Q rotate, X store, Esc cancel.');
   }
   private updateFurnitureActions():void {
     const visible=this.selectedFurniture>=0;
@@ -760,7 +781,8 @@ class GymScene extends Phaser.Scene {
     if(!this.canPlace(x,y,size.rx,size.ry,-1,this.selectedFurniture)) {this.say('Too close to another item.');return;}
     const item=items[this.selectedFurniture];if(!item)return;
     item.x=Math.round(x/6)*6;item.y=Math.round(y/6)*6;item.stored=false;
-    this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' placed! Q rotate, X store, or choose another from INVENTORY.');
+    this.selectedFurniture=-1;this.keyboardPlacement=false;this.updateFurnitureActions();
+    this.persist();this.drawEquipment();this.say(FURNITURE[item.kind].name+' placed! Click another item or press M for inventory.');
   }
   private rotateFurniture():void {
     const item=this.saveData.furniture?.[this.selectedFurniture];if(!item||this.running)return;
@@ -985,14 +1007,33 @@ class GymScene extends Phaser.Scene {
     return this.placingGear>=0||this.placingDecor>=0||this.selectedFurniture>=0;
   }
   private cancelPlacement():void {
-    this.placingGear=-1;this.placingDecor=-1;this.selectedFurniture=-1;
+    this.placingGear=-1;this.placingDecor=-1;this.selectedFurniture=-1;this.buildMode=false;this.keyboardPlacement=false;
     this.placementPreview.clear();this.placementHint.setVisible(false);
     this.updateFurnitureActions();this.drawEquipment();this.say('Placement cancelled.');
+  }
+  private toggleBuildMode():void {
+    if(this.running)return;
+    if(this.furniturePanel.visible){this.furniturePanel.setVisible(false);this.buildMode=true;return;}
+    if(this.isPlacing()||this.buildMode){this.openFurniture('build');return;}
+    this.buildMode=true;this.say('Build Mode: click an item to move it, or press M for inventory.');
+  }
+  private movePlacement(dx:number,dy:number):void {
+    if(!this.isPlacing()||this.furniturePanel.visible)return;
+    this.keyboardPlacement=true;
+    this.placementCursor.x=Phaser.Math.Clamp(this.placementCursor.x+dx,38,310);
+    this.placementCursor.y=Phaser.Math.Clamp(this.placementCursor.y+dy,83,207);
+  }
+  private confirmPlacement():void {
+    if(!this.isPlacing()||this.furniturePanel.visible)return;
+    const {x,y}=this.placementCursor;
+    if(this.selectedFurniture>=0)this.placeFurniture(x,y);
+    else if(this.placingGear>=0)this.placeGear(x,y);
+    else if(this.placingDecor>=0)this.placeDecor(x,y);
   }
   private updatePlacementPreview():void {
     const g=this.placementPreview;g.clear();
     if(!this.isPlacing()||this.furniturePanel.visible||this.running){this.placementHint.setVisible(false);return;}
-    const pointer=this.input.activePointer,x=Math.round(pointer.worldX/6)*6,y=Math.round(pointer.worldY/6)*6;
+    const pointer=this.input.activePointer,x=this.keyboardPlacement?this.placementCursor.x:Math.round(pointer.worldX/6)*6,y=this.keyboardPlacement?this.placementCursor.y:Math.round(pointer.worldY/6)*6;
     let rx=12,ry=11,valid=false;
     if(this.selectedFurniture>=0){
       const item=this.saveData.furniture?.[this.selectedFurniture];
@@ -1008,7 +1049,7 @@ class GymScene extends Phaser.Scene {
     const color=valid?0x83d7ac:0xe57770;
     g.fillStyle(color,0.24).fillRect(x-rx,y-ry,rx*2,ry*2);
     g.lineStyle(1,color,0.95).strokeRect(x-rx,y-ry,rx*2,ry*2);
-    this.placementHint.setText(valid?'CLICK TO PLACE  |  ESC CANCEL':'BLOCKED  |  ESC CANCEL').setVisible(true);
+    this.placementHint.setText((valid?'READY':'BLOCKED')+'  ARROWS MOVE  ENTER PLACE  Q ROTATE  ESC CANCEL').setVisible(true);
   }
   private solidFootprints(excludeGear=-1,excludeFurniture=-1):{x:number;y:number;rx:number;ry:number}[] {
     const solids:{x:number;y:number;rx:number;ry:number}[]=[];
@@ -1141,6 +1182,7 @@ class GymScene extends Phaser.Scene {
       this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
       if(this.seconds<=0) this.finishClass();
     }
+    if(this.isPlacing()&&!this.furniturePanel.visible){this.player.setScale(1);return;}
     let dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
     let dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
     if(dx||dy) { this.route=[]; this.targetStudent=null;this.stationTarget=null; }
