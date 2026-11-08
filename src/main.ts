@@ -6,7 +6,7 @@ type Point = { x: number; y: number };
 type Student = { name: string; x: number; y: number; color: number; friendship: number; skill: number; body?: Phaser.GameObjects.Container; indicator?: Phaser.GameObjects.Text };
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; classStudents?: boolean[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number };
 const CORE_STATS=['Striking','Speed','Strength','Conditioning'] as const;
 const CLASS_PROGRAMS=[{name:'Boxing',stats:[0,1]},{name:'Muay Thai',stats:[0,2]},{name:'Grappling',stats:[2,3]},{name:'HIIT',stats:[1,3]}];
 const statThreshold=(value:number):number=>value<20?30:value<40?55:value<60?90:value<80?140:220;
@@ -30,7 +30,7 @@ function loadSave(): Save {
       s.friendships.length !== 4 || s.skills.length !== 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), classStudents:Array.from({length:4},(_,i)=>s.classStudents?.[i]!==false), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(60,Math.min(290,v.x)),y:Math.max(70,Math.min(192,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=195 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return { ...defaults, friendships: [...defaults.friendships], skills: [...defaults.skills] }; }
 }
 
@@ -317,20 +317,14 @@ class GymScene extends Phaser.Scene {
   }
   private openClassSchedule():void {
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(25,18,310,287,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.rectangle(25,28,310,250,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
     const count=this.saveData.classesToday||0;
-    this.furniturePanel.add(this.add.text(37,27,'SCHEDULE CLASSES  '+count+'/2 TODAY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff'}));
-    const back=this.add.text(275,27,'BACK',{fontFamily:UI_FONT,fontSize:'11px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
+    this.furniturePanel.add(this.add.text(37,39,'SCHEDULE CLASSES  '+count+'/2 TODAY',{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff'}));
+    const back=this.add.text(275,39,'BACK',{fontFamily:UI_FONT,fontSize:'11px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
     back.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(back);
-    const enrolled=this.saveData.classStudents||[true,true,true,true];
-    this.students.forEach((student,i)=>{
-      const toggle=this.add.text(37+i*73,52,(enrolled[i]?'[x] ':'[ ] ')+student.name,{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'}).setInteractive({useHandCursor:true});
-      toggle.on('pointerdown',()=>{const selected=[...enrolled];selected[i]=!selected[i];this.saveData.classStudents=selected;this.persist();this.openClassSchedule();});
-      this.furniturePanel.add(toggle);
-    });
     CLASS_PROGRAMS.forEach((program,i)=>{
       const label=program.name+'  ('+program.stats.map(k=>CORE_STATS[k]).join(' + ')+')';
-      const button=this.add.text(38,88+i*43,label,{fontFamily:UI_FONT,fontSize:'11px',color:count>=2?'#929b9c':'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6}}).setInteractive({useHandCursor:true});
+      const button=this.add.text(38,76+i*43,label,{fontFamily:UI_FONT,fontSize:'11px',color:count>=2?'#929b9c':'#ffffff',backgroundColor:'#34575b',padding:{x:6,y:6}}).setInteractive({useHandCursor:true});
       button.on('pointerdown',()=>this.simulateClass(i));this.furniturePanel.add(button);
     });
     this.furniturePanel.setVisible(true);
@@ -341,10 +335,7 @@ class GymScene extends Phaser.Scene {
     if(!program)return;
     if(!this.saveData.studentStats)this.saveData.studentStats=initialStats();
     if(!this.saveData.studentXP)this.saveData.studentXP=initialXP();
-    const enrolled=this.saveData.classStudents||[true,true,true,true];
-    if(!enrolled.some(Boolean)){this.say('Select at least one student.');return;}
     for(let student=0;student<4;student++){
-      if(!enrolled[student])continue;
       for(const stat of program.stats){
         const gearBonus=stat===0&&(this.saveData.equipment||0)>=1?5:0;
         let xp=(this.saveData.studentXP[student][stat]||0)+10+gearBonus;
@@ -357,7 +348,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
     this.saveData.money+=15;
-    this.persist();this.refresh();this.say(program.name+' completed: '+enrolled.filter(Boolean).length+' students earned training XP.');
+    this.persist();this.refresh();this.say(program.name+' completed: all students earned training XP.');
     this.openClassSchedule();
   }
   private openUpgradePurchase(kind:'equipment'|'decor'):void {
@@ -661,7 +652,7 @@ class GymScene extends Phaser.Scene {
     this.timer.setText('');
   }
   private reset():void {
-    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0],studentStats:initialStats(),studentXP:initialXP(),classesToday:0,classStudents:[true,true,true,true]};
+    this.saveData={...defaults,friendships:[0,0,0,0],skills:[0,0,0,0],studentStats:initialStats(),studentXP:initialXP(),classesToday:0};
     this.running=false; this.placingDecor=-1; this.selectedFurniture=-1; this.updateFurnitureActions(); this.buildButtonText.setText('BUILD'); this.buildHint.setText('Build mode: click BUILD to arrange your decorations'); this.classOverlay.clear(); this.modeLabel.setText('GYM HUB'); this.requests=[]; this.pendingRequests=[]; this.targetStudent=null; this.updateIndicators(); this.persist();
     this.scene.restart();
   }
