@@ -933,6 +933,7 @@ class CompetitionScene extends Phaser.Scene {
   private hp=100;private sp=50;private enemyHp=100;private enemySp=50;private turn=1;
   private history:FightMove[]=[];private active=false;private status!:Phaser.GameObjects.Text;
   private bars!:Phaser.GameObjects.Text;private controls:Phaser.GameObjects.Container[]=[];
+  private fighters:Phaser.GameObjects.Container[]=[];private visuals:Phaser.GameObjects.GameObject[]=[];private busy=false;
   constructor(){super('Competition');}
   create():void {
     arcadeFrame(this,'COMPETITION','Predict your opponent. Both fighters choose simultaneously.');
@@ -947,16 +948,58 @@ class CompetitionScene extends Phaser.Scene {
     this.difficulty=d;this.hp=100;this.sp=50;this.enemyHp=100;this.enemySp=50;this.turn=1;this.history=[];this.active=true;
     this.children.list.filter(o=>o instanceof Phaser.GameObjects.Rectangle && o.y===139).forEach(o=>o.destroy());
     this.controls.forEach(o=>o.destroy());this.controls=[];
+    this.visuals.forEach(o=>o.destroy());this.visuals=[];this.fighters=[];this.busy=false;
+    this.drawArena();
     const descriptions=['-5 SP / 12 DMG','+5 SP / BLOCK','-20 SP / POWER','+15 SP / +8 HP'];
     FIGHT_MOVES.forEach((move,i)=>{
-      const x=126+(i%2)*227,y=250+Math.floor(i/2)*47;
-      const rect=this.add.rectangle(x,y,208,39,0x376b70).setStrokeStyle(2,gold).setInteractive({useHandCursor:true});
+      const x=126+(i%2)*227,y=261+Math.floor(i/2)*42;
+      const rect=this.add.rectangle(x,y,208,35,0x376b70).setStrokeStyle(2,gold).setInteractive({useHandCursor:true});
       const label=this.add.text(x,y,FIGHT_LABEL[move]+'  '+descriptions[i],{fontFamily:UI_FONT,fontSize:'11px',color:cream}).setOrigin(.5);
       rect.on('pointerdown',()=>this.choose(move));
       this.controls.push(this.add.container(0,0,[rect,label]));
     });
-    this.status.setPosition(240,194).setText('Fight! Read the opponent and choose your move.');
-    this.bars.setPosition(240,114);this.renderStats();
+    this.status.setPosition(240,222).setFontSize(11).setText('Fight! Read the opponent and choose your move.');
+    this.bars.setPosition(240,89).setFontSize(11);this.renderStats();
+  }
+
+  private drawArena():void {
+    const floor=this.add.rectangle(240,171,430,86,0xc6a77e).setStrokeStyle(2,0x8a7055);
+    const back=this.add.rectangle(240,117,430,28,0x23454b);
+    const rope1=this.add.rectangle(240,143,430,3,0xe4d1a8);
+    const rope2=this.add.rectangle(240,189,430,3,0xe4d1a8);
+    this.visuals.push(floor,back,rope1,rope2);
+    this.fighters=[this.drawFighter(147,170,false),this.drawFighter(333,170,true)];
+    this.fighters.forEach(f=>this.visuals.push(f));
+  }
+  private drawFighter(x:number,y:number,enemy:boolean):Phaser.GameObjects.Container {
+    const g=this.add.container(x,y);
+    const skin=enemy?0xc99170:0xd5a17e,shorts=enemy?0x9c4e53:0x327c78,glove=enemy?0xbf5149:0xe5b65d;
+    const pixel=(px:number,py:number,w:number,h:number,color:number)=>this.add.rectangle(px,py,w,h,color).setOrigin(0);
+    g.add([
+      pixel(-21,34,43,6,0x8e775e),pixel(-14,14,12,22,0x303f4a),pixel(3,14,12,22,0x303f4a),
+      pixel(-18,-16,36,34,shorts),pixel(-15,-39,30,27,skin),pixel(-17,-44,34,12,0x302c2b),
+      pixel(-21,-9,9,22,skin),pixel(12,-9,9,22,skin),
+      pixel(enemy?-32:17,-12,17,17,glove),pixel(enemy?15:-32,-28,17,17,glove),
+      pixel(-8,-30,4,4,0x292b2b),pixel(6,-30,4,4,0x292b2b)
+    ]);
+    return g;
+  }
+  private animateTurn(player:FightMove,enemy:FightMove,taken:number,dealt:number):void {
+    const animate=(fighter:Phaser.GameObjects.Container,move:FightMove,amount:number,dir:number)=>{
+      const base=fighter.x;
+      if(move==='attack'||move==='big'){
+        this.tweens.add({targets:fighter,x:base+dir*(move==='big'?25:15),duration:130,yoyo:true,ease:'Quad.Out'});
+      }else if(move==='defend'){
+        this.tweens.add({targets:fighter,scaleX:0.88,scaleY:0.94,duration:140,yoyo:true});
+      }else{
+        this.tweens.add({targets:fighter,y:fighter.y-9,duration:220,yoyo:true});
+      }
+      const label=move==='breath'?'+8 HP':move==='defend'?'BLOCK':amount>0?'-'+amount:'MISS';
+      const popup=this.add.text(base,126,label,{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:move==='breath'?'#9cf2b0':'#fff1bf'}).setOrigin(.5);
+      this.tweens.add({targets:popup,y:108,alpha:0,duration:650,onComplete:()=>popup.destroy()});
+    };
+    animate(this.fighters[0],player,taken,1);
+    animate(this.fighters[1],enemy,dealt,-1);
   }
   private probabilities():Record<FightMove,number> {
     const w:Record<FightMove,number>={attack:3,defend:1.5,big:2,breath:1.5};
@@ -993,7 +1036,7 @@ class CompetitionScene extends Phaser.Scene {
     return scored[Math.random()<.8?0:Math.min(1,scored.length-1)].move;
   }
   private choose(move:FightMove):void {
-    if(!this.active||FIGHT_COST[move]>this.sp)return;
+    if(!this.active||this.busy||FIGHT_COST[move]>this.sp)return;
     const enemy=this.opponentMove();
     const dealt=fightDamage(move,enemy,this.sp),taken=fightDamage(enemy,move,this.enemySp);
     this.hp=Phaser.Math.Clamp(this.hp-taken+(move==='breath'?8:0),0,100);
@@ -1003,10 +1046,11 @@ class CompetitionScene extends Phaser.Scene {
     this.history.push(move);this.turn++;
     this.status.setText('YOU: '+FIGHT_LABEL[move]+'  |  AI: '+FIGHT_LABEL[enemy]+'\nDealt '+dealt+'  /  Took '+taken);
     this.renderStats();
-    if(this.hp<=0||this.enemyHp<=0)this.finish();
+    this.animateTurn(move,enemy,taken,dealt);
+    if(this.hp<=0||this.enemyHp<=0){this.busy=true;this.time.delayedCall(650,()=>this.finish());}
   }
   private renderStats():void {
-    this.bars.setText('YOU  HP '+this.hp+'/100  SP '+this.sp+'/50\nAI     HP '+this.enemyHp+'/100  SP '+this.enemySp+'/50\nTURN '+this.turn+'  |  '+this.difficulty.toUpperCase());
+    this.bars.setText('YOU  HP '+this.hp+'  SP '+this.sp+'     |     AI  HP '+this.enemyHp+'  SP '+this.enemySp+'\nTURN '+this.turn+'  |  '+this.difficulty.toUpperCase());
   }
   private finish():void {
     this.active=false;
@@ -1015,7 +1059,11 @@ class CompetitionScene extends Phaser.Scene {
     const cash=Math.round((win?40:draw?15:8)*factor),rep=win?Math.round(factor):0;
     awardArcade(cash,rep,false);
     this.controls.forEach(c=>c.destroy());this.controls=[];
-    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED $'+cash);
+    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED 
+    arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
+  }
+}
++cash);
     arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
