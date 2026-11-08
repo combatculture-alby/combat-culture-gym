@@ -43,6 +43,22 @@ jobs:
         run: |
           mkdir -p dist/preview
           cp -R preview-source/dist/. dist/preview/
+      # Independent hub QA build. Keep its save data separate from production.
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/hub-completion-independent
+          path: test-source
+      - name: Build independent hub test
+        working-directory: test-source
+        env:
+          VITE_ISOLATE_SAVE: '1'
+        run: |
+          npm install --no-audit --no-fund
+          npm run build -- --base=/combat-culture-gym/test/
+      - name: Add hub test alongside production
+        run: |
+          mkdir -p dist/test
+          cp -R test-source/dist/. dist/test/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
