@@ -726,16 +726,19 @@ class GymScene extends Phaser.Scene {
     const cost=kind==='equipment'?40+level*35:25+level*25;
     const back=()=>kind==='equipment'?this.openGearShop():this.openGymUpgrades();
     this.menuShell(kind==='equipment'?'GYM UPGRADES':'GYM DECORATIONS','LEVEL '+level+' / 3',back);
-    const materials=kind==='decor'&&level<3?' + '+materialCost(DECOR_MATERIALS[level]):'';
-    const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  USD '+cost+materials;
-    this.furniturePanel.add(this.add.text(84,80,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
-    this.furniturePanel.add(this.add.text(84,110,kind==='equipment'?'Adds equipment to the gym and boosts class pay.':'Adds a visible decoration you can move in Build.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:255}}));
-    if(level<3){
-      const buy=this.add.text(84,153,'BUY '+names[level].toUpperCase(),{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:8,y:5}}).setInteractive();
-      buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
-      this.furniturePanel.add(buy);
-    }
-    this.addShopInventory(192);
+    const complete=level>=3;
+    const materials=kind==='decor'&&!complete?DECOR_MATERIALS[level]:[0,0,0];
+    const canPay=!complete&&this.saveData.money>=cost&&hasMaterials(this.saveData.materials,materials);
+    const next=complete?'MAX LEVEL REACHED':'NEXT: '+names[level].toUpperCase();
+    this.furniturePanel.add(this.add.text(84,80,next,{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:'#f7e9cb'}));
+    this.furniturePanel.add(this.add.text(84,109,complete?'All upgrades purchased.':('Price: $'+cost+(kind==='decor'?' + '+materialCost(materials):'')),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c',wordWrap:{width:310}}));
+    this.furniturePanel.add(this.add.text(84,134,kind==='equipment'?'Unlocks gym fixtures and improves class rewards.':'Adds a visible decoration you can reposition in Build mode.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:305}}));
+    if(!complete)this.panelButton(this.furniturePanel,canPay?'PURCHASE UPGRADE':'INSUFFICIENT RESOURCES',84,168,310,33,()=>{
+      if(!canPay)return;
+      if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();
+      this.openUpgradePurchase(kind);
+    },!canPay,0x39735f);
+    this.addShopInventory(207);
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
