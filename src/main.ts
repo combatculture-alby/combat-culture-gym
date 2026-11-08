@@ -126,24 +126,19 @@ class GymScene extends Phaser.Scene {
     this.message = this.add.text(12,237,'Welcome to the gym!',{fontFamily:UI_FONT,fontSize:'10px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3},wordWrap:{width:295}}).setDepth(10);
     this.timer = this.add.text(12,225,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback = this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.buildHint=this.add.text(12,285,'Build mode: click BUILD to arrange your decorations',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
+    this.buildHint=this.add.text(12,285,'Arrange decorations from MANAGE GYM > BUILD',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
     this.add.text(12,315,'MOVE: WASD / ARROWS  |  CLICK: WALK / TALK',{fontFamily:UI_FONT,fontSize:'9px',color:'#29383b'});
-    this.addButton(341,133,124,17,'GYM UPGRADES',() => this.openGymUpgrades());
-    this.add.text(346,156,'DAILY TRAINING',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
-    this.add.text(346,177,'PLAY ONCE PER DAY',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
-    this.addButton(341,193,124,17,'CLOSE GYM',() => this.nextDay());
-    this.addButton(341,213,60,16,'UPGRADES',() => this.openGymUpgrades());
-    this.addButton(405,213,60,16,'ROSTER',() => this.toggleRoster());
-    this.buildButtonText=this.addButton(405,232,60,16,'BUILD',() => this.openFurniture('build'));
-    this.buildButtonText.setDepth(40);
-    this.addButton(341,232,60,16,'SHOP',() => this.openGymUpgrades());
-    this.add.text(344,247,'DAILY ACTIVITIES',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
-    this.addButton(341,270,60,17,'CLASS RUSH',()=>this.openArcade('Rush'));
-    this.addButton(405,270,60,17,'PAD WORK',()=>this.openArcade('Rhythm'));
-    this.addButton(341,291,60,17,'BAG WORK',()=>this.openArcade('Memory'));
-    this.addButton(405,291,60,17,'DEFENSE',()=>this.openArcade('Defense'));
-    this.addButton(341,313,60,17,'COMPETE',()=>this.openArcade('Competition'));
-    this.addButton(405,313,60,17,'S&C',()=>this.openArcade('Conditioning'));
+    this.addButton(341,133,124,24,'MANAGE GYM',() => this.openGymUpgrades());
+    this.addButton(341,165,124,24,'CLOSE GYM / NEXT DAY',() => this.nextDay());
+    this.add.text(344,201,'DAILY ACTIVITIES',{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'});
+    this.add.text(344,216,'Each activity once per day',{fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'});
+    this.addButton(341,239,60,19,'CLASS RUSH',()=>this.openArcade('Rush'));
+    this.addButton(405,239,60,19,'PAD WORK',()=>this.openArcade('Rhythm'));
+    this.addButton(341,263,60,19,'BAG WORK',()=>this.openArcade('Memory'));
+    this.addButton(405,263,60,19,'DEFENSE',()=>this.openArcade('Defense'));
+    this.addButton(341,287,60,19,'COMPETE',()=>this.openArcade('Competition'));
+    this.addButton(405,287,60,19,'S&C',()=>this.openArcade('Conditioning'));
+    this.dailyStatus=this.add.text(344,310,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#e7e3d4'});
     const panelBack=this.add.rectangle(34,38,294,162,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783);
     this.rosterText=this.add.text(44,48,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',lineSpacing:5});
     this.rosterPanel=this.add.container(0,0,[panelBack,this.rosterText]).setDepth(30).setVisible(false);
@@ -155,12 +150,12 @@ class GymScene extends Phaser.Scene {
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
     this.input.keyboard!.on('keydown-E',() => this.interact());
-    this.input.keyboard!.on('keydown-C',() => this.startClass());
+    this.input.keyboard!.on('keydown-C',() => this.openArcade('Rush'));
     this.input.keyboard!.on('keydown-P',()=>this.openArcade('Rhythm'));
     this.input.keyboard!.on('keydown-G',()=>this.openArcade('Memory'));
     this.input.keyboard!.on('keydown-N',() => this.nextDay());
     this.input.keyboard!.on('keydown-R',() => this.reset());
-    this.input.keyboard!.on('keydown-B',() => this.buyDecor());
+    this.input.keyboard!.on('keydown-B',() => this.openGymUpgrades());
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
     this.input.keyboard!.on('keydown-M',() => this.openFurniture('build'));
     this.input.keyboard!.on('keydown-Q',() => this.rotateFurniture());
@@ -219,6 +214,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.skills=this.students.map(s=>s.skill);
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
   }
+  private dailyStatus!:Phaser.GameObjects.Text;
   private refresh():void {
     this.status.setText(['DAY '+this.saveData.day+'  |  $'+this.saveData.money,'REP '+this.saveData.reputation+'  |  CLASSES '+(this.saveData.classesTaught||0)]);
     const level=this.saveData.equipment||0;
@@ -226,6 +222,7 @@ class GymScene extends Phaser.Scene {
     const decor=this.saveData.decorLevel||0;
     this.shopLabel.setText('DECOR '+decor+'/3 '+(decor===3?'MAX':'$'+(25+decor*25)));
     this.drawEquipment();
+    this.dailyStatus.setText('TODAY: '+(['Rush','Rhythm','Memory','Defense','Competition','Conditioning'] as TrainingMode[]).filter(m=>this.saveData.playedActivities?.[m]===this.saveData.day).length+'/6 complete');
   }
   private drawEquipment():void {
     this.decor.clear();
@@ -292,21 +289,41 @@ class GymScene extends Phaser.Scene {
   private openGymUpgrades():void {
     if(this.running)return;
     this.furniturePanel.removeAll(true);
-    this.furniturePanel.add(this.add.rectangle(32,32,292,202,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
-    this.furniturePanel.add(this.add.text(44,40,'GYM UPGRADES',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
+    this.furniturePanel.add(this.add.rectangle(32,32,292,238,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(44,40,'MANAGE GYM',{fontFamily:UI_FONT,fontSize:'15px',fontStyle:'bold',color:'#ffffff'}));
     const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
     close.on('pointerdown',()=>this.furniturePanel.setVisible(false));this.furniturePanel.add(close);
     const actions:[string,()=>void][]=[
-      ['BUY TRAINING GEAR',()=>{this.furniturePanel.setVisible(false);this.upgradeEquipment();}],
-      ['BUY GYM DECOR',()=>{this.furniturePanel.setVisible(false);this.buyDecor();}],
+      ['TRAINING EQUIPMENT',()=>this.openUpgradePurchase('equipment')],
+      ['GYM DECORATIONS',()=>this.openUpgradePurchase('decor')],
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
-      ['PLACE / ARRANGE ITEMS',()=>this.openFurniture('build')],
-      ['INVENTORY / SELL',()=>this.openFurniture('inventory')]
+      ['BUILD / ARRANGE ITEMS',()=>this.openFurniture('build')],
+      ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
+      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.toggleRoster();}]
     ];
     actions.forEach(([label,fn],i)=>{
-      const row=this.add.text(48,70+i*30,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
+      const row=this.add.text(48,70+i*28,label,{fontFamily:UI_FONT,fontSize:'12px',color:'#f7e9cb',backgroundColor:'#34575b',padding:{x:7,y:4}}).setInteractive({useHandCursor:true});
       row.on('pointerdown',fn);this.furniturePanel.add(row);
     });
+    this.furniturePanel.setVisible(true);
+  }
+  private openUpgradePurchase(kind:'equipment'|'decor'):void {
+    const level=kind==='equipment'?(this.saveData.equipment||0):(this.saveData.decorLevel||0);
+    const names=kind==='equipment'?['Heavy bag','Weight station','Training rack']:['Gym banner','Training poster','Indoor plant'];
+    const cost=kind==='equipment'?40+level*35:25+level*25;
+    this.furniturePanel.removeAll(true);
+    this.furniturePanel.add(this.add.rectangle(32,32,292,180,0x203d40).setOrigin(0).setStrokeStyle(2,0xd4b783));
+    this.furniturePanel.add(this.add.text(44,41,kind==='equipment'?'TRAINING EQUIPMENT':'GYM DECORATIONS',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff'}));
+    const close=this.add.text(301,40,'X',{fontFamily:UI_FONT,fontSize:'13px',color:'#ffffff',backgroundColor:'#a34b40',padding:{x:4,y:2}}).setInteractive();
+    close.on('pointerdown',()=>this.openGymUpgrades());this.furniturePanel.add(close);
+    const details=level>=3?'All upgrades purchased.':'Next: '+names[level]+'  |  Cost: USD '+cost;
+    this.furniturePanel.add(this.add.text(46,78,details,{fontFamily:UI_FONT,fontSize:'11px',color:'#f7e9cb'}));
+    this.furniturePanel.add(this.add.text(46,109,kind==='equipment'?'Adds equipment to the gym and boosts class pay.':'Adds a visible decoration you can move in Build.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:255}}));
+    if(level<3){
+      const buy=this.add.text(46,160,'BUY '+names[level].toUpperCase(),{fontFamily:UI_FONT,fontSize:'12px',color:'#ffffff',backgroundColor:'#34575b',padding:{x:8,y:5}}).setInteractive();
+      buy.on('pointerdown',()=>{if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();this.openUpgradePurchase(kind);});
+      this.furniturePanel.add(buy);
+    }
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
