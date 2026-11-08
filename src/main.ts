@@ -1117,11 +1117,7 @@ class CompetitionScene extends Phaser.Scene {
     awardArcade(cash,rep,false);
     playFightSound(win?'win':'lose');
     this.controls.forEach(c=>c.destroy());this.controls=[];
-    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED 
-    arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
-  }
-}
-+cash);
+    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED $'+cash);
     arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
