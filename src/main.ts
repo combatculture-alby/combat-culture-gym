@@ -1203,7 +1203,7 @@ class GymScene extends Phaser.Scene {
     if(nearby&&ai.activity===4){
       s.activityTag?.setText('CHATTING').setVisible(true);
       partner.activityTag?.setText('LISTENING').setVisible(true);
-      if(Math.random()<0.3)this.say(dialogue[i][(this.saveData.day+i)%2]);
+      if(Math.random()<0.3){s.activityTag?.setText(dialogue[i][(this.saveData.day+i)%2].split(': ')[1].toUpperCase()).setVisible(true);}
     }
   }
   private animateStudent(s:Student,moving:boolean):void {
@@ -1253,8 +1253,10 @@ class GymScene extends Phaser.Scene {
         ai.activity=Math.random()<0.53?preferred:Math.floor(Math.random()*routines.length);
         const available=(this.saveData.ownedGear||[]).map((owned,j)=>owned&&!this.saveData.gearStored?.[j]?j:-1).filter(j=>j>=0);
         let goal:Point;
-        if(ai.activity===1&&available.length){
-          const gear=available[(i+this.saveData.day)%available.length];
+        if((ai.activity===1||ai.activity===2)&&available.length){
+          const suitable=available.filter(j=>ai.activity===1?j<=2:j>=4);
+          const choices=suitable.length?suitable:available;
+          const gear=choices[(i+this.saveData.day)%choices.length];
           const p=this.saveData.gearPositions?.[gear]||{x:100,y:130};
           goal={x:p.x+24,y:p.y+14};
         }else if(ai.activity===4){
