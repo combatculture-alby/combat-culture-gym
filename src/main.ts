@@ -1015,8 +1015,7 @@ class CompetitionScene extends Phaser.Scene {
     const cash=Math.round((win?40:draw?15:8)*factor),rep=win?Math.round(factor):0;
     awardArcade(cash,rep,false);
     this.controls.forEach(c=>c.destroy());this.controls=[];
-    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene]});
-+cash);
+    this.status.setText((win?'YOU WIN!':draw?'DRAW!':'YOU LOSE!')+'  EARNED $'+cash);
     arcadeButton(this,240,280,180,36,'RETURN TO GYM',()=>this.scene.start('Gym'));
   }
 }
