@@ -158,6 +158,41 @@ class GymScene extends Phaser.Scene {
     g.fillStyle(0x735a3d).fillRect(33,76,285,4);
     g.fillStyle(0x765337).fillRect(385,217,88,6);
     g.fillStyle(0x3b332d).fillRect(0,0,W,14);
+    // Graphics pass: layered light, material wear, mat seams, and environmental storytelling.
+    // Deterministic texture, so redrawing does not cause visual flicker.
+    for(let i=0;i<170;i++){
+      const x=(i*73+17)%330,y=34+(i*47)%188;
+      if(x>=28&&x<=324&&y>=74&&y<=216)continue;
+      g.fillStyle(i%3===0?0x725b43:0xffffff,i%3===0?0.11:0.12).fillRect(x,y,2+(i%3),1);
+    }
+    for(let x=36;x<310;x+=32)for(let y=82;y<205;y+=32){
+      g.fillStyle(0xc8ded1,0.14).fillRect(x+3,y+3,20,2);
+      g.fillStyle(0x244c50,0.18).fillRect(x+4,y+27,22,2);
+      g.fillStyle(0x8fb7aa,0.22).fillRect(x+27,y+5,1,20);
+    }
+    // Sunlit window with a warm, angled light spill over the entrance floor.
+    g.fillStyle(0xffe7b3,0.1).fillRect(49,80,69,38);
+    g.fillStyle(0xfff1cc,0.13).fillRect(55,116,50,3);
+    g.fillStyle(0xfff1cc,0.08).fillRect(63,123,39,2);
+    // Brackets, screws, frame highlights, and bulletin-board notes.
+    g.fillStyle(0x302e2a).fillRect(347,54,3,3);
+    g.fillStyle(0x302e2a).fillRect(450,54,3,3);
+    g.fillStyle(0xe8d6aa).fillRect(366,100,18,9);
+    g.fillStyle(0xb95f50).fillRect(388,102,12,7);
+    g.fillStyle(0x6f9484).fillRect(405,102,21,7);
+    g.fillStyle(0x493c32).fillRect(368,102,13,1);
+    g.fillStyle(0x493c32).fillRect(368,105,10,1);
+    // Computer hardware and desk clutter make reception read as a workstation.
+    g.fillStyle(0x171f23).fillRect(426,185,5,6);
+    g.fillStyle(0x4b4f4d).fillRect(413,191,26,2);
+    g.fillStyle(0xf0d6a0).fillRect(453,185,7,6);
+    g.fillStyle(0x8b4b3f).fillRect(453,183,7,2);
+    g.fillStyle(0x73523e).fillRect(390,197,5,21);
+    g.fillStyle(0x73523e).fillRect(463,197,5,21);
+    // Narrow wall trim and corner supports.
+    g.fillStyle(0x9d7554).fillRect(329,31,3,192);
+    g.fillStyle(0x523c30).fillRect(332,31,2,192);
+    g.fillStyle(0xc6a37a).fillRect(0,220,480,2);
     this.add.text(346,127,'TRAINING BOARD',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
     this.add.text(385,226,'RECEPTION',{fontFamily:UI_FONT,fontSize:'10px',color:'#493e33'});
     this.decor=this.add.graphics().setDepth(1);
@@ -320,6 +355,14 @@ class GymScene extends Phaser.Scene {
     rect(-8,-32,7,3,hair);
     rect(5,-34,10,3,hair);
     rect(-8,-25,6,10,hair);
+    // Pixel detailing: layered hair, collar, shirt seam and athletic footwear.
+    rect(0,-32,14,3,hair);
+    rect(-8,-29,3,5,hair);
+    rect(0,-14,8,3,0xe7b98f);
+    rect(-8,-5,3,12,0xffffff);
+    rect(-5,17,6,2,0x6b8185);
+    rect(5,17,6,2,0x6b8185);
+    rect(0,11,12,2,0x273e45);
     if(owner) {
       rect(0,-27,24,4,0xc82f31);
       rect(0,-5,8,8,0xc97c36);
