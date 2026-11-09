@@ -1488,7 +1488,7 @@ try{
       scene.updateArrivals(0.1);
     });
     assert.equal((await sceneState(page)).activeNames[0],'Ash',
-      'Next day's attending group arrives after opening');
+      "Next day attending group arrives after opening");
   });
 
   // Real mobile touch input, not a mouse click masquerading as a tap.
