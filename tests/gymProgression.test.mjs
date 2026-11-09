@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -47,4 +47,21 @@ test('class schedules default safely and only accept four valid programs',()=>{
   assert.deepEqual(normalizeClassPlan([3,2]),[3,2]);
   assert.deepEqual(normalizeClassPlan([-1,99]),[0,1]);
   assert.deepEqual(normalizeClassPlan([0,'1']),[0,1]);
+});
+
+test('each gym expansion adds usable floor area with valid ordered boundaries',()=>{
+  const spaces=Array.from({length:5},(_,i)=>trainingBounds(i+1));
+  const areas=spaces.map(s=>(s.right-s.left)*(s.bottom-s.top));
+  for(let i=0;i<spaces.length;i++){
+    const b=spaces[i];
+    assert.ok(b.left>=25&&b.right<=330,'Mat must not overlap the training board corridor');
+    assert.ok(b.top>=75&&b.bottom<=215,'Mat must stay inside the playable gym');
+    if(i>0){
+      assert.ok(areas[i]>areas[i-1],'Training space must grow every level');
+      assert.ok(b.left<=spaces[i-1].left&&b.right>=spaces[i-1].right);
+      assert.ok(b.top<=spaces[i-1].top&&b.bottom>=spaces[i-1].bottom);
+    }
+  }
+  assert.deepEqual(trainingBounds(0),trainingBounds(1));
+  assert.deepEqual(trainingBounds(99),trainingBounds(5));
 });
