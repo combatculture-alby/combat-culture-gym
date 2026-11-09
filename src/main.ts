@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import { drawGym } from './gymWorld';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds} from './gymProgression';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -37,9 +37,13 @@ const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
 const SAVE_KEY = import.meta.env.VITE_GARAGE_PREVIEW === '1'
   ? 'combat-culture-gym-garage-preview-v1'
   : PLAYTEST ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
-const blocks = [{x:388,y:184,w:82,h:36},{x:345,y:109,w:111,h:13}];
-const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 75 && y <= 215 &&
-  !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
+const walkable = (x:number,y:number,level:number):boolean => {
+  const {room,board,desk}=gymServiceLayout(level);
+  // The entire physical room expands; no invisible Level 1 mega-gym.
+  const boardBase={x:board.x,y:board.y+board.h-6,w:board.w,h:13};
+  return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
+    ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
+};
 const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1] };
 function newSave():Save {
   const save=JSON.parse(JSON.stringify(defaults)) as Save;
@@ -301,10 +305,13 @@ class GymScene extends Phaser.Scene {
     this.targetRefresh=0.45;
   }
   private useStationAt(x:number,y:number):boolean {
-    const board=x>=344&&x<=457&&y>=49&&y<=122;
-    const desk=x>=390&&x<=470&&y>=158&&y<=224;
+    const layout=gymServiceLayout(this.gymLevel());
+    const inRect=(r:{x:number;y:number;w:number;h:number},pad=0)=>
+      x>=r.x-pad&&x<=r.x+r.w+pad&&y>=r.y-pad&&y<=r.y+r.h+pad;
+    const board=inRect(layout.board,3);
+    const desk=inRect(layout.desk,3);
     if(!board&&!desk)return false;
-    const anchor=board?{x:348,y:145}:{x:375,y:198};
+    const anchor=board?layout.boardApproach:layout.deskApproach;
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,anchor.x,anchor.y)>43){
       this.route=this.playerRoute(anchor,true);
       if(!this.route.length){this.say('The path to the station is blocked.');return true;}
@@ -317,8 +324,9 @@ class GymScene extends Phaser.Scene {
     return true;
   }
   private useNearbyStation():boolean {
-    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,375,198)<48){this.openGymUpgrades();return true;}
-    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,348,145)<48){this.openTrainingBoard();return true;}
+    const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,deskApproach.x,deskApproach.y)<43){this.openGymUpgrades();return true;}
+    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,boardApproach.x,boardApproach.y)<43){this.openTrainingBoard();return true;}
     return false;
   }
   private menuShell(title:string,subtitle:string,back?:()=>void,p=this.furniturePanel):void {
@@ -1273,7 +1281,7 @@ class GymScene extends Phaser.Scene {
     return solids;
   }
   private canStand(x:number,y:number):boolean {
-    return walkable(x,y)&&!this.footprints.some(o=>Math.abs(x-o.x)<o.rx+6&&Math.abs(y-o.y)<o.ry+4);
+    return walkable(x,y,this.gymLevel())&&!this.footprints.some(o=>Math.abs(x-o.x)<o.rx+6&&Math.abs(y-o.y)<o.ry+4);
   }
   private canPlace(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1,excludePlant=false):boolean {
     return !this.solidFootprints(excludeGear,excludeFurniture,excludePlant).some(o=>
