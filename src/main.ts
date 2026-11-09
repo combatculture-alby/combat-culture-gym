@@ -660,7 +660,9 @@ class GymScene extends Phaser.Scene {
     this.panelButton(this.furniturePanel,'CANCEL',84,185,149,30,
       ()=>this.openGymUpgrades());
     this.panelButton(this.furniturePanel,'ERASE + RESTART',245,185,149,30,()=>{
-      try {localStorage.removeItem(SAVE_KEY);}
+      // Immediately persist the clean save so a reload or tab restore cannot
+      // bring back the old progress after the confirmation.
+      try {localStorage.setItem(SAVE_KEY,JSON.stringify(newSave()));}
       catch {this.say('Unable to reset the save in this browser.');return;}
       this.scene.restart({notice:'New garage started. Teach two classes each day to grow.'});
     },false,0x87483f);
