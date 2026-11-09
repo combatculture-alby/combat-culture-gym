@@ -859,6 +859,56 @@ try{
     assert.deepEqual(reset,{cleaned:0,serviced:0});
   });
 
+  await openScenario('student-complaints-are-readable',sampleSave({
+    waterLevel:5,towelLevel:5,paperLevel:5,matCleanliness:10,
+    ownedGear:[true,false,false,false,false,false,false,false],
+    gearStored:Array(8).fill(false),gearCondition:[10,100,100,100,100,100,100,100]
+  }),async page=>{
+    const issues=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.showFacilityComplaint();
+      let visible=s.speechBubbles.filter(b=>b?.visible);
+      if(visible.length!==1)throw Error('Student should visibly complain once');
+      const before=visible[0].text;
+      s.updateStudentLife(0.1);
+      visible=s.speechBubbles.filter(b=>b?.visible);
+      return {before,after:visible[0]?.text||'',routine:s.activeStudents()
+        .find(student=>student.routine?.pose==='talk')?.routine?.pose};
+    });
+    assert.ok(/water|towels|paper|mat|broken/i.test(issues.before));
+    assert.equal(issues.after,issues.before,'Complaint remains visible while student stops to talk');
+    assert.equal(issues.routine,'talk');
+    await page.screenshot({path:output+'/student-facility-complaint.png'});
+  });
+
+  await openScenario('daily-shift-completion-without-mini-games',sampleSave({
+    reputation:0,money:100,coachedToday:[],gatheredToday:[],
+    trashSpawnedToday:4,dailyShiftClaimed:false
+  }),async page=>{
+    const outcome=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const firstTwo=s.requestStudentIds();
+      s.completeStudentRequest(firstTwo[0],'goal');
+      s.completeStudentRequest(firstTwo[1],'bond');
+      for(const p of s.gatheringPositions.slice(0,3)){
+        s.coach.place(p.x,p.y);s.collectNodeAt(p.x,p.y);
+      }
+      const ready=s.saveData.dailyShiftClaimed;
+      s.simulateClass(0);
+      const first={claimed:s.saveData.dailyShiftClaimed,cash:s.saveData.money,
+        rep:s.saveData.reputation,coached:s.saveData.coachedToday.length,
+        trash:s.saveData.gatheredToday.length};
+      s.checkDailyShift();
+      return {ready,first,cashAfterRepeat:s.saveData.money};
+    });
+    assert.equal(outcome.ready,false,'Shift should require a scheduled class');
+    assert.deepEqual({claimed:outcome.first.claimed,coached:outcome.first.coached,
+      trash:outcome.first.trash},{claimed:true,coached:2,trash:3});
+    assert.ok(outcome.first.cash>=100+45,'Completing shift awards cash');
+    assert.ok(outcome.first.rep>=4,'Coaching and completing shift earns reputation');
+    assert.equal(outcome.cashAfterRepeat,outcome.first.cash,'Shift can only award once');
+  });
+
   await openScenario('gear-purchase-place-or-store',sampleSave({
     money:500,materials:[20,20,20],gearStored:Array(8).fill(false),
     ownedGear:Array(8).fill(false)
