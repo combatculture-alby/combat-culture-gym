@@ -55,13 +55,41 @@ export function normalizeClassPlan(value:unknown):number[] {
 /** Visible training area, also enforced for equipment footprint placement.
  * The right-hand board and reception corridor stay accessible at every level. */
 export const GYM_TRAINING_BOUNDS=[
-  {left:60,right:287,top:95,bottom:193},
-  {left:51,right:296,top:90,bottom:198},
-  {left:44,right:303,top:87,bottom:201},
-  {left:38,right:309,top:84,bottom:204},
-  {left:32,right:319,top:80,bottom:212},
+  {left:70,right:278,top:103,bottom:190}, // compact garage
+  {left:55,right:294,top:93,bottom:200},  // neighborhood
+  {left:33,right:317,top:80,bottom:211},  // original Combat Culture gym
+  {left:29,right:323,top:79,bottom:214},  // enlarged professional facility
+  {left:25,right:329,top:78,bottom:215},  // flagship academy
 ] as const;
 
 export function trainingBounds(level:number) {
   return GYM_TRAINING_BOUNDS[normalizeGymLevel(level)-1];
+}
+
+export type GymRect={x:number;y:number;w:number;h:number};
+export type GymPoint={x:number;y:number};
+
+/** Stage-specific furniture hit targets, route anchors and room footprint.
+ * Keep physical station interaction aligned with the artwork at every level.
+ * A tiny check-in desk grows into a staffed luxury reception on Level 5. */
+export const GYM_SERVICE_LAYOUTS=[
+  {room:{left:44,right:450,top:84,bottom:213},
+   board:{x:381,y:75,w:66,h:39},desk:{x:415,y:192,w:47,h:24},
+   boardApproach:{x:363,y:144},deskApproach:{x:397,y:200}},
+  {room:{left:27,right:460,top:79,bottom:215},
+   board:{x:364,y:65,w:83,h:49},desk:{x:401,y:187,w:65,h:30},
+   boardApproach:{x:351,y:144},deskApproach:{x:385,y:200}},
+  {room:{left:15,right:465,top:75,bottom:215},
+   board:{x:344,y:50,w:112,h:65},desk:{x:388,y:181,w:82,h:39},
+   boardApproach:{x:348,y:145},deskApproach:{x:375,y:198}},
+  {room:{left:15,right:469,top:75,bottom:215},
+   board:{x:339,y:43,w:123,h:74},desk:{x:379,y:178,w:92,h:42},
+   boardApproach:{x:343,y:147},deskApproach:{x:368,y:198}},
+  {room:{left:11,right:474,top:74,bottom:216},
+   board:{x:334,y:32,w:132,h:84},desk:{x:372,y:176,w:101,h:44},
+   boardApproach:{x:341,y:146},deskApproach:{x:359,y:198}},
+] as const;
+
+export function gymServiceLayout(level:number){
+  return GYM_SERVICE_LAYOUTS[normalizeGymLevel(level)-1];
 }
