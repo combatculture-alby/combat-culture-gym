@@ -522,6 +522,42 @@ class GymScene extends Phaser.Scene {
     }
 
   }
+  private openExpansion():void {
+    const level=this.gymLevel();
+    const names=['Garage Gym','Neighborhood Gym','Fight Gym','Pro Facility','Combat Academy'];
+    const capacity=[4,6,10,16,24];
+    const costs=[0,400,1100,2600,6000];
+    const reps=[0,12,35,75,140];
+    const classes=[0,8,22,48,90];
+    const gear=[0,2,4,6,8];
+    this.menuShell('GYM EXPANSION','LEVEL '+level+' / 5   '+names[level-1],()=>this.openGymUpgrades());
+    this.furniturePanel.add(this.add.text(86,77,'CURRENT CAPACITY: '+capacity[level-1]+' STUDENTS',{fontFamily:UI_FONT,fontSize:'12px',color:'#fff0d3'}));
+    if(level===5){
+      this.furniturePanel.add(this.add.text(86,111,'MAX LEVEL: COMBAT ACADEMY',{fontFamily:UI_FONT,fontSize:'11px',color:'#a9dfbd'}));
+      return;
+    }
+    const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
+    const goals:[string,number,number][]=[
+      ['CASH',this.saveData.money,costs[level]],
+      ['REPUTATION',this.saveData.reputation,reps[level]],
+      ['CLASSES TAUGHT',this.saveData.classesTaught||0,classes[level]],
+      ['GEAR OWNED',owned,gear[level]]
+    ];
+    this.furniturePanel.add(this.add.text(86,100,'NEXT: '+names[level]+'  /  '+capacity[level]+' STUDENTS',{fontFamily:UI_FONT,fontSize:'11px',color:'#f2d291'}));
+    goals.forEach(([label,current,required],i)=>{
+      this.furniturePanel.add(this.add.text(87,124+i*17,label+': '+current+' / '+required,{fontFamily:UI_FONT,fontSize:'10px',color:current>=required?'#a9dfbd':'#f1b4a6'}));
+    });
+    const ready=goals.every(([,current,required])=>current>=required);
+    this.panelButton(this.furniturePanel,ready?'EXPAND GYM':'LOCKED',229,201,167,31,()=>{
+      if(!ready)return;
+      this.saveData.money-=costs[level];
+      this.saveData.gymLevel=level+1;
+      this.persist();
+      this.refresh();
+      this.openExpansion();
+      this.say('Expanded to '+names[level]+'!');
+    },!ready);
+  }
   private openGymUpgrades():void {
     if(this.running||this.isPlacing())return;
     this.clearIntent();
@@ -533,7 +569,7 @@ class GymScene extends Phaser.Scene {
       ['BUILD / ARRANGE',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
       ['MATERIALS / CRAFT',()=>this.openMaterials()],
-      ['STUDENT ROSTER',()=>{this.closePanel();this.toggleRoster();}],
+      ['EXPAND GYM',()=>this.openExpansion()],
       ['NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
