@@ -273,7 +273,7 @@ class GymScene extends Phaser.Scene {
     this.message=this.add.text(21,250,'Welcome! Teach classes to earn cash and reputation, then grow your gym.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
     this.timer=this.add.text(12,211,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.add.text(240,322,'Tap the floor to walk. Tap a student to talk.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
+    this.add.text(240,322,'Walk around. Tap students, equipment, PHONE / WATER / STOCK / MOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
     this.hubControls=[
       this.addButton(12,278,111,36,'TRAIN',()=>this.openTrainingBoard(),true),
       this.addButton(127,278,111,36,'MANAGE',()=>this.openGymUpgrades()),
@@ -1081,6 +1081,11 @@ class GymScene extends Phaser.Scene {
         g.lineBetween(x+1,y-11,x+9,y+3);
         g.fillStyle(0x364f50).fillRect(x-3,y-14,13,4);
         g.fillStyle(0xb99d6f).fillRect(x-13,y-17,12,3);
+      }
+      if(!gearActive(true,false,this.saveData.gearCondition?.[i]??100,
+        this.saveData.gearCleanliness?.[i]??100)){
+        g.fillStyle(0xb75242).fillRect(x+9,y-27,14,13);
+        g.fillStyle(0xffd99b).fillRect(x+15,y-25,2,6).fillRect(x+15,y-17,2,2);
       }
       if(this.placingGear===i)this.decor.lineStyle(2,0xffe08a).strokeRect(x-12,y-11,24,22);
     });
@@ -2332,6 +2337,27 @@ class GymScene extends Phaser.Scene {
     }
     return this.idleRoutine(student,1+index*0.3);
   }
+  private showFacilityComplaint():void {
+    const concerns:string[]=[];
+    if((this.saveData.waterLevel??55)<30)concerns.push('The water station is empty!');
+    if((this.saveData.towelLevel??65)<25)concerns.push('We need clean towels!');
+    if((this.saveData.paperLevel??65)<25)concerns.push('The bathroom needs paper!');
+    if((this.saveData.matCleanliness??70)<30)concerns.push('The mat needs mopping!');
+    this.saveData.ownedGear?.forEach((owned,i)=>{
+      if(!owned||this.saveData.gearStored?.[i])return;
+      if((this.saveData.gearCondition?.[i]??100)<GEAR_WORKING_THRESHOLD)
+        concerns.push(GEAR_ITEMS[i].name+' is broken!');
+      else if((this.saveData.gearCleanliness?.[i]??100)<CLEAN_GEAR_THRESHOLD)
+        concerns.push(GEAR_ITEMS[i].name+' is dirty!');
+    });
+    if(!concerns.length)return;
+    const active=this.activeStudents();
+    if(!active.length)return;
+    const choose=Math.floor((this.saveData.day+this.saveData.classesTaught!+
+      this.time.now/19000))%concerns.length;
+    const student=active[(this.saveData.day+choose)%active.length];
+    this.showSpeech(student,concerns[choose],2600);
+  }
   private updateStudentLife(dt:number):void {
     // Expire bubbles even when panels pause NPC animations.
     for(const student of this.activeStudents()){
@@ -2475,10 +2501,27 @@ class GymScene extends Phaser.Scene {
       return;
     }
     if(!this.isPlacing()&&!this.buildMode&&!this.furniturePanel.visible&&
-      !this.rosterPanel.visible&&this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH){
-      this.trashClock+=dt;
-      if(this.trashClock>=TRASH_INTERVAL){
-        this.trashClock=0;this.spawnTrash(1);
+      !this.rosterPanel.visible){
+      if(this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH){
+        this.trashClock+=dt;
+        if(this.trashClock>=TRASH_INTERVAL){
+          this.trashClock=0;this.spawnTrash(1);
+        }
+      }
+      if((this.saveData.phoneCallsSpawned??1)<PHONE_CALL_LIMIT){
+        this.phoneClock+=dt;
+        if(this.phoneClock>=46){
+          this.phoneClock=0;
+          this.saveData.phoneCallsSpawned=PHONE_CALL_LIMIT;
+          this.persist();this.refresh();
+          this.say('The front desk phone is ringing. Answer to earn REP or a member lead.');
+        }
+      }
+      if(!this.running){
+        this.complaintClock+=dt;
+        if(this.complaintClock>23){
+          this.complaintClock=0;this.showFacilityComplaint();
+        }
       }
     }
     if(this.running) {
