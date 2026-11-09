@@ -2104,4 +2104,6 @@ class ConditioningScene extends Phaser.Scene {
   }
 }
 
-new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
+const combatGym = new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
+// Test-only visibility for headless browser QA. Production builds do not expose the game object.
+if(import.meta.env.DEV)(window as unknown as {__combatGym?:Phaser.Game}).__combatGym=combatGym;
