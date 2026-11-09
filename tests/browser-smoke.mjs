@@ -748,6 +748,22 @@ try{
     });
   }
 
+  await openScenario('water-cooler-used-by-real-students',sampleSave({
+    waterLevel:0,supplies:[2,2,2,2]
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const before=s.stations.some(item=>item.id==='water-cooler');
+      s.refillAmenity(0);
+      const after=s.stations.some(item=>item.id==='water-cooler'&&
+        item.pose==='drink');
+      return {before,after,water:s.saveData.waterLevel,
+        stock:s.saveData.supplies[0]};
+    });
+    assert.deepEqual(state,{before:false,after:true,water:55,stock:1},
+      'Students should be able to use the actual cooler only while stocked');
+  });
+
   await openScenario('random-phone-rings-from-reception',sampleSave({
     phoneCallsSpawned:0,phoneCallsAnswered:0,day:2
   }),async page=>{
@@ -1366,6 +1382,18 @@ try{
     await page.touchscreen.tap(bounds.x+180/480*bounds.width,bounds.y+296/330*bounds.height);
     assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').furniturePanel.visible),
       true,'MANAGE should respond to a real phone tap');
+    const water=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.closePanel();
+      const point=s.servicePosition('water');
+      s.coach.place(point.x+27,point.y+5);
+      return point;
+    });
+    await page.touchscreen.tap(bounds.x+water.x/480*bounds.width,
+      bounds.y+water.y/330*bounds.height);
+    assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('Gym')
+      .furniturePanel.list.some(t=>t.text==='GYM WATER & AMENITIES')),true,
+      'The physical cooler should respond to a real mobile touch');
     assert.deepEqual(errors,[],'Mobile view should not emit JS errors');
     await page.screenshot({path:output+'/mobile-garage.png',fullPage:true});
   }finally{await mobile.close();}
