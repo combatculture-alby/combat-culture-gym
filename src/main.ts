@@ -495,8 +495,9 @@ class GymScene extends Phaser.Scene {
   private refreshServiceHotspots():void {
     for(const {type,frame,ring} of this.serviceHotspots){
       const supply=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
-      const ringing=availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
-        this.saveData.phoneCallsAnswered??0)>0;
+      const ringing=this.dayPhase()==='open'&&
+        availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
+          this.saveData.phoneCallsAnswered??0)>0;
       const urgent=type==='phone'?ringing:type==='water'?
         (this.saveData.waterLevel??55)<35:
         type==='stock'?supply.some((n,i)=>n<(i===0?1:2)):
