@@ -34,8 +34,9 @@ const initialStats=()=>STUDENT_NAMES.map(()=>[10,10,10,10]);
 const initialXP=()=>STUDENT_NAMES.map(()=>[0,0,0,0]);
 const initialGoals=()=>STUDENT_NAMES.map((_,i)=>[[20,0],[25,2],[20,3],[25,1]][i%4].slice());
 const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
-const SAVE_KEY = PLAYTEST
-  ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
+const SAVE_KEY = import.meta.env.VITE_GARAGE_PREVIEW === '1'
+  ? 'combat-culture-gym-garage-preview-v1'
+  : PLAYTEST ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
 const blocks = [{x:388,y:184,w:82,h:36},{x:345,y:109,w:111,h:13}];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 75 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
