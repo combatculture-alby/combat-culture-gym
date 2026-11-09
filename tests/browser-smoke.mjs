@@ -104,6 +104,63 @@ try{
   }
   assert.equal(themePixels.size,5,'Every gym level needs a distinct floor palette');
 
+  // Validate service-object hitboxes and routes at both extremes of the gym.
+  await openScenario('tiny-garage-interactions',sampleSave(),async page=>{
+    const state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const starting=scene.canStand(25,140);
+      const board=scene.useStationAt(415,92);
+      const boardTarget=scene.stationTarget;
+      const boardRoute=scene.route.length;
+      const desk=scene.useStationAt(440,203);
+      return {starting,board,boardTarget,boardRoute,desk,
+        deskTarget:scene.stationTarget,deskRoute:scene.route.length};
+    });
+    assert.equal(state.starting,false,'Garage must have genuine physical side walls');
+    assert.equal(state.board,true);
+    assert.equal(state.boardTarget,'board');
+    assert.ok(state.boardRoute>0,'Small bulletin board must have reachable interaction route');
+    assert.equal(state.desk,true);
+    assert.equal(state.deskTarget,'desk');
+    assert.ok(state.deskRoute>0,'Folding desk must have reachable interaction route');
+    await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      scene.clearIntent();
+    });
+  });
+  await openScenario('classic-level-three',sampleSave({
+    gymLevel:3,enrolledStudents:8,friendships:Array(8).fill(0),skills:Array(8).fill(0)
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {board:scene.useStationAt(400,82),
+        boardTarget:scene.stationTarget,
+        desk:scene.useStationAt(430,197),
+        deskTarget:scene.stationTarget,
+        originalWideMat:scene.validPlacement(300,151,8,8)};
+    });
+    assert.equal(state.board,true);
+    assert.equal(state.boardTarget,'board');
+    assert.equal(state.desk,true);
+    assert.equal(state.deskTarget,'desk');
+    assert.equal(state.originalWideMat,true,'Original Level 3 mat must be placeable');
+  });
+  await openScenario('flagship-receptionist',sampleSave({
+    gymLevel:5,enrolledStudents:24,friendships:Array(24).fill(0),
+    skills:Array(24).fill(0)
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const standing=scene.canStand(18,151);
+      const staff=scene.useStationAt(424,155);
+      return {standing,staff,target:scene.stationTarget,route:scene.route.length};
+    });
+    assert.equal(state.standing,true,'Flagship should open nearly all room width');
+    assert.equal(state.staff,true,'Academy staff should be clickable');
+    assert.equal(state.target,'desk');
+    assert.ok(state.route>0,'Receptionist must be reachable');
+  });
+
   await openScenario('speech-bubble-lifetime',sampleSave(),async page=>{
     const initial=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
