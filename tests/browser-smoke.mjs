@@ -478,9 +478,20 @@ try{
     assert.ok(state.cash>=400,'Hub classes should finance first expansion');
     assert.equal(state.canExpand,true);
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openExpansion());
+    await page.screenshot({path:output+'/first-expansion-ready.png'});
     await clickGame(page,300,217);
-    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.gymLevel===2);
-    assert.equal((await sceneState(page)).level,2,'Expansion should work without launching a minigame');
+    await page.waitForTimeout(350);
+    const expansion=await page.evaluate(()=>{
+      const g=window.__combatGym.scene.getScene('Gym');
+      return {level:g.saveData.gymLevel,rep:g.saveData.reputation,
+        cash:g.saveData.money,taught:g.saveData.classesTaught,
+        owned:g.saveData.ownedGear?.filter(Boolean).length,
+        menu:g.furniturePanel.visible,
+        text:g.furniturePanel.list.map(x=>x.text).filter(Boolean),
+        status:g.message?.text};
+    });
+    assert.equal(expansion.level,2,
+      'Hub-only expansion should work without arcade. '+JSON.stringify(expansion));
   });
 
   await openScenario('hub-find-supplies-button',sampleSave({
