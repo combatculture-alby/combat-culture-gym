@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -64,4 +64,28 @@ test('each gym expansion adds usable floor area with valid ordered boundaries',(
   }
   assert.deepEqual(trainingBounds(0),trainingBounds(1));
   assert.deepEqual(trainingBounds(99),trainingBounds(5));
+});
+
+test('reception and community board are progressively upgraded with the room',()=>{
+  const services=Array.from({length:5},(_,i)=>gymServiceLayout(i+1));
+  for(let i=1;i<5;i++){
+    const smaller=services[i-1],bigger=services[i];
+    assert.ok(bigger.board.w>smaller.board.w,'Community board must get physically wider');
+    assert.ok(bigger.board.h>smaller.board.h,'Community board must get taller');
+    assert.ok(bigger.desk.w>smaller.desk.w,'Reception desk must physically grow');
+    assert.ok(bigger.desk.h>=smaller.desk.h,'Reception desk must not shrink');
+    assert.ok(bigger.room.left<=smaller.room.left,'Room must open toward left');
+    assert.ok(bigger.room.right>=smaller.room.right,'Room must open toward right');
+  }
+  assert.deepEqual(services[2].board,{x:344,y:50,w:112,h:65},'Level 3 restores the original board');
+  assert.deepEqual(services[2].desk,{x:388,y:181,w:82,h:39},'Level 3 restores the original reception');
+  assert.ok(services[0].board.w<=70&&services[0].desk.w<=50,'Garage must look makeshift');
+  assert.ok(services[4].desk.w>=100,'Flagship must have a real reception counter');
+  for(const layout of services){
+    const {room,boardApproach,deskApproach}=layout;
+    for(const approach of [boardApproach,deskApproach]){
+      assert.ok(approach.x>=room.left&&approach.x<=room.right);
+      assert.ok(approach.y>=room.top&&approach.y<=room.bottom);
+    }
+  }
 });
