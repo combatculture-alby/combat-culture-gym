@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import { drawGym } from './gymWorld';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices} from './gymProgression';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -18,7 +18,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -39,7 +39,7 @@ const SAVE_KEY = PLAYTEST
 const blocks = [{x:388,y:184,w:82,h:36},{x:345,y:109,w:111,h:13}];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 75 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1] };
 function newSave():Save {
   const save=JSON.parse(JSON.stringify(defaults)) as Save;
   if(PLAYTEST){
@@ -67,7 +67,7 @@ function loadSave(): Save {
       s.friendships.length < 4 || s.skills.length < 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, gymLevel:level,enrolledStudents:enrolled,
+    return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
       friendships:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.friendships?.[i])||0))),
       skills:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.skills?.[i])||0))), equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:enrolled},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return newSave(); }
@@ -146,6 +146,7 @@ class GymScene extends Phaser.Scene {
     this.targetRefresh=0;
     this.buildMode=false;
     this.buildPage=0;
+    this.selectedSlot=Math.min(this.saveData.classesToday||0,1);
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
     this.worldFixtures=[];
     this.gatheringNodes=[];
@@ -718,31 +719,47 @@ class GymScene extends Phaser.Scene {
     const p=this.gatheringPositions.find((p,i)=>!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
     return p?this.collectNodeAt(p.x,p.y):false;
   }
-  private selectedClass=0;
+  private selectedSlot=0;
   private openClassSchedule():void {
-    const count=this.saveData.classesToday||0;
-    const remaining=Math.max(0,2-count);
-    this.menuShell('CLASS SCHEDULE',remaining+' of 2 class slots remaining today',()=>this.openTrainingBoard());
-    CLASS_PROGRAMS.forEach((program,i)=>{
-      const selected=i===this.selectedClass;
-      const label=(selected?'› ':'')+program.name;
-      this.panelButton(this.furniturePanel,label,84,72+i*31,142,27,()=>{
-        this.selectedClass=i;
+    const finished=this.saveData.classesToday||0;
+    const plan=this.saveData.classPlan??[0,1];
+    const slot=this.selectedSlot;
+    const programIndex=plan[slot]??0;
+    const program=CLASS_PROGRAMS[programIndex];
+    const editable=slot>=finished;
+    this.menuShell('CLASS SCHEDULE','PLAN TWO SESSIONS. CLASSES RUN IN ORDER.',()=>this.openTrainingBoard());
+    CLASS_PROGRAMS.forEach((option,i)=>{
+      const selected=i===programIndex;
+      this.panelButton(this.furniturePanel,(selected?'• ':'')+option.name,84,73+i*31,142,27,()=>{
+        if(!editable)return;
+        this.saveData.classPlan=normalizeClassPlan(this.saveData.classPlan);
+        this.saveData.classPlan[slot]=i;
+        this.persist();
+        this.openClassSchedule();
+      },!editable,selected?0x527f74:0x355b5d);
+    });
+    [0,1].forEach((position)=>{
+      const session=CLASS_PROGRAMS[plan[position]??position];
+      const selected=slot===position;
+      const done=position<finished;
+      const label=(position===0?'1  AM: ':'2  PM: ')+session.name+(done?' ✓':'');
+      this.panelButton(this.furniturePanel,label,238,72+position*31,157,27,()=>{
+        this.selectedSlot=position;
         this.openClassSchedule();
       },false,selected?0x527f74:0x355b5d);
     });
-    const program=CLASS_PROGRAMS[this.selectedClass];
-    const x=238;
-    this.furniturePanel.add(this.add.text(x,77,program.name.toUpperCase(),{fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',color:'#ffe4b0'}));
-    this.furniturePanel.add(this.add.text(x,101,'Trains: '+program.stats.map(k=>CORE_STATS[k]).join(' + '),{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:155}}));
-    const gear=GEAR_ITEMS.filter((item,i)=>program.stats.includes(item.stat)&&this.saveData.ownedGear?.[i]);
-    this.furniturePanel.add(this.add.text(x,132,'Gear bonus: '+(gear.length?'ACTIVE':'NONE'),{fontFamily:UI_FONT,fontSize:'9px',color:gear.length?'#aee0b0':'#dbc2a3'}));
-    this.furniturePanel.add(this.add.text(x,148,'Reward: $'+(15+Math.max(0,this.students.length-4)*2)+' + student XP',{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2'}));
-    this.furniturePanel.add(this.add.text(x,161,'Students: '+this.students.length+' / '+studentCapacity(this.gymLevel()),{fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2'}));
-    this.panelButton(this.furniturePanel,remaining?'TEACH CLASS':'DAILY LIMIT',238,176,157,31,()=>{
-      if(remaining)this.simulateClass(this.selectedClass);
-    },!remaining,0x39735f);
-    this.furniturePanel.add(this.add.text(165,220,'Select a program, then teach it to your students.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
+    const gear=GEAR_ITEMS.some((item,i)=>program.stats.includes(item.stat)&&this.saveData.ownedGear?.[i]);
+    this.furniturePanel.add(this.add.text(239,139,program.stats.map(k=>CORE_STATS[k]).join(' + '),
+      {fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:152}}));
+    this.furniturePanel.add(this.add.text(239,158,'Gear bonus: '+(gear?'ACTIVE':'NONE'),
+      {fontFamily:UI_FONT,fontSize:'9px',color:gear?'#aee0b0':'#dbc2a3'}));
+    const ready=finished<2&&slot===finished;
+    const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':'TEACH SESSION '+(slot+1);
+    this.panelButton(this.furniturePanel,label,238,180,157,30,()=>{
+      if(ready)this.simulateClass(programIndex);
+    },!ready,0x39735f);
+    this.furniturePanel.add(this.add.text(84,216,'Select a session, then choose a class. Plan is saved for tomorrow.',
+      {fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8',wordWrap:{width:308}}));
     this.furniturePanel.setVisible(true);
   }
   private simulateClass(index:number):void {
@@ -764,6 +781,7 @@ class GymScene extends Phaser.Scene {
     }
     this.checkStudentGoals();
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
+    this.selectedSlot=Math.min(this.saveData.classesToday,1);
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
     const earnings=15+Math.max(0,this.students.length-4)*2;
     this.saveData.money+=earnings;
