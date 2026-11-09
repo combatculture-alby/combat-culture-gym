@@ -404,13 +404,18 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
   g.destroy();
 }
 
-export function drawGym(scene:Phaser.Scene,level=1):void {
+export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
+  const level=normalizeGymLevel(requestedLevel);
   const key='gym-room-'+level;
   if(!scene.textures.exists(key))bakeRoom(scene,level);
   scene.add.image(0,0,key).setOrigin(0);
-  const label=['COMBAT GARAGE','NEIGHBORHOOD GYM','FIGHT GYM','PRO FACILITY','COMBAT ACADEMY'][normalizeGymLevel(level)-1];
-  scene.add.text(174,49,label,{fontFamily:'monospace',fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
+  const label=level===3?'COMBAT CULTURE':
+    ['COMBAT GARAGE','NEIGHBORHOOD GYM','','PRO FACILITY','COMBAT ACADEMY'][level-1];
+  scene.add.text(174,49,label,{fontFamily:'monospace',
+    fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
 
+  if(level===3){
+    // The user's original gym is reproduced here, not just approximated.
   const trim=0x3c3537, wood=0xc39160, pale=0xedce91;
   // The bulletin board and counter stand in the room and occlude actors behind them.
   const board=scene.add.graphics().setDepth(10+120/100);
@@ -444,4 +449,116 @@ export function drawGym(scene:Phaser.Scene,level=1):void {
   desk.fillStyle(0xae6450).fillRect(453,181,6,8);
   desk.fillStyle(0x765344).fillRect(454,181,4,2);
   scene.add.text(429,205,'RECEPTION',{fontFamily:'monospace',fontSize:'8px',fontStyle:'bold',color:'#f5d9aa'}).setOrigin(0.5).setDepth(12.21);
+    return;
+  }
+
+  const {board:b,desk:d}=gymServiceLayout(level);
+  const charcoal=0x26363a;
+  const gold=level===5?0xe8c58e:0xd4a36d;
+  const draw=(g:Phaser.GameObjects.Graphics,color:number,x:number,y:number,
+    w:number,h:number,alpha=1)=>g.fillStyle(color,alpha).fillRect(x,y,w,h);
+
+  // Community board evolves from pinned paper to a full digital notice wall.
+  const board=scene.add.graphics().setDepth(11.2);
+  board.fillStyle(0x172a2b,0.22).fillEllipse(b.x+b.w/2,b.y+b.h+5,b.w+8,9);
+  draw(board,charcoal,b.x-2,b.y-2,b.w+4,b.h+4);
+  draw(board,level>=4?0x9c9a88:0xae8761,b.x,b.y,b.w,b.h);
+  draw(board,level>=4?0x274b4e:0x95704d,b.x+4,b.y+4,b.w-8,b.h-8);
+  draw(board,level>=4?0x172f3a:0x426866,b.x+5,b.y+5,b.w-10,11);
+  if(level===5){
+    draw(board,gold,b.x+3,b.y+1,b.w-6,2);
+    draw(board,gold,b.x+5,b.y+17,b.w-10,1,0.76);
+    draw(board,gold,b.x+5,b.y+b.h-9,b.w-10,2);
+  }
+  const posterCount=level===1?2:level===2?3:level===4?4:5;
+  const posterGap=3;
+  const posterWidth=Math.floor((b.w-12-(posterCount-1)*posterGap)/posterCount);
+  const posterHeight=b.h-(level===1?23:level===2?26:30);
+  const paper=[0xf3dcaa,0xc0d8c8,0xe5aa7b,0xe7cda0,0x98c2bc];
+  for(let i=0;i<posterCount;i++){
+    const x=b.x+6+i*(posterWidth+posterGap),y=b.y+(level===1?19:22);
+    draw(board,paper[i%paper.length],x,y,posterWidth,posterHeight);
+    draw(board,0x865e48,x+posterWidth/2-1,y+1,2,1);
+    for(let row=0;row<3;row++){
+      draw(board,0x64817a,x+2,y+4+row*3,Math.max(2,posterWidth-5-row),1,0.8);
+    }
+  }
+  const header=level===1?'CLASS LIST':level===2?'TRAINING BOARD':
+    level===4?'GYM SCHEDULE':'COMMUNITY HUB';
+  scene.add.text(b.x+b.w/2,b.y+10,header,{
+    fontFamily:'monospace',fontSize:level===1?'6px':level===5?'8px':'7px',
+    fontStyle:'bold',color:'#f8ddb1'
+  }).setOrigin(0.5).setDepth(11.4);
+  if(level===5){
+    scene.add.text(b.x+b.w/2,b.y+b.h-5,'NEWS  •  EVENTS  •  CLASSES',{
+      fontFamily:'monospace',fontSize:'5px',color:'#f2d9a6'
+    }).setOrigin(.5).setDepth(11.4);
+  }
+
+  // A receptionist actually works at the Academy desk, with an idle animation.
+  // She stays behind the counter; tapping her opens the existing management UI.
+  if(level===5){
+    const staff=scene.add.graphics().setDepth(11.8);
+    const cx=d.x+Math.round(d.w*0.52);
+    // Staff shirt, shoulders, head, hair, small face highlights.
+    draw(staff,0x102f3b,cx-16,165,32,23);
+    draw(staff,0x426b69,cx-14,165,28,23);
+    draw(staff,0xe0c49d,cx-9,147,18,21);
+    draw(staff,0x292b32,cx-11,143,22,10);
+    draw(staff,0x292b32,cx-12,151,4,15);
+    draw(staff,0x292b32,cx+8,151,4,15);
+    draw(staff,0x35302e,cx-6,156,2,2);
+    draw(staff,0x35302e,cx+4,156,2,2);
+    draw(staff,0x9b765b,cx-2,162,5,1);
+    draw(staff,0xe6ce9f,cx-2,172,4,6);
+    draw(staff,gold,cx-12,176,8,2);
+    scene.tweens.add({targets:staff,y:-1,duration:1100,
+      ease:'Sine.easeInOut',yoyo:true,repeat:-1});
+    scene.add.text(cx,138,'FRONT DESK',{fontFamily:'monospace',
+      fontSize:'6px',color:'#f8dfad'}).setOrigin(.5).setDepth(11.9);
+  }
+
+  const desk=scene.add.graphics().setDepth(12.2);
+  desk.fillStyle(0x263333,0.32).fillEllipse(d.x+d.w/2,d.y+d.h+1,d.w+5,11);
+  if(level===1){
+    // A real folding table with just a clipboard and coin box.
+    draw(desk,0x554c46,d.x+3,d.y+4,d.w-6,d.h-4);
+    draw(desk,0x263d41,d.x+6,d.y+7,3,d.h-7);
+    draw(desk,0x263d41,d.x+d.w-9,d.y+7,3,d.h-7);
+    draw(desk,0xc4a278,d.x,d.y,d.w,6);
+    draw(desk,0xeddbb1,d.x+3,d.y+1,d.w-6,1);
+    draw(desk,0xe5dbc4,d.x+7,d.y-4,13,6);
+    draw(desk,0x657d71,d.x+9,d.y-2,9,2);
+    draw(desk,0x333e42,d.x+d.w-15,d.y-5,10,6);
+    draw(desk,0x9fbba4,d.x+d.w-13,d.y-3,6,2);
+  }else{
+    // Standard desk at Level 2; luxury curved visual detailing at 4 and 5.
+    const premium=level>=4;
+    draw(desk,charcoal,d.x,d.y+4,d.w,d.h-4);
+    draw(desk,premium?0x354c54:0x8d5b47,d.x+4,d.y+10,d.w-8,d.h-13);
+    draw(desk,premium?0x18353e:0x573e37,d.x+8,d.y+16,d.w-16,d.h-21);
+    draw(desk,premium?0x668785:0xb47d5c,d.x+10,d.y+18,d.w-20,d.h-25);
+    draw(desk,premium?0xcac7b7:0xd4a36d,d.x,d.y,d.w,10);
+    draw(desk,premium?gold:0xf2d6a8,d.x+1,d.y+1,d.w-2,2);
+    draw(desk,premium?gold:0xd4a36d,d.x+7,d.y+d.h-9,d.w-14,2);
+    // Computer is progressively replaced by a sleek reception tablet.
+    const monitorX=d.x+Math.round(d.w*0.52);
+    draw(desk,0x1b333d,monitorX-14,d.y-18,28,18);
+    draw(desk,0x42757a,monitorX-11,d.y-16,22,13);
+    draw(desk,0xb4d5c7,monitorX-8,d.y-13,14,2);
+    draw(desk,0x829f99,monitorX-8,d.y-9,10,1);
+    draw(desk,0x26373a,monitorX-2,d.y,4,5);
+    draw(desk,0x395358,monitorX-12,d.y+4,24,2);
+    if(premium){
+      draw(desk,0xe9e2c7,d.x+5,d.y+5,13,3);
+      draw(desk,0x3f6771,d.x+d.w-19,d.y-3,12,8);
+      draw(desk,gold,d.x+d.w-16,d.y-3,6,2);
+    }
+  }
+  const deskTitle=level===1?'CHECK IN':level===2?'FRONT DESK':
+    level===4?'RECEPTION':'COMBAT CULTURE';
+  scene.add.text(d.x+d.w/2,d.y+d.h-10,deskTitle,{
+    fontFamily:'monospace',fontSize:level===5?'7px':level===1?'6px':'7px',
+    fontStyle:'bold',color:level>=4?'#f6dfa8':'#f7d9aa'
+  }).setOrigin(.5).setDepth(12.25);
 }
