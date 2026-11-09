@@ -287,7 +287,7 @@ try{
     assert.equal(completed.last,1);
     assert.ok(completed.xp>0||completed.stats>10,'Students must receive specialized XP');
     await page.screenshot({path:output+'/seminar-cutscene-complete.png'});
-    await clickGame(page,309,260); // Return to gym, no second payout.
+    await clickGame(page,329,302); // Return to gym from the fixed results panel.
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
