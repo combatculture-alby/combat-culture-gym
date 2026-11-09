@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -40,4 +40,11 @@ test('attendance rotates across recruited students without exceeding floor space
   }
   assert.equal(seen.size,24);
   assert.deepEqual(attendingIndices(0,1,1),[]);
+});
+
+test('class schedules default safely and only accept four valid programs',()=>{
+  assert.deepEqual(normalizeClassPlan(undefined),[0,1]);
+  assert.deepEqual(normalizeClassPlan([3,2]),[3,2]);
+  assert.deepEqual(normalizeClassPlan([-1,99]),[0,1]);
+  assert.deepEqual(normalizeClassPlan([0,'1']),[0,1]);
 });
