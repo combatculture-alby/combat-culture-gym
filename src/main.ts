@@ -549,7 +549,7 @@ class GymScene extends Phaser.Scene {
       this.furniturePanel.add(this.add.text(87,125+i*17,name+': '+current+' / '+required,{fontFamily:UI_FONT,fontSize:'10px',color:current>=required?'#a9dfbd':'#f1b4a6'}));
     });
     const ready=requirements.every(([,current,required])=>current>=required);
-    this.panelButton(this.furniturePanel,ready?'EXPAND GYM':'REQUIREMENTS NOT MET',229,164,167,31,()=>{
+    this.panelButton(this.furniturePanel,ready?'EXPAND GYM':'REQUIREMENTS NOT MET',229,201,167,31,()=>{
       this.saveData.money-=next.fee;
       this.saveData.gymLevel=level+1;
       this.persist();this.refresh();this.openExpansion();
