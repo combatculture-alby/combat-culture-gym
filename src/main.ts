@@ -1176,10 +1176,10 @@ class GymScene extends Phaser.Scene {
   }
   private planStudent(student:Student,index:number):Routine {
     const preferred:Pose[][]=[
-      ['bag','shadow','shadow','stretch','rest'],
-      ['stretch','rest','shadow','bag','stretch'],
-      ['lift','lift','stretch','shadow','rest'],
-      ['bag','rest','bag','shadow','lift'],
+      ['bag','shadow','rest','stretch','rest'],
+      ['stretch','rest','shadow','bag','rest'],
+      ['lift','rest','stretch','shadow','rest'],
+      ['bag','rest','bag','shadow','rest'],
     ];
     const options=preferred[index];
     const pose=options[(Math.floor(Math.random()*options.length)+this.saveData.day)%options.length];
@@ -1224,7 +1224,9 @@ class GymScene extends Phaser.Scene {
     // Without a real station or conversation partner, students practice shadowboxing.
     // Floor stretching and drinking from a personal bottle are valid solo activities.
     // Sitting/resting is reserved for an actual bench or rest station.
-    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?'drink':pose==='lift'?'stretch':'shadow';
+    // Rotate rest breaks between sitting on the mat and drinking water.
+    // This also works in a new gym before any benches have been purchased.
+    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?(Math.random()<0.5?'rest':'drink'):pose==='lift'?'stretch':'shadow';
     for(let i=0;i<6;i++){
       const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
       const routine=plan({x,y},action);
