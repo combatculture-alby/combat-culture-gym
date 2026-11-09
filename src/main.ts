@@ -121,6 +121,16 @@ class GymScene extends Phaser.Scene {
   private students: Student[] = ['Frank','Radish','Marshall','Pudge'].map((name,i)=>({
     ...STUDENT_HOMES[i],name,friendship:0,skill:0,chatCooldown:12+i*5
   }));
+  private speechBubbles:Phaser.GameObjects.Text[]=[];
+  private speechLines=['...','blah blah','psst!','haha!','nice!','you got this','one more!'];
+  private speechUntil:number[]=[0,0,0,0];
+  private showSpeech(student:Student,line:string,duration=2400):void {
+    const i=this.students.indexOf(student);
+    if(i<0||!this.speechBubbles[i])return;
+    const bubble=this.speechBubbles[i];
+    bubble.setText(line).setPosition(student.x,student.y-48).setVisible(true);
+    this.speechUntil[i]=this.time.now+duration;
+  }
   constructor() { super('Gym'); }
   create(data?:{trainingBoard?:boolean}): void {
     this.saveData=loadSave();
@@ -142,6 +152,8 @@ class GymScene extends Phaser.Scene {
       student.actor=new GymCharacter(this,student.x,student.y,i+1);
       student.routine=this.idleRoutine(student,1+i);
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
+      this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
+      this.speechUntil[i]=0;
     });
     this.status=this.add.text(104,11,'',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#fff1d5'}).setOrigin(0,.5).setDepth(30);
     this.dailyStatus=this.add.text(468,11,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#c5ded4'}).setOrigin(1,.5).setDepth(30);
@@ -962,6 +974,7 @@ class GymScene extends Phaser.Scene {
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     nearest.routine=this.idleRoutine(nearest,3,'talk');
+    this.showSpeech(nearest,['Working on my jab!','Good to see you!','Ready to train!','Thanks, coach!'][i],3400);
     nearest.actor?.face(this.player.x-nearest.x,this.player.y-nearest.y);
     this.coach.face(nearest.x-this.player.x,nearest.y-this.player.y);
     if(this.running) {
@@ -1160,6 +1173,14 @@ class GymScene extends Phaser.Scene {
     for(const student of this.students){
       Object.assign(student,this.navigation.recover(student));
       student.actor?.place(student.x,student.y);
+      const bubble=this.speechBubbles[i];
+      if(bubble){
+        bubble.setPosition(student.x,student.y-48);
+        if(this.time.now>this.speechUntil[i]||this.running||this.furniturePanel.visible||this.rosterPanel.visible)bubble.setVisible(false);
+        if(routine.pose==='talk'&&!routine.route.length&&this.time.now>this.speechUntil[i]+1000&&Math.random()<dt*0.8){
+          this.showSpeech(student,this.speechLines[Math.floor(Math.random()*this.speechLines.length)],1800);
+        }
+      }
       student.indicator?.setPosition(student.x,student.y-38);
     }
   }
