@@ -126,7 +126,7 @@ function loadSave(): Save {
         [...new Set(s.gearDrillsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))].slice(0,DAILY_GEAR_DRILLS):[],
       gearServicedToday:Array.isArray(s.gearServicedToday)?
         [...new Set(s.gearServicedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))]:[],
-      trashSpawnedToday:Math.max(0,
+      trashSpawnedToday:Math.max(s.gymPhase?0:INITIAL_DAILY_TRASH,
         Math.min(MAX_DAILY_TRASH,Math.max(
           Number.isInteger(s.trashSpawnedToday)?Number(s.trashSpawnedToday):INITIAL_DAILY_TRASH,
           Array.isArray(s.gatheredToday)?
