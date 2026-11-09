@@ -293,7 +293,13 @@ class GymScene extends Phaser.Scene {
     this.studentCard=this.add.text(12,25,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(34).setVisible(false);
     this.add.rectangle(0,226,480,104,0x152b30).setOrigin(0).setDepth(29);
     this.add.rectangle(12,248,456,28,0x203b42).setOrigin(0).setStrokeStyle(1,0x45635f).setDepth(29);
-    this.message=this.add.text(21,250,'Welcome! Teach classes to earn cash and reputation, then grow your gym.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
+    this.message=this.add.text(21,254,
+      this.dayPhase()==='opening'?
+        'OPENING PREP: clean, stock and set classes. Press OPEN GYM when ready.':
+      this.dayPhase()==='closing'?
+        'CLOSING: finish maintenance, restock and prepare tomorrow.':
+        'Welcome! Teach classes to earn cash and reputation, then grow your gym.',
+      {fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
     this.timer=this.add.text(16,208,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#f5e5c4',backgroundColor:'#25434b',padding:{x:4,y:2}}).setDepth(17);
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(240,322,'Explore the gym. Tap the desk phone, cooler, supply closet or mop.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
@@ -1651,7 +1657,10 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.add(this.add.text(239,160,'+$'+earnings+'   +'+CLASS_REPUTATION+' REP   GEAR '+matchingGear,
       {fontFamily:UI_FONT,fontSize:'9px',color:'#aee0b0'}));
     const ready=finished<2&&slot===finished&&canTeachInPhase(this.dayPhase(),this.activeStudents().length);
-    const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':'TEACH SESSION '+(slot+1);
+    const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':
+      this.dayPhase()==='opening'?'OPEN GYM FIRST':
+      this.dayPhase()==='closing'?'GYM CLOSED':
+      this.activeStudents().length===0?'WAIT FOR STUDENTS':'TEACH SESSION '+(slot+1);
     this.panelButton(this.furniturePanel,label,238,180,157,30,()=>{
       if(ready)this.startClass(programIndex);
     },!ready,0x39735f);
