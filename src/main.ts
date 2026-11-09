@@ -1,6 +1,14 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {
+  SUPPLY_NAMES,SUPPLY_BUNDLES,INITIAL_SUPPLIES,WATER_REFILL,
+  WATER_CONSUMPTION_PER_CLASS,MAT_DIRT_PER_CLASS,MOP_SPOTS,PHONE_CALL_LIMIT,
+  GEAR_DIRT_PER_CLASS,GEAR_WIPE_RESTORE,GEAR_HEALTH_PER_CLASS,
+  GEAR_REPAIR_RESTORE,CLEAN_GEAR_THRESHOLD,GEAR_WORKING_THRESHOLD,
+  normalizeStock,normalizePercent,gearActive,maintenanceWear,recharge,
+  discountRecruitment,availablePhoneCalls
+} from './facilityOps';
 import {DAILY_HELP_LIMIT,DAILY_CLEAN_TARGET,DAILY_SHIFT_CASH,DAILY_SHIFT_REP,
   DAILY_GEAR_DRILLS,GEAR_WORKING_THRESHOLD,GEAR_WEAR_PER_CLASS,
   GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftReady,workingGear,
@@ -29,7 +37,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -56,7 +64,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:1,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -84,6 +92,22 @@ function loadSave(): Save {
       coachedToday:Array.isArray(s.coachedToday)?
         [...new Set(s.coachedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<enrolled))].slice(0,DAILY_HELP_LIMIT):[],
       dailyShiftClaimed:s.dailyShiftClaimed===true,
+      gearCleanliness:Array.from({length:8},(_,i)=>normalizePercent(s.gearCleanliness?.[i])),
+      gearWipedToday:Array.isArray(s.gearWipedToday)?
+        [...new Set(s.gearWipedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))]:[],
+      supplies:normalizeStock(s.supplies),
+      pendingSupplies:normalizeStock(s.pendingSupplies,[0,0,0,0]),
+      waterLevel:normalizePercent(s.waterLevel,55),
+      matCleanliness:normalizePercent(s.matCleanliness,70),
+      mopSpotsToday:Array.isArray(s.mopSpotsToday)?
+        [...new Set(s.mopSpotsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<MOP_SPOTS))]:[],
+      mopDoneToday:s.mopDoneToday===true,
+      phoneCallsSpawned:Math.max(1,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned)||1))),
+      phoneCallsAnswered:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsAnswered)||0))),
+      phoneLeads:Math.max(0,Math.min(5,Math.floor(Number(s.phoneLeads)||0))),
+      waterRefillsToday:Math.max(0,Math.min(3,Math.floor(Number(s.waterRefillsToday)||0))),
+      towelRestockedToday:s.towelRestockedToday===true,
+      paperRestockedToday:s.paperRestockedToday===true,
       gearCondition:Array.from({length:8},(_,i)=>Math.max(0,Math.min(100,
         Math.floor(Number(s.gearCondition?.[i]??100)||0)))),
       gearDrillsToday:Array.isArray(s.gearDrillsToday)?
@@ -143,6 +167,12 @@ class GymScene extends Phaser.Scene {
   private stationTarget:'board'|'desk'|null=null;
   private pickupTarget:Point|null=null;
   private trashClock=0;
+  private phoneClock=0;
+  private complaintClock=0;
+  private mopActive=false;
+  private mopMarks:Phaser.GameObjects.Graphics[]=[];
+  private serviceTarget: 'phone'|'water'|'stock'|'mop'|null=null;
+  private serviceHotspots:{type:'phone'|'water'|'stock'|'mop';frame:Phaser.GameObjects.Rectangle;label:Phaser.GameObjects.Text}[]=[];
   private cleaningShift=false;
   private cleaningAt:Point|null=null;
   private cleaningCountdown=0;
@@ -208,7 +238,8 @@ class GymScene extends Phaser.Scene {
     this.worldFixtures=[];
     this.gatheringNodes=[];
     this.gatheringPositions=dailySupplyPositions(this.gymLevel());
-    this.trashClock=0;
+    this.trashClock=0;this.phoneClock=0;this.complaintClock=0;
+    this.mopActive=false;this.mopMarks=[];this.serviceHotspots=[];
     this.cleaningShift=false;this.cleaningAt=null;this.cleaningTotal=0;
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
@@ -254,6 +285,7 @@ class GymScene extends Phaser.Scene {
     this.storeControl=this.addButton(127,278,111,36,'STORE',()=>this.storeSelection());
     this.cancelControl=this.addButton(357,278,111,36,'CANCEL',()=>this.cancelPlacement());
     this.updateFurnitureActions();
+    this.drawServiceHotspots();
     this.refresh();
     this.recoverActors();
     if(data?.notice)this.say(data.notice);
@@ -322,6 +354,7 @@ class GymScene extends Phaser.Scene {
     this.route=[];
     this.targetStudent=null;
     this.stationTarget=null;
+    this.serviceTarget=null;
     this.pickupTarget=null;
   }
   private playerRoute(goal:Point,exact=false):Point[] {
@@ -570,6 +603,7 @@ class GymScene extends Phaser.Scene {
     this.dailyStatus.setText('CLASS '+(this.saveData.classesToday||0)+
       '/2  HELP '+(this.saveData.coachedToday?.length||0)+
       '/2  TRASH '+Math.max(0,visibleTrash));
+    this.refreshServiceHotspots();
     this.updateIndicators();
   }
   private drawEquipment():void {
