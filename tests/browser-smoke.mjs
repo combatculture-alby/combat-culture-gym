@@ -754,13 +754,13 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       s.beginDecorPlacement(0);
       s.coach.place(415,171);
-      s.placeDecor(156,150);
+      s.placeDecor(210,150);
     });
     const placed=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {stored:s.saveData.decorStored[0],pos:s.saveData.decorPositions[0]};
     });
-    assert.deepEqual(placed,{stored:false,pos:{x:156,y:150}});
+    assert.deepEqual(placed,{stored:false,pos:{x:210,y:150}});
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     assert.equal(await page.evaluate(()=>
