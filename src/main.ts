@@ -555,10 +555,8 @@ class GymScene extends Phaser.Scene {
         this.saveData.money<bundle.price,0x39735f,
         'In stock '+stock[i]+'  |  Due next day '+deliveries[i]+'  |  +'+bundle.amount+' pack(s)');
     });
-    this.furniturePanel.add(this.add.text(169,216,
-      'CASH $'+this.saveData.money+'    TRAINING PADS IN GEAR SHOP',{
-        fontFamily:UI_FONT,fontSize:'9px',color:'#e8d4ae'
-      }));
+    this.panelButton(this.furniturePanel,'TRAINING PADS / GEAR SHOP',
+      169,216,225,27,()=>this.openGearShop(),false,0x355b5d);
   }
   private orderSupply(index:number):void {
     const bundle=SUPPLY_BUNDLES[index];
@@ -2156,6 +2154,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.dailyShiftClaimed=false;
     this.saveData.gearDrillsToday=[];
     this.saveData.gearServicedToday=[];
+    this.saveData.gearWipedToday=[];
     this.saveData.gatheredToday=[];
     this.saveData.trashSpawnedToday=INITIAL_DAILY_TRASH;
     this.trashClock=0;this.cleaningShift=false;this.cleaningAt=null;
@@ -2353,8 +2352,8 @@ class GymScene extends Phaser.Scene {
     if(!concerns.length)return;
     const active=this.activeStudents();
     if(!active.length)return;
-    const choose=Math.floor((this.saveData.day+this.saveData.classesTaught!+
-      this.time.now/19000))%concerns.length;
+    const choose=Math.floor(this.saveData.day+(this.saveData.classesTaught||0)+
+      this.time.now/19000)%concerns.length;
     const student=active[(this.saveData.day+choose)%active.length];
     this.showSpeech(student,concerns[choose],2600);
   }
