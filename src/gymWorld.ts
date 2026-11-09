@@ -1,171 +1,269 @@
 import Phaser from 'phaser';
+import {normalizeGymLevel,trainingBounds} from './gymProgression';
 
-function bakeRoom(scene:Phaser.Scene,level:number):void {
+// All art is drawn into Phaser textures so it ships without external image assets.
+// Room dimensions, board, and reception stay fixed; each expansion opens more mat
+// space and makes the gym visually more established.
+const THEMES=[
+  {wall:0x737d79,mortar:0x56625e,floor:0x7d7f7c,floorLine:0x515957,
+   mat:0x425e61,tile:0x506f71,edge:0x94a69a,accent:0xe2c391,ink:0x2a4245},
+  {wall:0x56736d,mortar:0x345951,floor:0xa08368,floorLine:0x80694f,
+   mat:0x326969,tile:0x46837d,edge:0xb7c9a8,accent:0xd7ad74,ink:0x294c4e},
+  {wall:0x6c413b,mortar:0x442f31,floor:0x906d60,floorLine:0x674b41,
+   mat:0x3b5559,tile:0x47656a,edge:0xc57a60,accent:0xf0bd82,ink:0x273c43},
+  {wall:0x3b555a,mortar:0x263e46,floor:0x758c88,floorLine:0x546f6c,
+   mat:0x264e62,tile:0x346a76,edge:0x8fc6be,accent:0xdec39a,ink:0x1c3a48},
+  {wall:0x263c4b,mortar:0x1b303c,floor:0x597b7d,floorLine:0x3c5b60,
+   mat:0x193d50,tile:0x265669,edge:0xe0b875,accent:0xffdf95,ink:0x142e3c},
+] as const;
+
+function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
+  const level=normalizeGymLevel(requestedLevel),theme=THEMES[level-1];
   const g=scene.add.graphics();
-  const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>g.fillStyle(color,alpha).fillRect(x,y,w,h);
-  const brick=0x7b4c40, trim=0x3c3537, wood=0xc39160, pale=0xedce91;
-  rect(0x233436,0,0,480,330);
-  rect(brick,0,23,480,54);
-  for(let y=24;y<75;y+=8){
-    rect(0x4b3b3a,0,y,480,1,0.45);
-    for(let x=(y%16)*2-16;x<480;x+=24){
-      rect(0xac6d55,x+1,y+1,23,5,((x+y)%3===0)?0.37:0.19);
-      rect(0x4b3b3a,x,y,1,8,0.45);
-    }
-  }
-  rect(trim,0,72,480,7);
-  rect(0xa87855,0,72,480,2);
-  rect(0xa87550,0,79,480,145);
-  for(let row=0;row<18;row++){
-    const y=79+row*8;
-    for(let col=-1;col<12;col++){
-      const x=col*43+(row%3)*14;
-      const tint=[0xb47d52,0xbf8b5d,0xc89864,0xc08b5b][Math.abs(col*7+row*3)%4];
-      rect(tint,x+1,y,42,7);
-      rect(0xe7b981,x+3,y,37,1,0.42);
-      rect(0x845b43,x+5+Math.abs(col*row)%11,y+4,12,1,0.24);
-      rect(0xe8b988,x+25,y+2,10,1,0.26);
-    }
-  }
-  rect(0x533f3b,0,222,480,4);
-  rect(0xd5a573,0,221,480,1);
-
-  rect(0x2d3f43,25,76,300,141);
-  rect(0xb5604e,28,76,294,138);
-  rect(0x335b60,33,80,284,131);
-  for(let y=81;y<211;y+=26)for(let x=34;x<317;x+=31){
-    const w=Math.min(30,316-x);
-    rect((x+y)%2===0?0x598780:0x507e79,x,y,w,25);
-    rect(0x8ca99a,x+1,y+1,w-1,1,0.42);
-    rect(0x285960,x+1,y+24,w-1,1,0.5);
-    for(let i=0;i<4;i++) rect(0x9cb7a2,x+3+(i*7)%Math.max(1,w-4),y+4+(i*11+x)%17,1,1,0.24);
-  }
-  rect(0x72988a,37,84,276,2);
-  rect(0x72988a,37,206,276,2);
-  rect(0x72988a,37,86,2,120);
-  rect(0x72988a,311,86,2,120);
-  for(const x of [43,303])for(const y of [91,198]){
-    rect(0xa7bda4,x,y,6,1);
-    rect(0xa7bda4,x+2,y-2,1,5);
-  }
-  // A faded floor mark under the sparring area.
-  g.lineStyle(2,0xc5c7a2,0.19).strokeCircle(175,145,25);
-  g.lineStyle(1,0xc5c7a2,0.19).strokeCircle(175,145,21);
-  rect(0xc5c7a2,161,141,28,9,0.15);
-
-  const window=(x:number)=>{
-    rect(trim,x,31,79,40);
-    rect(wood,x+2,33,75,35);
-    rect(0x668e98,x+5,36,69,29);
-    rect(0x9bbab2,x+5,37,69,11);
-    rect(0xe5c28a,x+8,41,15,2);
-    for(let i=0;i<7;i++){
-      const h=5+(i*11)%12;
-      rect(0x577780,x+6+i*9,65-h,8,h);
-      rect(0xe4b77f,x+9+i*9,65-h+3,2,2,0.62);
-    }
-    rect(pale,x+37,36,3,29);
-    rect(pale,x+5,49,69,2);
-    rect(0xb57c57,x-2,67,83,4);
-    rect(pale,x-2,67,83,1);
-    g.fillStyle(0xffd89c,0.10).fillPoints([
-      {x:x+4,y:71},{x:x+72,y:71},{x:x+107,y:138},{x:x+37,y:138}
-    ],true);
-    g.fillStyle(0xffe4ac,0.10).fillPoints([
-      {x:x+19,y:71},{x:x+26,y:71},{x:x+62,y:138},{x:x+56,y:138}
-    ],true);
+  const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>
+    g.fillStyle(color,alpha).fillRect(x,y,w,h);
+  const line=(color:number,x1:number,y1:number,x2:number,y2:number,alpha=1,width=1)=>{
+    g.lineStyle(width,color,alpha).lineBetween(x1,y1,x2,y2);
   };
-  window(44);
-  window(224);
-  rect(trim,135,32,77,34);
-  rect(0xa45a48,138,35,71,28);
-  rect(pale,143,38,61,2);
-  rect(pale,143,58,61,2);
-  rect(trim,331,27,5,195);
-  rect(0xad7b55,331,28,2,193);
+  const border=(color:number,x:number,y:number,w:number,h:number,weight=2)=>{
+    rect(color,x,y,w,weight);rect(color,x,y+h-weight,w,weight);
+    rect(color,x,y+weight,weight,h-weight*2);rect(color,x+w-weight,y+weight,weight,h-weight*2);
+  };
+  const labelBar=(x:number,y:number,width:number,color=theme.accent)=>{
+    rect(theme.ink,x,y,width,3);rect(color,x+3,y+1,width-6,1,0.6);
+  };
 
+  // Shared perspective: walkable 75–215px, a board in the right-hand
+  // alcove, and reception in the lower-right. Decorative art is flat, not
+  // physical furniture; it must never obstruct pathfinding.
+  rect(0x233436,0,0,480,330);
+  rect(theme.floor,0,77,480,149);
+  rect(theme.wall,0,23,480,54);
+  for(let y=23;y<74;y+=9){
+    rect(theme.mortar,0,y,480,1,0.42);
+    for(let x=-12+(y%3)*8;x<480;x+=26){
+      rect(theme.mortar,x,y+1,1,8,0.25);
+      rect(0xffffff,x+2,y+2,20,2,0.045);
+    }
+  }
+  rect(theme.mortar,0,72,480,6);
+  rect(theme.accent,0,76,480,2,0.52);
+  for(let y=79;y<225;y+=24){
+    rect(theme.floorLine,0,y,480,1,0.35);
+    for(let x=((y/24|0)%2)*23;x<480;x+=46){
+      rect(theme.floorLine,x,y+1,1,23,0.25);
+      rect(0xffffff,x+3,y+3,21,1,0.045);
+    }
+  }
+  rect(theme.ink,0,224,480,3);
+  rect(theme.accent,0,222,480,2,0.45);
 
-  // Stage-specific architecture is baked into separate textures. The training board
-  // and reception desk retain their click targets at every level.
-  if(level<=2){
-    const starter=level===1;
-    const wall=starter?0x7b817d:0x526b67;
-    const floor=starter?0x777777:0xa38a73;
-    rect(floor,0,79,480,146);
-    rect(wall,0,23,480,56);
-    rect(starter?0x535b5b:0x354e50,0,72,480,7);
-    // A residential roll-up garage door with visible segmented metal panels.
-    rect(0x303e42,21,26,303,49);
-    rect(starter?0x99a29c:0x94aaa1,25,29,295,42);
-    for(let y=29;y<69;y+=8){
-      rect(starter?0x78837f:0x6a918a,27,y,291,1);
-      rect(0xf1efe2,29,y+2,285,1,0.25);
+  // The right alcove and entry corridor remain accessible at every tier.
+  rect(theme.mortar,329,26,7,198);
+  rect(theme.accent,332,26,2,196,0.56);
+  rect(theme.ink,337,119,42,3,0.52);
+  rect(theme.floorLine,342,126,36,91,0.24);
+  rect(theme.accent,346,123,26,1,0.35);
+  rect(theme.accent,346,213,26,1,0.35);
+  // Square floor drains and directional tiles; neither is a collision.
+  for(const x of [24,354]){
+    rect(theme.ink,x,202,12,8,0.4);
+    for(let i=0;i<3;i++)rect(theme.accent,x+2+i*3,204,1,4,0.33);
+  }
+
+  if(level===1){
+    // Residential garage: concrete, a corrugated roll-up door, pegboard,
+    // unpainted columns, exposed strip light, and a short home-training mat.
+    rect(0x343f42,23,26,301,48);
+    rect(0x9fa8a0,27,29,293,42);
+    for(let y=29;y<71;y+=8){
+      rect(0x778781,29,y,288,2);
+      rect(0xf6f0df,31,y+3,284,1,0.31);
+      rect(0x57655f,31,y+7,284,1,0.28);
     }
-    for(const x of [29,314])rect(0x384547,x,27,4,46);
-    rect(0x283d40,170,30,5,40);
-    rect(0x4b5754,31,79,295,4);
-    // The garage starts with concrete, chalk lines and a single compact mat.
-    for(let y=80;y<221;y+=21)for(let x=0;x<480;x+=44){
-      rect(0x3d4141,x,y,40,1,0.13);
-      rect(0xe8e1cd,x+3+(y%13),y+8,12,1,0.06);
+    for(const x of [27,316])rect(0x35484b,x,27,4,46);
+    rect(0x425659,168,29,4,41);
+    rect(0x2e4246,116,25,121,5);
+    rect(0xffefd2,140,27,73,2,0.92);
+    rect(0xffffff,139,30,75,5,0.06);
+    rect(0x37484a,0,82,22,98);
+    for(let y=90;y<177;y+=14){
+      rect(0x9a866d,3,y,17,3);
+      rect(0x677269,5,y-4,8,4);
     }
-    const mx=starter?57:46,my=starter?94:86,mw=starter?240:260,mh=starter?106:121;
-    rect(0x303d3d,mx-4,my-4,mw+8,mh+8);
-    rect(starter?0x415e60:0x316b6a,mx,my,mw,mh);
-    for(let y=my+7;y<my+mh;y+=20){
-      rect(starter?0x587778:0x4b8581,mx+5,y,mw-10,1,0.32);
+    rect(0x5c6059,308,81,18,64);
+    for(let y=85;y<141;y+=7)for(let x=311;x<325;x+=5)
+      rect(0xe5c18c,x,y,1,1,0.34);
+    // Hairline concrete cracks outside the mat.
+    line(0x495351,24,190,37,183,0.48);
+    line(0x495351,37,183,43,191,0.48);
+    line(0x495351,302,186,317,180,0.36);
+  }else{
+    // Commercial facilities gain broad windows, a full fascia and brighter
+    // light fixtures. Each tier changes materials and facade detailing.
+    const viewWindow=(x:number,glass:number)=>{
+      rect(theme.ink,x-3,28,83,43);
+      rect(theme.accent,x-1,29,79,2,0.62);
+      rect(glass,x,32,75,34);
+      rect(0xb3d5ce,x+2,34,71,10,0.25);
+      for(let j=0;j<8;j++){
+        const height=7+(j*13+level*7)%14;
+        rect(theme.mortar,x+3+j*9,66-height,7,height,0.55);
+        rect(theme.accent,x+5+j*9,66-height+3,1,2,0.45);
+      }
+      rect(theme.accent,x+36,32,2,34,0.8);
+      rect(theme.accent,x,48,75,2,0.7);
+      rect(theme.ink,x-4,66,84,4);
+      rect(theme.accent,x-2,66,80,1,0.68);
+    };
+    if(level<=4){
+      viewWindow(43,level===2?0x789b9c:level===3?0x9b8170:0x63959e);
+      viewWindow(233,level===2?0x789b9c:level===3?0x9b8170:0x63959e);
     }
-    for(let x=mx+8;x<mx+mw;x+=22)rect(0xbed0b9,x,my+4,1,mh-8,0.12);
-    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+4,mw-8,2);
-    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+mh-6,mw-8,2);
-    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+6,2,mh-12);
-    rect(starter?0x87a18b:0xa8c7a4,mx+mw-6,my+6,2,mh-12);
-    // Home-gym clutter stays on the wall, not in the walkable training floor.
-    rect(0x3c4e4e,3,91,19,86);
-    for(let y=97;y<174;y+=13)rect(0xb89972,8,y,12,3);
-    rect(0x454341,335,76,4,145);
-    rect(0xb99674,337,78,2,141);
-    rect(0xd5bb89,42,86,17,4);
-    rect(0xc1a16a,48,81,4,13);
-    rect(0x334545,25,197,30,6);
-    rect(0x718b80,26,195,28,2);
-    // Fluorescent strip and garage ceiling hardware.
-    rect(0x364a4c,124,24,100,4);
-    rect(0xffe8b6,141,25,66,2,0.85);
-    if(!starter){
-      rect(0x304d50,62,79,222,4);
-      rect(0xcaa26d,75,81,196,2);
-      rect(0x28484a,4,35,18,32);
-      rect(0xcda96d,7,40,12,22);
-      rect(0x37635c,10,43,6,16);
+    rect(theme.ink,131,31,97,35);
+    border(theme.accent,133,33,93,31,1);
+    labelBar(144,38,71);
+    labelBar(144,60,71);
+    for(const x of [10,328,469]){
+      rect(theme.ink,x,30,8,42);
+      rect(theme.accent,x+2,34,4,2,0.78);
+      rect(theme.accent,x+2,64,4,2,0.78);
     }
-  }else if(level>=4){
-    const academy=level===5;
-    // Renovated facility: premium wall panels and tournament-grade mat trims.
-    rect(academy?0x253a43:0x41605e,0,23,480,12);
-    rect(academy?0xd4ac61:0xb1bda2,0,35,480,2);
-    rect(academy?0x1b3038:0x435a59,0,72,480,6);
-    const accent=academy?0xd9b26d:0x8bc8b1;
-    rect(accent,32,78,286,3);
-    rect(accent,32,207,286,3);
-    rect(accent,32,81,3,126);
-    rect(accent,315,81,3,126);
-    rect(academy?0x1c3f48:0x326767,41,88,266,4,0.38);
-    rect(academy?0x1c3f48:0x326767,41,194,266,4,0.38);
-    for(const x of [11,333,467]){
-      rect(academy?0x0f222b:0x314c4e,x,31,8,40);
-      rect(accent,x+1,35,6,2);
-      rect(accent,x+1,64,6,2);
-    }
-    rect(academy?0x1d303b:0x344c50,136,37,75,26);
-    rect(accent,140,38,67,2);
-    rect(accent,140,58,67,2);
-    if(academy){
-      rect(0xd8b876,106,199,143,1,0.28);
-      for(let x=56;x<301;x+=48)rect(0xffe7aa,x,190,2,5,0.32);
+    if(level===2){
+      // Neighborhood club: painted masonry, notice posters and warm wood.
+      rect(0x3c635e,2,90,23,80);
+      for(let y=96;y<162;y+=17){
+        rect(0xe6c48d,5,y,17,12);
+        rect(0xb0725c,8,y+3,12,2);
+        rect(0x557976,8,y+7,9,2);
+      }
+      rect(0x9a7251,309,92,14,46);
+      rect(0xd3ac79,311,94,10,2);
+      rect(0x576c56,312,99,8,34);
+      rect(0xb2c5a2,314,102,4,5,0.45);
+    }else if(level===3){
+      // Fight gym: red corner styling, competition posters and wall trophies.
+      rect(0x652d32,0,78,29,98);
+      for(let y=83;y<174;y+=19){
+        rect(0xcba16e,3,y,22,16);
+        rect(0x512f36,5,y+3,18,2);
+        rect(0x854947,6,y+7,15,5);
+      }
+      rect(0xd18e6b,303,77,21,85,0.3);
+      for(const y of [86,116,146]){
+        rect(0x1d353b,310,y,11,13);
+        rect(0xe7bc86,312,y+2,7,3);
+        rect(0xc17858,314,y+6,3,5);
+      }
+    }else if(level===4){
+      // Pro-level facility: LED wall strips and disciplined training zones.
+      rect(0x203d48,0,79,28,112);
+      for(let y=91;y<185;y+=16)rect(0x80cbbd,5,y,18,3,0.75);
+      rect(0x2a5464,303,79,22,116);
+      for(let y=87;y<187;y+=21)rect(0xcde4dc,309,y,11,2,0.66);
+    }else{
+      // Academy: dark stone, gold championship lights, trophy silhouettes.
+      rect(0x102634,27,27,297,43);
+      border(0xc9a363,29,29,293,39,2);
+      rect(0x295365,34,34,84,30);
+      rect(0x295365,231,34,86,30);
+      for(const x of [42,60,78,96,240,258,276,294]){
+        rect(0xd3ac67,x,39,7,15);
+        rect(0xf1d99b,x+2,35,3,5);
+        rect(0xd3ac67,x+2,54,3,4);
+        rect(0xf1d99b,x,58,7,2);
+      }
+      rect(0x101f2b,2,82,24,101);
+      for(let y=88;y<179;y+=24){
+        rect(0xd8b574,6,y,16,2);
+        rect(0xe7d5ad,10,y+3,8,11);
+        rect(0xcda867,12,y+13,4,5);
+      }
+      rect(0xd8b574,306,79,16,2);
+      for(let y=86;y<176;y+=19){
+        rect(0x213e4a,307,y,14,15);
+        rect(0xd7b476,310,y+2,8,10);
+      }
     }
   }
 
+  const b=trainingBounds(level);
+  const width=b.right-b.left,height=b.bottom-b.top;
+  // A visible boundary that exactly matches equipment placement constraints.
+  rect(theme.ink,b.left-5,b.top-5,width+10,height+10);
+  rect(theme.edge,b.left-3,b.top-3,width+6,height+6);
+  rect(theme.mat,b.left,b.top,width,height);
+  // Interlocking square mats; varied geometry emphasizes the amount of usable
+  // floor space that becomes available at each tier.
+  for(let y=b.top+2;y<b.bottom-2;y+=18){
+    for(let x=b.left+2;x<b.right-2;x+=24){
+      const w=Math.min(23,b.right-2-x),h=Math.min(17,b.bottom-2-y);
+      rect((Math.floor(x/24)+Math.floor(y/18)+level)%3===0?theme.tile:theme.mat,x,y,w,h);
+      rect(0xffffff,x+1,y+1,w-1,1,0.08);
+      rect(theme.ink,x+1,y+h-1,w-1,1,0.13);
+    }
+  }
+  border(theme.edge,b.left,b.top,width,height,2);
+  // Corner tape and exact mat edges remain distinct from visual decoration.
+  for(const x of [b.left+5,b.right-9])for(const y of [b.top+5,b.bottom-9]){
+    rect(theme.accent,x,y,5,1);
+    rect(theme.accent,x+2,y-2,1,5);
+  }
+  const cx=(b.left+b.right)/2,cy=(b.top+b.bottom)/2;
+  if(level===1){
+    g.lineStyle(1,theme.edge,0.24).strokeCircle(cx,cy,23);
+    rect(theme.accent,cx-18,cy+1,36,1,0.18);
+  }else if(level===2){
+    // One central training square and paired warmup strips.
+    g.lineStyle(2,theme.edge,0.3).strokeCircle(cx,cy,30);
+    for(const x of [b.left+19,b.right-24])
+      rect(theme.accent,x,b.top+15,3,height-30,0.19);
+    rect(theme.accent,cx-20,cy+2,40,1,0.32);
+  }else if(level===3){
+    // Sparring-circle markings, not rope obstacles.
+    g.lineStyle(3,theme.edge,0.69).strokeCircle(cx,cy,45);
+    g.lineStyle(1,theme.accent,0.38).strokeCircle(cx,cy,39);
+    rect(theme.accent,cx-38,cy,76,2,0.23);
+    rect(theme.accent,cx-1,cy-37,2,74,0.23);
+    for(const x of [b.left+12,b.right-19]){
+      rect(0xa95b52,x,b.top+9,7,7,0.75);
+      rect(0xc78c70,x,b.bottom-17,7,7,0.75);
+    }
+  }else if(level===4){
+    // Two technical lanes with an oval training core.
+    for(const x of [b.left+36,b.right-38]){
+      rect(theme.edge,x,b.top+10,2,height-20,0.35);
+      for(let y=b.top+18;y<b.bottom-8;y+=24)
+        rect(theme.accent,x-5,y,12,2,0.3);
+    }
+    g.lineStyle(2,theme.edge,0.65).strokeCircle(cx,cy,42);
+    g.lineStyle(1,theme.edge,0.35).strokeCircle(cx,cy,31);
+    rect(theme.accent,cx-32,cy,64,2,0.24);
+  }else{
+    // Tournament-grade academy floor with a large premium central seal.
+    for(const x of [b.left+22,b.right-24])
+      rect(theme.accent,x,b.top+11,2,height-22,0.36);
+    for(const y of [b.top+16,b.bottom-18])
+      rect(theme.accent,b.left+20,y,width-40,2,0.36);
+    g.lineStyle(3,theme.edge,0.82).strokeCircle(cx,cy,48);
+    g.lineStyle(1,theme.accent,0.75).strokeCircle(cx,cy,40);
+    g.lineStyle(1,theme.edge,0.55).strokeCircle(cx,cy,28);
+    for(let a=0;a<8;a++){
+      const ang=a*Math.PI/4;
+      const x=Math.round(cx+34*Math.cos(ang)),y=Math.round(cy+34*Math.sin(ang));
+      rect(theme.accent,x-2,y-2,4,4,0.65);
+    }
+    rect(theme.accent,cx-21,cy-2,42,4,0.27);
+    rect(theme.accent,cx-2,cy-15,4,30,0.19);
+  }
+  // Wall spotlights point toward the mats without fake physical obstacles.
+  for(const x of [b.left+21,b.right-22]){
+    rect(theme.ink,x-8,73,16,6,0.65);
+    rect(theme.accent,x-5,77,10,2,0.62);
+    g.fillStyle(0xffe2a3,0.055).fillPoints([
+      {x:x-5,y:79},{x:x+5,y:79},{x:x+26,y:121},{x:x-26,y:121}
+    ],true);
+  }
   g.generateTexture('gym-room-'+level,480,330);
   g.destroy();
 }
@@ -174,7 +272,7 @@ export function drawGym(scene:Phaser.Scene,level=1):void {
   const key='gym-room-'+level;
   if(!scene.textures.exists(key))bakeRoom(scene,level);
   scene.add.image(0,0,key).setOrigin(0);
-  const label=level===1?'COMBAT GARAGE':level===2?'NEIGHBORHOOD GYM':level===5?'COMBAT ACADEMY':'COMBAT CULTURE';
+  const label=['COMBAT GARAGE','NEIGHBORHOOD GYM','FIGHT GYM','PRO FACILITY','COMBAT ACADEMY'][normalizeGymLevel(level)-1];
   scene.add.text(174,49,label,{fontFamily:'monospace',fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
 
   const trim=0x3c3537, wood=0xc39160, pale=0xedce91;
