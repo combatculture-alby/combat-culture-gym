@@ -1,23 +1,33 @@
 import Phaser from 'phaser';
-import {GymCharacter} from './characters';
+import {GymCharacter,type Pose} from './characters';
 import {SEMINAR_COACHES,seminarComplete,SEMINAR_STATS,type SeminarSave} from './seminars';
 
 const FONT='Trebuchet MS, Arial, sans-serif';
-const white='#f9f1db',gold=0xe8bd75;
+const ivory='#f9f1db',gold=0xe8bd75;
+const PHASE_DURATION_MS=3000;
 type SeminarLaunch={coachId:number;saveKey:string};
 
+/** Non-interactive paid coaching event: three brief training shots, then
+ * the same guaranteed XP whether watched in full or skipped. */
 export class SeminarScene extends Phaser.Scene {
   private coachId=0;
   private saveKey='';
-  private question=0;
-  private correct=0;
-  private answered=false;
+  private phase=0;
+  private finished=false;
   private presenter?:GymCharacter;
-  private roundUi:Phaser.GameObjects.GameObject[]=[];
+  private pupils:GymCharacter[]=[];
+  private titleText!:Phaser.GameObjects.Text;
+  private lessonText!:Phaser.GameObjects.Text;
+  private progressText!:Phaser.GameObjects.Text;
+  private progressFill!:Phaser.GameObjects.Rectangle;
+  private skip!:Phaser.GameObjects.Container;
+  private resultUi:Phaser.GameObjects.GameObject[]=[];
+  private advanceTimer?:Phaser.Time.TimerEvent;
   constructor(){super('Seminar');}
   init(data:SeminarLaunch):void {
     this.coachId=data.coachId;this.saveKey=data.saveKey;
-    this.question=0;this.correct=0;this.answered=false;this.roundUi=[];
+    this.phase=0;this.finished=false;this.pupils=[];
+    this.advanceTimer=undefined;this.resultUi=[];
   }
   private readSave():SeminarSave|null {
     try{
@@ -25,129 +35,142 @@ export class SeminarScene extends Phaser.Scene {
       return raw?JSON.parse(raw) as SeminarSave:null;
     }catch{return null;}
   }
-  private button(label:string,x:number,y:number,w:number,h:number,fn:()=>void,
-    target:Phaser.GameObjects.GameObject[]=this.roundUi):void {
-    const base=this.add.rectangle(x,y,w,h,0x30565d).setStrokeStyle(1,0x87aaa4)
-      .setInteractive({useHandCursor:true});
-    const text=this.add.text(x,y,label,{
-      fontFamily:FONT,fontSize:'12px',fontStyle:'bold',color:white,
-      align:'center',wordWrap:{width:w-16}
-    }).setOrigin(.5);
-    base.on('pointerover',()=>base.setFillStyle(0x4b7874));
-    base.on('pointerout',()=>base.setFillStyle(0x30565d));
-    base.on('pointerdown',()=>fn());
-    target.push(base,text);
-  }
-  private text(x:number,y:number,value:string,size=12,color=white,
+  private text(x:number,y:number,value:string,size=12,color=ivory,
     width=260):Phaser.GameObjects.Text {
-    const t=this.add.text(x,y,value,{
+    return this.add.text(x,y,value,{
       fontFamily:FONT,fontSize:size+'px',color,
-      wordWrap:{width},lineSpacing:3
+      wordWrap:{width},lineSpacing:4
     });
-    this.roundUi.push(t);return t;
   }
-  private clearRound():void {
-    for(const obj of this.roundUi)obj.destroy();
-    this.roundUi=[];
+  private button(label:string,x:number,y:number,w:number,h:number,
+    fn:()=>void):Phaser.GameObjects.Container {
+    const base=this.add.rectangle(0,0,w,h,0x365d62)
+      .setStrokeStyle(1,0x91aaa4).setInteractive({useHandCursor:true});
+    const copy=this.add.text(0,0,label,{
+      fontFamily:FONT,fontSize:'12px',fontStyle:'bold',color:ivory
+    }).setOrigin(.5);
+    base.on('pointerover',()=>base.setFillStyle(0x4e7d78));
+    base.on('pointerout',()=>base.setFillStyle(0x365d62));
+    base.on('pointerdown',fn);
+    return this.add.container(x,y,[base,copy]).setDepth(25);
   }
   create():void {
     const coach=SEMINAR_COACHES[this.coachId];
+    if(!coach){this.scene.start('Gym',{trainingBoard:true});return;}
+    const bg=this.add.graphics();
+    bg.fillStyle(0x102a32).fillRect(0,0,480,330);
+    bg.fillStyle(0x24464b).fillRect(12,12,456,306);
+    bg.lineStyle(2,gold).strokeRect(12,12,456,306);
+    bg.fillStyle(0x172e39).fillRect(14,14,452,54);
+    bg.fillStyle(0x315d62).fillRect(20,86,440,197);
+    bg.fillStyle(0x4a7c79).fillRect(24,95,431,181);
+    bg.lineStyle(1,0x93c4b4,0.8).strokeRect(24,95,431,181);
+    bg.lineStyle(1,0x80aaa4,0.36);
+    for(let x=45;x<450;x+=41)bg.lineBetween(x,95,x,275);
+    for(let y=115;y<275;y+=35)bg.lineBetween(24,y,455,y);
+    bg.fillStyle(0x17343a).fillRect(29,104,122,161);
+    bg.fillStyle(0xc9a06c).fillRect(30,105,120,3);
+    bg.fillStyle(0x233f48).fillRect(159,103,287,26);
+    this.text(23,22,'GUEST SEMINAR',19,ivory,258);
+    this.text(23,47,coach.name+'  /  '+coach.discipline,11,'#c7e1d4',310);
+    this.button('EXIT',428,35,66,27,()=>this.returnToGym());
+    this.text(43,116,coach.discipline.toUpperCase(),11,'#f7d79a',110)
+      .setOrigin(.5,0).setX(90);
+    this.text(37,140,SEMINAR_STATS[coach.focus]+' +\n'+
+      SEMINAR_STATS[coach.secondary],10,'#d5e3d6',106).setAlign('center');
+    this.presenter=new GymCharacter(this,91,252,1+this.coachId);
+    this.presenter.body.setScale(2.25).setDepth(8);
+    const positions=[{x:218,y:225},{x:315,y:225},{x:413,y:225}];
+    this.pupils=positions.map((p,i)=>{
+      const pupil=new GymCharacter(this,p.x,p.y,1+((i+this.coachId+1)%4));
+      pupil.body.setScale(1.65).setDepth(8);
+      return pupil;
+    });
+    for(const [i,p] of positions.entries())
+      this.text(p.x-32,241,'STUDENT '+(i+1),9,'#d0e5d4',70);
+    this.titleText=this.text(167,111,'',13,'#f2dbad',264);
+    this.lessonText=this.text(172,146,'',12,ivory,268);
+    const progressX=173,progressY=282;
+    this.add.rectangle(progressX,progressY,258,5,0x223e43).setOrigin(0,.5);
+    this.progressFill=this.add.rectangle(progressX,progressY,0,5,0xe0b878)
+      .setOrigin(0,.5);
+    this.progressText=this.text(176,291,'',10,'#d2e1d4',250);
+    this.skip=this.button('SKIP SCENE',364,302,120,26,()=>this.complete());
     const booked=this.readSave()?.seminarPending?.coachId===this.coachId;
-    this.add.rectangle(0,0,480,330,0x122b32).setOrigin(0);
-    this.add.rectangle(11,11,458,309,0x25444b).setOrigin(0).setStrokeStyle(2,gold);
-    this.add.rectangle(12,12,456,54,0x19353d).setOrigin(0);
-    this.add.text(25,21,'GUEST SEMINAR',{fontFamily:FONT,fontSize:'19px',
-      fontStyle:'bold',color:white});
-    this.add.text(25,47,coach.name+'  /  '+coach.discipline,{
-      fontFamily:FONT,fontSize:'11px',color:'#c5dcd4'});
-    const exit=this.add.rectangle(428,35,64,28,0x614440)
-      .setStrokeStyle(1,0xc9a78b).setInteractive({useHandCursor:true});
-    this.add.text(428,35,'EXIT',{fontFamily:FONT,fontSize:'11px',
-      color:white,fontStyle:'bold'}).setOrigin(.5);
-    exit.on('pointerdown',()=>this.returnToGym());
-    this.add.rectangle(82,191,134,219,0x395b5f).setStrokeStyle(1,0x8ba8a3);
-    this.add.rectangle(82,265,120,35,0x233f43);
-    this.add.text(82,279,'GUEST COACH',{fontFamily:FONT,fontSize:'10px',
-      color:'#f2d69e'}).setOrigin(.5);
-    this.add.rectangle(83,90,110,3,gold);
-    this.presenter=new GymCharacter(this,84,242,1+this.coachId);
-    this.presenter.body.setScale(2.3);
-    this.add.text(82,113,coach.discipline.toUpperCase(),{
-      fontFamily:FONT,fontSize:'10px',fontStyle:'bold',
-      color:'#f1dfae'}).setOrigin(.5);
-    this.add.text(82,128,SEMINAR_STATS[coach.focus]+' +\n'+SEMINAR_STATS[coach.secondary],{
-      fontFamily:FONT,fontSize:'10px',color:'#cfdfd2',align:'center'
-    }).setOrigin(.5,0);
     if(!booked){
-      this.text(179,110,'This seminar was not booked, or it has already been completed.',14);
-      this.button('RETURN TO GYM',302,252,207,34,()=>this.returnToGym());
+      this.finished=true;
+      this.skip.setVisible(false);
+      this.titleText.setText('SEMINAR NOT BOOKED');
+      this.lessonText.setText('This seminar is unavailable or already complete.');
+      this.progressText.setText('Return to the training board.');
       return;
     }
-    this.renderRound();
+    this.showPhase();
   }
-  private renderRound():void {
-    this.clearRound();
+  private showPhase():void {
+    if(this.finished)return;
     const coach=SEMINAR_COACHES[this.coachId];
-    const lesson=coach.questions[this.question];
-    this.text(180,78,'LESSON '+(this.question+1)+'/3      CORRECT '+this.correct,11,'#f0d19b');
-    this.text(180,101,lesson.question,13,white,272);
-    lesson.answers.forEach((choice,index)=>{
-      this.button((index+1)+'. '+choice,311,170+index*36,260,32,
-        ()=>this.answer(index));
+    const stages=['DEMONSTRATION','GUIDED DRILLS','TECHNIQUE CORRECTIONS'];
+    this.titleText.setText((this.phase+1)+'/3  '+stages[this.phase]);
+    this.lessonText.setText(coach.lessons[this.phase]);
+    this.progressText.setText('SEMINAR IN PROGRESS  '+Math.round(this.phase/3*100)+'%');
+    this.progressFill.setDisplaySize(258*this.phase/3,5);
+    this.advanceTimer?.remove(false);
+    this.advanceTimer=this.time.delayedCall(PHASE_DURATION_MS,()=>{
+      if(this.phase>=2)this.complete();
+      else{this.phase++;this.showPhase();}
     });
-    this.text(187,290,'Choose the best coaching answer.',10,'#a9cfc9',260);
-  }
-  private answer(index:number):void {
-    if(this.answered)return;
-    this.answered=true;
-    const lesson=SEMINAR_COACHES[this.coachId].questions[this.question];
-    if(index===lesson.correct)this.correct++;
-    this.clearRound();
-    const right=index===lesson.correct;
-    this.text(188,84,right?'CORRECT TECHNIQUE':'COACHING TIP',15,
-      right?'#b3e9bf':'#f1cd9c',275);
-    this.text(188,117,lesson.explanation,12,white,268);
-    this.text(188,180,'Correct answers: '+this.correct+' / '+(this.question+1),
-      11,'#e9d19a',268);
-    this.button(this.question===2?'COMPLETE SEMINAR':'NEXT LESSON',
-      308,241,255,35,()=>{
-        if(this.question===2)this.complete();
-        else{this.question++;this.answered=false;this.renderRound();}
-      });
-    this.text(195,281,right?'Good work.':'You still gain experience for attending.',
-      10,'#b7d6cd',259);
   }
   private complete():void {
+    if(this.finished)return;
+    this.advanceTimer?.remove(false);
     const save=this.readSave();
     if(!save||save.seminarPending?.coachId!==this.coachId){
-      this.clearRound();
-      this.text(184,115,'This seminar reservation is no longer available.',13);
-      this.button('RETURN TO GYM',313,231,235,35,()=>this.returnToGym());
+      this.finished=true;this.skip.setVisible(false);
+      this.titleText.setText('SEMINAR NOT AVAILABLE');
+      this.lessonText.setText('The paid booking was not found. Return to the gym.');
       return;
     }
-    const outcome=seminarComplete(save,this.coachId,this.correct);
-    if(!outcome)return;
+    const outcome=seminarComplete(save,this.coachId);
+    if(!outcome){
+      this.finished=true;this.skip.setVisible(false);
+      this.titleText.setText('ALREADY COMPLETED');
+      this.lessonText.setText('Seminar credit has already been awarded.');
+      return;
+    }
     try{localStorage.setItem(this.saveKey,JSON.stringify(save));}
-    catch {
-      this.clearRound();
-      this.text(186,110,'Could not save your seminar. Please check browser storage.',12);
-      this.button('RETRY SAVE',309,228,240,35,()=>this.complete());
+    catch{
+      this.titleText.setText('SAVE NOT AVAILABLE');
+      this.lessonText.setText('Could not save seminar progress. Check browser storage.');
+      this.progressText.setText('Use SKIP SCENE to retry.');
       return;
     }
-    this.clearRound();
+    this.finished=true;this.skip.setVisible(false);
+    this.progressFill.setDisplaySize(258,5);
+    this.progressText.setText('SEMINAR COMPLETE');
     const coach=SEMINAR_COACHES[this.coachId];
-    this.text(180,78,'SEMINAR COMPLETED',17,'#f6d39b');
-    this.text(180,110,'Correct answers: '+this.correct+' / 3',12);
-    this.text(180,140,coach.discipline+'  /  '+outcome.attendees+' students trained',12);
-    this.text(180,170,SEMINAR_STATS[coach.focus]+' +'+outcome.primaryXp+' XP',12,'#c5ebc9');
-    this.text(180,191,SEMINAR_STATS[coach.secondary]+' +'+outcome.secondaryXp+' XP',12,'#c5ebc9');
-    this.text(180,212,'Reputation +'+outcome.reputation,12,'#f4dea4');
-    this.button('RETURN TO GYM',311,260,257,36,()=>this.returnToGym());
+    this.titleText.setText('SEMINAR COMPLETE');
+    this.lessonText.setText(coach.discipline+' training finished.\n'+
+      outcome.attendees+' students attended.\n\n'+
+      SEMINAR_STATS[coach.focus]+' +'+outcome.primaryXp+' XP\n'+
+      SEMINAR_STATS[coach.secondary]+' +'+outcome.secondaryXp+' XP\n'+
+      'Reputation +'+outcome.reputation);
+    this.resultUi.push(this.button('RETURN TO GYM',328,261,180,30,
+      ()=>this.returnToGym()));
   }
   private returnToGym():void {
+    this.advanceTimer?.remove(false);
     this.scene.start('Gym',{trainingBoard:true});
   }
   update(_time:number,delta:number):void {
-    this.presenter?.animate('talk',Math.min(delta,50)/1000);
+    const dt=Math.min(delta,50)/1000;
+    const poses:Pose[]=['shadow','bag','talk'];
+    this.presenter?.animate(poses[this.finished?2:this.phase],dt);
+    for(const [i,pupil] of this.pupils.entries()){
+      const action:Pose=this.finished?'rest':
+        this.phase===0?'shadow':this.phase===1?
+          (i===0?'shadow':i===1?'bag':'lift'):'stretch';
+      pupil.animate(action,dt);
+    }
   }
 }
