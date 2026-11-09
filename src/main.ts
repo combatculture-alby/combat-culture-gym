@@ -124,7 +124,7 @@ function loadSave(): Save {
         [...new Set(s.gearDrillsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))].slice(0,DAILY_GEAR_DRILLS):[],
       gearServicedToday:Array.isArray(s.gearServicedToday)?
         [...new Set(s.gearServicedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))]:[],
-      trashSpawnedToday:Math.max(INITIAL_DAILY_TRASH,
+      trashSpawnedToday:Math.max(0,
         Math.min(MAX_DAILY_TRASH,Math.max(
           Number.isInteger(s.trashSpawnedToday)?Number(s.trashSpawnedToday):INITIAL_DAILY_TRASH,
           Array.isArray(s.gatheredToday)?
@@ -1694,7 +1694,7 @@ class GymScene extends Phaser.Scene {
       this.phoneRingAt=Math.min(this.phoneRingAt,
         this.phoneClock+Phaser.Math.Between(9,21));
     this.spawnTrash(4); // A full class leaves a noticeable mess to clean.
-    const base=classEarnings(this.gymLevel(),this.students.length,
+    const base=classEarnings(this.gymLevel(),this.activeStudents().length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
     this.saveData.gearCondition??=Array(8).fill(100);
     this.saveData.gearCleanliness??=Array(8).fill(100);
@@ -2664,9 +2664,9 @@ class GymScene extends Phaser.Scene {
       }
       return;
     }
-    if(!this.isPlacing()&&!this.buildMode&&!this.furniturePanel.visible&&
+    if(this.dayPhase()==='open'&&!this.isPlacing()&&!this.buildMode&&!this.furniturePanel.visible&&
       !this.rosterPanel.visible){
-      if(this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH){
+      if(this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH&&this.activeStudents().length>0){
         this.trashClock+=dt;
         if(this.trashClock>=TRASH_INTERVAL){
           this.trashClock=0;this.spawnTrash(1);
