@@ -1,4 +1,4 @@
-import {attendingIndices,normalizeGymLevel,enrolledCount} from './gymProgression';
+import {attendingIndices,normalizeGymLevel,enrolledCount} from './gymProgression.ts';
 
 export type SeminarCoach={
   id:number;name:string;discipline:string;focus:number;secondary:number;
