@@ -133,12 +133,24 @@ class GymScene extends Phaser.Scene {
   private speechBubbles:Phaser.GameObjects.Text[]=[];
   private speechLines=['...','blah blah','psst!','haha!','nice!','you got this','one more!'];
   private speechUntil:number[]=[];
-  private showSpeech(student:Student,line:string,duration=1500):void {
-    const i=this.students.indexOf(student);
-    if(i<0||!this.speechBubbles[i])return;
-    const bubble=this.speechBubbles[i];
+  private speechTimers:(Phaser.Time.TimerEvent|undefined)[]=[];
+  private hideSpeech(student:Student):void {
+    const index=this.students.indexOf(student);
+    if(index<0)return;
+    this.speechTimers[index]?.remove(false);
+    this.speechTimers[index]=undefined;
+    this.speechUntil[index]=0;
+    this.speechBubbles[index]?.setVisible(false);
+  }
+  private showSpeech(student:Student,line:string,duration=1400):void {
+    const index=this.students.indexOf(student);
+    if(index<0||!this.speechBubbles[index])return;
+    this.hideSpeech(student);
+    const bubble=this.speechBubbles[index];
     bubble.setText(line).setPosition(student.x,student.y-48).setVisible(true);
-    this.speechUntil[i]=this.time.now+duration;
+    this.speechUntil[index]=this.time.now+duration;
+    // A real scene timer stops stale bubbles even while an NPC is idle.
+    this.speechTimers[index]=this.time.delayedCall(duration,()=>this.hideSpeech(student));
   }
   constructor() { super('Gym'); }
   create(data?:{trainingBoard?:boolean;notice?:string}): void {
@@ -148,6 +160,7 @@ class GymScene extends Phaser.Scene {
     this.buildMode=false;
     this.speechBubbles=[];
     this.speechUntil=[];
+    this.speechTimers=[];
     this.buildPage=0;
     this.selectedSlot=Math.min(this.saveData.classesToday||0,1);
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
@@ -1353,7 +1366,7 @@ class GymScene extends Phaser.Scene {
       const index=this.students.indexOf(student);
       const bubble=this.speechBubbles[index];
       if(!bubble?.visible)continue;
-      if(this.time.now>=this.speechUntil[index])bubble.setVisible(false);
+      if(this.time.now>=this.speechUntil[index])this.hideSpeech(student);
       else bubble.setPosition(student.x,student.y-48);
     }
     const paused=this.running||this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
@@ -1367,6 +1380,9 @@ class GymScene extends Phaser.Scene {
       if(routine.remaining<=0)routine=this.planStudent(student,i);
       student.routine=routine;
       const waypoint=routine.route[0];
+      // Speech belongs to an interaction, not a wandering character.
+      // Hide it the moment a new path starts.
+      if(waypoint?.x!==undefined)this.hideSpeech(student);
       if(waypoint){
         const length=distance(student,waypoint);
         const t=length>0?Math.min(1,dt*(27+i*1.5)/length):1;
