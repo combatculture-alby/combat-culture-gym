@@ -59,6 +59,24 @@ jobs:
         run: |
           mkdir -p dist/test
           cp -R test-source/dist/. dist/test/
+      # Unmerged garage progression is published as a separate playable build.
+      # It never replaces the production root or the existing preview/test builds.
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/garage-level-one
+          path: garage-source
+      - name: Build five-level garage preview
+        working-directory: garage-source
+        env:
+          VITE_ISOLATE_SAVE: '1'
+          VITE_GARAGE_PREVIEW: '1'
+        run: |
+          npm install --no-audit --no-fund
+          npm run build -- --base=/combat-culture-gym/garage/
+      - name: Add garage preview alongside production
+        run: |
+          mkdir -p dist/garage
+          cp -R garage-source/dist/. dist/garage/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
