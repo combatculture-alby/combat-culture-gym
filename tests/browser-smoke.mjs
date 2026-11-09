@@ -66,6 +66,34 @@ async function clickGame(page,x,y){
   assert.ok(box,'Game canvas absent');
   await page.mouse.click(box.x+x/480*box.width,box.y+y/330*box.height);
 }
+
+/** Exercise one real pointer help, then complete the other scheduled requests
+ * through the same interaction method without a 36-second CI delay. */
+async function finishScheduledClass(page){
+  const initial=await page.evaluate(()=>{
+    const scene=window.__combatGym.scene.getScene('Gym');
+    if(!scene.running||!scene.requests.length)throw Error('Scheduled coaching did not start');
+    const student=scene.students[scene.requests[0]];
+    scene.coach.place(student.x,student.y);
+    return {x:student.x,y:student.y};
+  });
+  await clickGame(page,initial.x,initial.y-10);
+  const first=await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').classHelped);
+  assert.equal(first,1,'Tapping a student should fulfill a live class request');
+  return page.evaluate(()=>{
+    const scene=window.__combatGym.scene.getScene('Gym');
+    while(scene.running&&scene.pendingRequests.length){
+      scene.spawnRequest();
+      const student=scene.students[scene.requests[0]];
+      scene.coach.place(student.x,student.y);
+      scene.interact(student);
+    }
+    if(scene.running)scene.finishClass();
+    return {running:scene.running,helped:scene.classHelped,
+      money:scene.saveData.money,rep:scene.saveData.reputation};
+  });
+}
+
 try{
   await mkdir(output,{recursive:true});
   await waitForServer();
@@ -161,6 +189,50 @@ try{
     assert.ok(state.route>0,'Receptionist must be reachable');
   });
 
+  await openScenario('interactive-class-rush-merged',sampleSave(),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openTrainingBoard());
+    const options=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.furniturePanel.list.map(item=>item.text||'');
+    });
+    assert.ok(!options.some(t=>t==='CLASS RUSH'),
+      'Class Rush must no longer appear as a separate minigame');
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openClassSchedule());
+    await clickGame(page,301,195);
+    const running=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {active:scene.running,total:scene.classRequestsTotal,
+        marked:scene.activeStudents().filter(s=>s.indicator.visible).length,
+        routine:scene.activeStudents()[0].routine.pose,
+        scene:scene.scene.key};
+    });
+    assert.equal(running.active,true);
+    assert.equal(running.scene,'Gym','Classes must happen inside the hub');
+    assert.equal(running.total,4);
+    assert.ok(running.marked>=1,'Students must show visible coaching requests');
+    assert.equal(running.routine,'shadow');
+    const score=await finishScheduledClass(page);
+    assert.equal(score.helped,running.total);
+    assert.ok(score.rep>=3);
+  });
+
+  await openScenario('class-rewards-depend-on-coaching',sampleSave(),async page=>{
+    const low=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.startClass(0);
+      s.seconds=0;s.finishClass();
+      return {money:s.saveData.money,rep:s.saveData.reputation};
+    });
+    assert.ok(low.money>100);
+    assert.equal(low.rep,1,'Unattended class should earn minimal reputation');
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openClassSchedule());
+    await clickGame(page,303,195);
+    const high=await finishScheduledClass(page);
+    assert.ok(high.money-low.money>low.money-100,
+      'Successful coaching must beat passive earnings');
+    assert.ok(high.rep-low.rep>low.rep,'Coaching must improve reputation');
+  });
+
   // The full daily loop must work without opening a single arcade scene.
   await openScenario('hub-only-training-and-save',sampleSave({
     money:100,reputation:0,classesTaught:0,materials:[0,0,0],
@@ -175,7 +247,10 @@ try{
     assert.equal(plan,true,'A standalone daily plan must be accessible');
     await page.screenshot({path:output+'/hub-daily-plan.png'});
     await clickGame(page,154,180); // Teach next class, actual pointer button.
-    await clickGame(page,308,195); // Teach session one.
+    await clickGame(page,308,195); // Start the real interactive coaching session.
+    const firstClass=await finishScheduledClass(page);
+    assert.equal(firstClass.running,false);
+    assert.ok(firstClass.helped>=3);
     let state=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
       return {money:scene.saveData.money,rep:scene.saveData.reputation,
@@ -184,20 +259,22 @@ try{
         xp:scene.saveData.studentXP?.[0]?.[0],activities:scene.saveData.playedActivities,
         scene:scene.scene.key};
     });
-    assert.equal(state.money,153,'Class one should pay the garage rate without arcade');
-    assert.equal(state.rep,2,'Class one should grant reputation without arcade');
+    assert.ok(state.money>153,'Good live coaching must earn more than the passive class rate');
+    assert.ok(state.rep>=3,'Helping students should raise reputation rewards');
     assert.equal(state.classesToday,1);
     assert.ok(state.xp>0);
     assert.equal(state.scene,'Gym');
     assert.equal(state.activities?.Rush,undefined);
-    await clickGame(page,308,195); // Teach afternoon session.
+    await clickGame(page,159,204); // Class results → Class Schedule.
+    await clickGame(page,308,195); // Start afternoon class.
+    await finishScheduledClass(page);
     state=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
       return {money:scene.saveData.money,rep:scene.saveData.reputation,
         classesToday:scene.saveData.classesToday,taught:scene.saveData.classesTaught};
     });
-    assert.equal(state.money,206);
-    assert.equal(state.rep,4);
+    assert.ok(state.money>206);
+    assert.ok(state.rep>=6);
     assert.equal(state.classesToday,2);
     assert.equal(state.taught,2);
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
@@ -208,8 +285,8 @@ try{
       const s=window.__combatGym.scene.getScene('Gym').saveData;
       return {cash:s.money,rep:s.reputation,classesToday:s.classesToday,day:s.day};
     });
-    assert.deepEqual(saved,{cash:206,rep:4,classesToday:0,day:2},
-      'Daily training rewards and reset must survive reload');
+    assert.deepEqual(saved,{cash:state.money,rep:state.rep,classesToday:0,day:2},
+      'Daily interactive coaching rewards must survive reload');
   });
 
   for(const level of [1,5]){
@@ -287,6 +364,67 @@ try{
     assert.ok(state.supplies>0);
     assert.ok(state.stock.some(x=>x>0));
     assert.equal(state.scene,'Gym','Collecting supplies must never launch a minigame');
+  });
+
+  await openScenario('coach-customization-and-shop',sampleSave({
+    money:500,coachAppearance:{skin:1,hair:2,cut:4,top:0,shorts:0,gloves:0},
+    wardrobeOwned:[]
+  }),async page=>{
+    let initial=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {appearance:scene.saveData.coachAppearance,
+        texture:scene.coach.getTextureKey()};
+    });
+    assert.ok(initial.texture.startsWith('coach-custom-'));
+    assert.equal(initial.appearance.skin,1);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openCoachWardrobe());
+    await clickGame(page,222,135); // Change the haircut in the editor.
+    const changed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {appearance:s.saveData.coachAppearance,
+        texture:s.coach.getTextureKey()};
+    });
+    assert.notEqual(changed.texture,initial.texture,'Custom appearance must change the rendered atlas');
+    assert.notEqual(changed.appearance.cut,initial.appearance.cut);
+    await clickGame(page,309,233); // Open clothing shop.
+    await clickGame(page,180,84); // Purchase red training tee for $75.
+    let purchased=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {money:s.saveData.money,owned:s.saveData.wardrobeOwned,
+        outfit:s.saveData.coachAppearance,texture:s.coach.getTextureKey()};
+    });
+    assert.equal(purchased.money,425);
+    assert.ok(purchased.owned.includes(0));
+    assert.equal(purchased.outfit.top,2);
+    assert.notEqual(purchased.texture,changed.texture);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const persisted=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {money:s.saveData.money,owned:s.saveData.wardrobeOwned,
+        outfit:s.saveData.coachAppearance,texture:s.coach.getTextureKey()};
+    });
+    assert.deepEqual(persisted,purchased,'Coach appearance and purchases must survive reload');
+  });
+
+  await openScenario('wardrobe-locked-items',sampleSave({
+    money:0,coachAppearance:{skin:0,hair:0,cut:0,top:5,shorts:4,gloves:3},
+    wardrobeOwned:[999]
+  }),async page=>{
+    const loaded=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.openCoachWardrobe();
+      return {appearance:s.saveData.coachAppearance,closet:s.saveData.wardrobeOwned};
+    });
+    assert.equal(loaded.appearance.top,0);
+    assert.equal(loaded.appearance.shorts,0);
+    assert.equal(loaded.appearance.gloves,0);
+    assert.deepEqual(loaded.closet,[]);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openClothingShop());
+    const before=await sceneState(page);
+    await clickGame(page,180,84);
+    assert.equal((await sceneState(page)).money,before.money,
+      'Unfunded wardrobe purchase must not deduct money');
   });
 
   await openScenario('safe-new-game-reset',sampleSave({
@@ -433,11 +571,14 @@ try{
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openClassSchedule());
     await clickGame(page,130,178); // Assign HIIT to morning slot.
     assert.deepEqual((await sceneState(page)).classPlan,[3,1]);
-    await clickGame(page,300,195); // Teach session one.
+    await clickGame(page,300,195); // Start session one.
+    await finishScheduledClass(page);
     assert.equal((await sceneState(page)).classesToday,1);
+    await clickGame(page,158,204); // Class result → schedule.
     await clickGame(page,135,146); // Assign Grappling to afternoon slot.
     assert.deepEqual((await sceneState(page)).classPlan,[3,2]);
-    await clickGame(page,300,195); // Teach session two.
+    await clickGame(page,300,195); // Start session two.
+    await finishScheduledClass(page);
     assert.equal((await sceneState(page)).classesToday,2);
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
