@@ -133,7 +133,7 @@ class GymScene extends Phaser.Scene {
   private speechBubbles:Phaser.GameObjects.Text[]=[];
   private speechLines=['...','blah blah','psst!','haha!','nice!','you got this','one more!'];
   private speechUntil:number[]=[];
-  private showSpeech(student:Student,line:string,duration=2400):void {
+  private showSpeech(student:Student,line:string,duration=1500):void {
     const i=this.students.indexOf(student);
     if(i<0||!this.speechBubbles[i])return;
     const bubble=this.speechBubbles[i];
@@ -146,6 +146,8 @@ class GymScene extends Phaser.Scene {
     this.clearIntent();
     this.targetRefresh=0;
     this.buildMode=false;
+    this.speechBubbles=[];
+    this.speechUntil=[];
     this.buildPage=0;
     this.selectedSlot=Math.min(this.saveData.classesToday||0,1);
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
@@ -1068,7 +1070,7 @@ class GymScene extends Phaser.Scene {
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     nearest.routine=this.idleRoutine(nearest,3,'talk');
-    this.showSpeech(nearest,['Working on my jab!','Good to see you!','Ready to train!','Thanks, coach!'][i%4],3400);
+    this.showSpeech(nearest,['Working on my jab!','Good to see you!','Ready to train!','Thanks, coach!'][i%4],1700);
     nearest.actor?.face(this.player.x-nearest.x,this.player.y-nearest.y);
     this.coach.face(nearest.x-this.player.x,nearest.y-this.player.y);
     if(this.running) {
@@ -1098,7 +1100,7 @@ class GymScene extends Phaser.Scene {
       const lines=[['My jab needs work.','I want to compete someday.'],['I brought snacks!','I love this gym community.'],['I studied some fight footage.','I am working on combinations.'],['I am sore today.','I keep showing up!']];
       const milestone=nearest.friendship===3?' You are becoming regular training partners.':nearest.friendship===5?' Friendship milestone: Trusted teammate!':'';
       const dialogue=lines[i%lines.length][Math.max(0,nearest.friendship-1)%2];
-      this.showSpeech(nearest,dialogue,3800);
+      this.showSpeech(nearest,dialogue,1800);
       this.say(nearest.name+': '+dialogue+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
@@ -1346,6 +1348,14 @@ class GymScene extends Phaser.Scene {
     return this.idleRoutine(student,1+index*0.3);
   }
   private updateStudentLife(dt:number):void {
+    // Expire bubbles even when panels pause NPC animations.
+    for(const student of this.activeStudents()){
+      const index=this.students.indexOf(student);
+      const bubble=this.speechBubbles[index];
+      if(!bubble?.visible)continue;
+      if(this.time.now>=this.speechUntil[index])bubble.setVisible(false);
+      else bubble.setPosition(student.x,student.y-48);
+    }
     const paused=this.running||this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
     for(const station of this.stations)station.fixture?.setX(0);
     for(const [i,student] of this.activeStudents().entries()){
