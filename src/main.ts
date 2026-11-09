@@ -174,6 +174,7 @@ class GymScene extends Phaser.Scene {
   private mopActive=false;
   private mopMarks:Phaser.GameObjects.Graphics[]=[];
   private serviceTarget: 'phone'|'water'|'stock'|'mop'|null=null;
+  private gearTarget=-1;
   private serviceHotspots:{type:'phone'|'water'|'stock'|'mop';frame:Phaser.GameObjects.Rectangle;label:Phaser.GameObjects.Text}[]=[];
   private cleaningShift=false;
   private cleaningAt:Point|null=null;
@@ -346,6 +347,8 @@ class GymScene extends Phaser.Scene {
           this.targetRefresh=0;
           this.followStudent();
         }
+      }else if(!this.running&&!this.buildMode&&this.useGearAt(p.worldX,p.worldY)){
+        return;
       }else if(!this.collectNodeAt(p.worldX,p.worldY)){
         this.route=this.playerRoute({x:p.worldX,y:p.worldY});
       }
@@ -357,6 +360,7 @@ class GymScene extends Phaser.Scene {
     this.targetStudent=null;
     this.stationTarget=null;
     this.serviceTarget=null;
+    this.gearTarget=-1;
     this.pickupTarget=null;
   }
   private playerRoute(goal:Point,exact=false):Point[] {
@@ -658,6 +662,90 @@ class GymScene extends Phaser.Scene {
     this.mopActive=false;this.clearMopMarks();
     this.persist();this.refresh();this.showFeedback('MAT CLEAN  +$20  +1 REP');
     this.say('Mat mopped and disinfected. +$20 / +1 REP. Good work!');
+  }
+  private useGearAt(x:number,y:number):boolean {
+    const index=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
+      const p=this.saveData.gearPositions?.[i];
+      return owned&&!this.saveData.gearStored?.[i]&&p&&
+        Math.abs(p.x-x)<GEAR_BOUNDS[i].rx+7&&
+        Math.abs(p.y-y)<GEAR_BOUNDS[i].ry+9;
+    });
+    if(index<0)return false;
+    const pos=this.saveData.gearPositions![index];
+    this.clearIntent();
+    if(distance(this.player,pos)<55){this.openGearStation(index);return true;}
+    const box=GEAR_BOUNDS[index];
+    const approaches=[
+      {x:pos.x-box.rx-15,y:pos.y},{x:pos.x+box.rx+15,y:pos.y},
+      {x:pos.x,y:pos.y+box.ry+16},{x:pos.x,y:pos.y-box.ry-16}
+    ].filter(p=>this.canStand(p.x,p.y));
+    approaches.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+    for(const point of approaches){
+      const route=this.playerRoute(point,true);
+      if(route.length){
+        this.route=route;this.gearTarget=index;
+        this.say('Walking to inspect '+GEAR_ITEMS[index].name+'.');return true;
+      }
+    }
+    this.say('No clear path to the equipment. Make more room around it.');
+    return true;
+  }
+  private openGearStation(index:number):void {
+    if(this.running||!this.saveData.ownedGear?.[index]||this.saveData.gearStored?.[index])return;
+    const name=GEAR_ITEMS[index].name,
+      health=this.saveData.gearCondition?.[index]??100,
+      hygiene=this.saveData.gearCleanliness?.[index]??100,
+      cleaner=this.saveData.supplies?.[3]??3,
+      scrap=this.saveData.materials?.[0]??0;
+    this.menuShell('EQUIPMENT MAINTENANCE',name.toUpperCase()+'  /  TAP IT IN THE GYM TO SERVICE');
+    this.furniturePanel.add(this.add.text(86,82,
+      'CONDITION '+health+'%    CLEANLINESS '+hygiene+'%',{
+        fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',
+        color:health<GEAR_WORKING_THRESHOLD||hygiene<CLEAN_GEAR_THRESHOLD?'#f1ad91':'#b3e5ba'
+      }));
+    this.furniturePanel.add(this.add.text(86,114,
+      health<GEAR_WORKING_THRESHOLD?'BROKEN: TRAINING BONUS DISABLED.':
+      hygiene<CLEAN_GEAR_THRESHOLD?'DIRTY: TRAINING BONUS DISABLED.':
+      'CLEAN AND WORKING: TRAINING BONUS ACTIVE.',{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#dfe7d8'
+      }));
+    this.furniturePanel.add(this.add.text(86,139,
+      'SUPPLIES: '+cleaner+' sanitizer   /   '+scrap+' scrap',{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#e8d19e'
+      }));
+    this.panelButton(this.furniturePanel,
+      'WIPE DOWN   -1 SANITIZER / +65 CLEAN',84,165,310,27,
+      ()=>this.cleanGear(index),
+      hygiene>=90||cleaner<1||this.saveData.gearWipedToday?.includes(index)===true,0x39735f);
+    this.panelButton(this.furniturePanel,
+      'FIX EQUIPMENT   -1 SCRAP / +50 CONDITION',84,197,310,27,
+      ()=>this.repairGear(index),
+      health>=90||scrap<1||this.saveData.gearServicedToday?.includes(index)===true,0x705a43);
+  }
+  private cleanGear(index:number):void {
+    if(!this.saveData.ownedGear?.[index]||this.saveData.gearStored?.[index]||
+      (this.saveData.gearCleanliness?.[index]??100)>=90||
+      this.saveData.gearWipedToday?.includes(index)||(this.saveData.supplies?.[3]??0)<1)return;
+    this.saveData.supplies![3]--;
+    this.saveData.gearCleanliness??=Array(8).fill(100);
+    this.saveData.gearCleanliness[index]=recharge(this.saveData.gearCleanliness[index],GEAR_WIPE_RESTORE);
+    this.saveData.gearWipedToday??=[];this.saveData.gearWipedToday.push(index);
+    this.persist();this.refresh();this.openGearStation(index);
+    this.showFeedback('EQUIPMENT CLEANED');
+    this.say(GEAR_ITEMS[index].name+' has been wiped and sanitized.');
+  }
+  private repairGear(index:number):void {
+    if(!this.saveData.ownedGear?.[index]||this.saveData.gearStored?.[index]||
+      (this.saveData.gearCondition?.[index]??100)>=90||
+      this.saveData.gearServicedToday?.includes(index)||(this.saveData.materials?.[0]??0)<1)return;
+    this.saveData.materials![0]--;
+    this.saveData.gearCondition??=Array(8).fill(100);
+    this.saveData.gearCondition[index]=recharge(this.saveData.gearCondition[index],GEAR_REPAIR_RESTORE);
+    this.saveData.gearServicedToday??=[];this.saveData.gearServicedToday.push(index);
+    this.persist();this.refresh();this.openGearStation(index);
+    this.showFeedback('EQUIPMENT FIXED');
+    this.say(GEAR_ITEMS[index].name+' repaired. Condition '+
+      this.saveData.gearCondition[index]+'%.');
   }
   private useNearbyStation():boolean {
     const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
@@ -1427,7 +1515,10 @@ class GymScene extends Phaser.Scene {
   private selectedSlot=0;
   private matchingClassGear(stats:number[]):number {
     return GEAR_ITEMS.filter((item,i)=>stats.includes(item.stat)&&
-      this.saveData.ownedGear?.[i]&&!this.saveData.gearStored?.[i]).length;
+      gearActive(this.saveData.ownedGear?.[i]===true,
+        this.saveData.gearStored?.[i]===true,
+        this.saveData.gearCondition?.[i]??100,
+        this.saveData.gearCleanliness?.[i]??100)).length;
   }
   private openClassSchedule():void {
     const finished=this.saveData.classesToday||0;
@@ -1483,7 +1574,10 @@ class GymScene extends Phaser.Scene {
     for(const student of attendance){
       for(const stat of program.stats){
         const matching=GEAR_ITEMS.filter((item,i)=>item.stat===stat&&
-          this.saveData.ownedGear?.[i]&&!this.saveData.gearStored?.[i]).length;
+          gearActive(this.saveData.ownedGear?.[i]===true,
+            this.saveData.gearStored?.[i]===true,
+            this.saveData.gearCondition?.[i]??100,
+            this.saveData.gearCleanliness?.[i]??100)).length;
         const gearBonus=matching>0?5:0;
         let xp=(this.saveData.studentXP[student][stat]||0)+6+Math.round(performance*8)+gearBonus;
         let value=this.saveData.studentStats[student][stat]||10;
@@ -1507,6 +1601,18 @@ class GymScene extends Phaser.Scene {
     this.spawnTrash(4); // A full class leaves a noticeable mess to clean.
     const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
+    this.saveData.gearCondition??=Array(8).fill(100);
+    this.saveData.gearCleanliness??=Array(8).fill(100);
+    this.saveData.ownedGear?.forEach((owned,i)=>{
+      if(gearActive(owned,this.saveData.gearStored?.[i]===true,
+        this.saveData.gearCondition![i],this.saveData.gearCleanliness![i])&&
+        program.stats.includes(GEAR_ITEMS[i].stat)){
+        this.saveData.gearCondition![i]=maintenanceWear(
+          this.saveData.gearCondition![i],GEAR_HEALTH_PER_CLASS);
+        this.saveData.gearCleanliness![i]=maintenanceWear(
+          this.saveData.gearCleanliness![i],GEAR_DIRT_PER_CLASS);
+      }
+    });
     const facilityPenalty=(this.saveData.waterLevel??55)<25?0.08:0;
     const towelPenalty=(this.saveData.towelLevel??65)<25?0.05:0;
     const matPenalty=(this.saveData.matCleanliness??70)<25?0.08:0;
@@ -2340,6 +2446,10 @@ class GymScene extends Phaser.Scene {
       if(!this.route.length&&this.serviceTarget){
         const type=this.serviceTarget;
         this.clearIntent();this.openService(type);
+      }
+      if(!this.route.length&&this.gearTarget>=0){
+        const index=this.gearTarget;
+        this.clearIntent();this.openGearStation(index);
       }
       if(!this.route.length&&this.stationTarget){
         const station=this.stationTarget;
