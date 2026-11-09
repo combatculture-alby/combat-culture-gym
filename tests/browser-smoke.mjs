@@ -262,31 +262,69 @@ try{
       const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
       return {money:s.money,pending:s.seminarPending,rep:s.reputation};
     });
-    assert.equal(booked.money,760);
+    assert.equal(booked.money,700);
     assert.deepEqual(booked.pending,{coachId:0,day:1});
     assert.equal(booked.rep,0);
-    await page.screenshot({path:output+'/seminar-quiz.png'});
-    for(const correctChoice of [1,0,2]){
-      await clickGame(page,310,170+correctChoice*36);
-      await clickGame(page,310,241); // Next lesson / complete seminar.
-    }
+    await page.screenshot({path:output+'/seminar-cutscene.png'});
+    const scene=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Seminar');
+      return {phase:s.phase,finished:s.finished,lessons:s.presenter!==undefined,
+        lessonText:s.lessonText.text};
+    });
+    assert.equal(scene.phase,0);
+    assert.equal(scene.finished,false);
+    assert.equal(scene.lessons,true);
+    assert.ok(scene.lessonText.includes('demonstrates'));
+    await clickGame(page,364,302); // Skip cutscene, still receive full paid rewards.
     const completed=await page.evaluate(()=>{
       const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
       return {money:s.money,rep:s.reputation,pending:s.seminarPending,
         last:s.seminarLastDay,xp:s.studentXP[0][0],stats:s.studentStats[0][0]};
     });
-    assert.equal(completed.money,760);
-    assert.equal(completed.rep,4);
+    assert.equal(completed.money,700);
+    assert.equal(completed.rep,3);
     assert.equal(completed.pending,undefined);
     assert.equal(completed.last,1);
     assert.ok(completed.xp>0||completed.stats>10,'Students must receive specialized XP');
-    await page.screenshot({path:output+'/seminar-complete.png'});
+    await page.screenshot({path:output+'/seminar-cutscene-complete.png'});
     await clickGame(page,309,260); // Return to gym, no second payout.
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
     assert.equal(await page.evaluate(()=>
       window.__combatGym.scene.getScene('Gym').saveData.seminarLastDay),1);
+  });
+
+  await openScenario('seminar-auto-cutscene-rewards',sampleSave({
+    money:700,seminarPending:{coachId:0,day:1}
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').launchSeminar(0));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Seminar').sys.isActive());
+    const pending=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Seminar');
+      return {phase:s.phase,finished:s.finished,skip:s.skip.visible};
+    });
+    assert.equal(pending.phase,0);
+    assert.equal(pending.finished,false);
+    assert.equal(pending.skip,true);
+    // The animation must progress and grant full credit without any interaction.
+    await page.waitForFunction(()=>{
+      const stored=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
+      return stored.seminarLastDay===1;
+    },null,{timeout:14000});
+    const completed=await page.evaluate(()=>{
+      const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
+      const scene=window.__combatGym.scene.getScene('Seminar');
+      return {money:s.money,rep:s.reputation,last:s.seminarLastDay,
+        pending:s.seminarPending,finished:scene.finished,skip:scene.skip.visible};
+    });
+    assert.deepEqual(completed,{money:700,rep:3,last:1,
+      pending:undefined,finished:true,skip:false});
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Seminar').complete());
+    assert.equal(await page.evaluate(()=>{
+      const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
+      return s.reputation;
+    }),3,'Even a repeated completion call must not award again');
   });
 
   await openScenario('seminar-paid-resume',sampleSave({
