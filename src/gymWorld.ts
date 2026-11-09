@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 
-function bakeRoom(scene:Phaser.Scene):void {
+function bakeRoom(scene:Phaser.Scene,level:number):void {
   const g=scene.add.graphics();
   const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>g.fillStyle(color,alpha).fillRect(x,y,w,h);
   const brick=0x7b4c40, trim=0x3c3537, wood=0xc39160, pale=0xedce91;
@@ -84,14 +84,98 @@ function bakeRoom(scene:Phaser.Scene):void {
   rect(trim,331,27,5,195);
   rect(0xad7b55,331,28,2,193);
 
-  g.generateTexture('gym-room',480,330);
+
+  // Stage-specific architecture is baked into separate textures. The training board
+  // and reception desk retain their click targets at every level.
+  if(level<=2){
+    const starter=level===1;
+    const wall=starter?0x7b817d:0x526b67;
+    const floor=starter?0x777777:0xa38a73;
+    rect(floor,0,79,480,146);
+    rect(wall,0,23,480,56);
+    rect(starter?0x535b5b:0x354e50,0,72,480,7);
+    // A residential roll-up garage door with visible segmented metal panels.
+    rect(0x303e42,21,26,303,49);
+    rect(starter?0x99a29c:0x94aaa1,25,29,295,42);
+    for(let y=29;y<69;y+=8){
+      rect(starter?0x78837f:0x6a918a,27,y,291,1);
+      rect(0xf1efe2,29,y+2,285,1,0.25);
+    }
+    for(const x of [29,314])rect(0x384547,x,27,4,46);
+    rect(0x283d40,170,30,5,40);
+    rect(0x4b5754,31,79,295,4);
+    // The garage starts with concrete, chalk lines and a single compact mat.
+    for(let y=80;y<221;y+=21)for(let x=0;x<480;x+=44){
+      rect(0x3d4141,x,y,40,1,0.13);
+      rect(0xe8e1cd,x+3+(y%13),y+8,12,1,0.06);
+    }
+    const mx=starter?57:46,my=starter?94:86,mw=starter?240:260,mh=starter?106:121;
+    rect(0x303d3d,mx-4,my-4,mw+8,mh+8);
+    rect(starter?0x415e60:0x316b6a,mx,my,mw,mh);
+    for(let y=my+7;y<my+mh;y+=20){
+      rect(starter?0x587778:0x4b8581,mx+5,y,mw-10,1,0.32);
+    }
+    for(let x=mx+8;x<mx+mw;x+=22)rect(0xbed0b9,x,my+4,1,mh-8,0.12);
+    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+4,mw-8,2);
+    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+mh-6,mw-8,2);
+    rect(starter?0x87a18b:0xa8c7a4,mx+4,my+6,2,mh-12);
+    rect(starter?0x87a18b:0xa8c7a4,mx+mw-6,my+6,2,mh-12);
+    // Home-gym clutter stays on the wall, not in the walkable training floor.
+    rect(0x3c4e4e,3,91,19,86);
+    for(let y=97;y<174;y+=13)rect(0xb89972,8,y,12,3);
+    rect(0x454341,335,76,4,145);
+    rect(0xb99674,337,78,2,141);
+    rect(0xd5bb89,42,86,17,4);
+    rect(0xc1a16a,48,81,4,13);
+    rect(0x334545,25,197,30,6);
+    rect(0x718b80,26,195,28,2);
+    // Fluorescent strip and garage ceiling hardware.
+    rect(0x364a4c,124,24,100,4);
+    rect(0xffe8b6,141,25,66,2,0.85);
+    if(!starter){
+      rect(0x304d50,62,79,222,4);
+      rect(0xcaa26d,75,81,196,2);
+      rect(0x28484a,4,35,18,32);
+      rect(0xcda96d,7,40,12,22);
+      rect(0x37635c,10,43,6,16);
+    }
+  }else if(level>=4){
+    const academy=level===5;
+    // Renovated facility: premium wall panels and tournament-grade mat trims.
+    rect(academy?0x253a43:0x41605e,0,23,480,12);
+    rect(academy?0xd4ac61:0xb1bda2,0,35,480,2);
+    rect(academy?0x1b3038:0x435a59,0,72,480,6);
+    const accent=academy?0xd9b26d:0x8bc8b1;
+    rect(accent,32,78,286,3);
+    rect(accent,32,207,286,3);
+    rect(accent,32,81,3,126);
+    rect(accent,315,81,3,126);
+    rect(academy?0x1c3f48:0x326767,41,88,266,4,0.38);
+    rect(academy?0x1c3f48:0x326767,41,194,266,4,0.38);
+    for(const x of [11,333,467]){
+      rect(academy?0x0f222b:0x314c4e,x,31,8,40);
+      rect(accent,x+1,35,6,2);
+      rect(accent,x+1,64,6,2);
+    }
+    rect(academy?0x1d303b:0x344c50,136,37,75,26);
+    rect(accent,140,38,67,2);
+    rect(accent,140,58,67,2);
+    if(academy){
+      rect(0xd8b876,106,199,143,1,0.28);
+      for(let x=56;x<301;x+=48)rect(0xffe7aa,x,190,2,5,0.32);
+    }
+  }
+
+  g.generateTexture('gym-room-'+level,480,330);
   g.destroy();
 }
 
-export function drawGym(scene:Phaser.Scene):void {
-  if(!scene.textures.exists('gym-room'))bakeRoom(scene);
-  scene.add.image(0,0,'gym-room').setOrigin(0);
-  scene.add.text(174,49,'COMBAT CULTURE',{fontFamily:'monospace',fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
+export function drawGym(scene:Phaser.Scene,level=1):void {
+  const key='gym-room-'+level;
+  if(!scene.textures.exists(key))bakeRoom(scene,level);
+  scene.add.image(0,0,key).setOrigin(0);
+  const label=level===1?'COMBAT GARAGE':level===2?'NEIGHBORHOOD GYM':level===5?'COMBAT ACADEMY':'COMBAT CULTURE';
+  scene.add.text(174,49,label,{fontFamily:'monospace',fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
 
   const trim=0x3c3537, wood=0xc39160, pale=0xedce91;
   // The bulletin board and counter stand in the room and occlude actors behind them.
