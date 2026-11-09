@@ -37,7 +37,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -64,7 +64,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:1,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:1,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65 };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -108,6 +108,8 @@ function loadSave(): Save {
       waterRefillsToday:Math.max(0,Math.min(3,Math.floor(Number(s.waterRefillsToday)||0))),
       towelRestockedToday:s.towelRestockedToday===true,
       paperRestockedToday:s.paperRestockedToday===true,
+      towelLevel:normalizePercent(s.towelLevel,65),
+      paperLevel:normalizePercent(s.paperLevel,65),
       gearCondition:Array.from({length:8},(_,i)=>Math.max(0,Math.min(100,
         Math.floor(Number(s.gearCondition?.[i]??100)||0)))),
       gearDrillsToday:Array.isArray(s.gearDrillsToday)?
@@ -430,7 +432,7 @@ class GymScene extends Phaser.Scene {
       const ringing=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
         this.saveData.phoneCallsAnswered??0)>0;
       const urgent=type==='phone'?ringing:type==='water'?
-        (this.saveData.waterLevel??55)<35||supply[1]===0||supply[2]===0:
+        (this.saveData.waterLevel??55)<35||(this.saveData.towelLevel??65)<30||(this.saveData.paperLevel??65)<30:
         type==='stock'?supply.some((n,i)=>n<(i===0?1:2)):
         (this.saveData.matCleanliness??70)<50&&!this.saveData.mopDoneToday;
       const done=type==='mop'&&this.saveData.mopDoneToday===true;
@@ -466,6 +468,103 @@ class GymScene extends Phaser.Scene {
     if(type==='water')this.openWaterStation();
     if(type==='stock')this.openSupplyOrders();
     if(type==='mop')this.openMopStation();
+  }
+  private openPhone():void {
+    if(this.running)return;
+    const available=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
+      this.saveData.phoneCallsAnswered??0);
+    this.menuShell('FRONT DESK PHONE',
+      available?'RING RING! A NEW MEMBER IS CALLING.':'NO CALLS CURRENTLY. MORE MAY COME AFTER CLASS.');
+    this.furniturePanel.add(this.add.text(86,86,
+      'PHONE INQUIRIES  '+(this.saveData.phoneCallsAnswered??0)+' / '+
+      PHONE_CALL_LIMIT+'   |   MEMBER LEADS '+(this.saveData.phoneLeads??0),{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#f1d398'
+      }));
+    this.furniturePanel.add(this.add.text(86,117,
+      available?'A prospective student asks about joining Combat Culture.\n'+
+        'How do you handle the inquiry?':
+        'Keep teaching classes to attract more enquiries. Leads discount the next recruitment by 25%.',{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#dfebe3',
+        wordWrap:{width:303},lineSpacing:4
+      }));
+    this.panelButton(this.furniturePanel,'OFFER INTRO TRIAL   +1 LEAD / +1 REP',
+      84,174,310,28,()=>this.answerPhone('trial'),available<=0,0x39735f);
+    this.panelButton(this.furniturePanel,'ANSWER QUESTIONS   +2 REP',
+      84,206,310,28,()=>this.answerPhone('info'),available<=0,0x355b5d);
+  }
+  private answerPhone(kind:'trial'|'info'):void {
+    if(!availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
+      this.saveData.phoneCallsAnswered??0))return;
+    this.saveData.phoneCallsAnswered=(this.saveData.phoneCallsAnswered??0)+1;
+    if(kind==='trial'){
+      this.saveData.phoneLeads=Math.min(5,(this.saveData.phoneLeads??0)+1);
+      this.saveData.reputation++;
+    }else this.saveData.reputation+=2;
+    this.persist();this.refresh();this.openPhone();
+    this.showFeedback(kind==='trial'?'NEW MEMBER LEAD':'PHONE +2 REP');
+    this.say(kind==='trial'?'Booked an intro-trial inquiry. Next student recruitment costs 25% less.':
+      'Handled the gym inquiry professionally. Reputation +2.');
+  }
+  private openWaterStation():void {
+    const stock=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
+    this.menuShell('GYM WATER & AMENITIES','STUDENTS NEED WATER, CLEAN TOWELS AND A STOCKED BATHROOM.');
+    const water=this.saveData.waterLevel??55,towels=this.saveData.towelLevel??65,
+      paper=this.saveData.paperLevel??65;
+    this.furniturePanel.add(this.add.text(86,77,
+      'WATER '+water+'%    TOWELS '+towels+'%    PAPER '+paper+'%',{
+        fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',
+        color:Math.min(water,towels,paper)<30?'#f4ad98':'#c4e7c4'
+      }));
+    this.furniturePanel.add(this.add.text(86,104,
+      'Supply closet: '+stock[0]+' water  /  '+stock[1]+' towel packs  /  '+
+      stock[2]+' paper packs',{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#d5dfd0'
+      }));
+    this.panelButton(this.furniturePanel,'REFILL WATER STATION   -1 WATER JUG',
+      84,132,310,26,()=>this.refillAmenity(0),stock[0]<=0||water>=90,0x39735f);
+    this.panelButton(this.furniturePanel,'RESTOCK CLEAN TOWELS   -1 PACK',
+      84,163,310,26,()=>this.refillAmenity(1),stock[1]<=0||towels>=90,0x39735f);
+    this.panelButton(this.furniturePanel,'RESTOCK BATHROOM   -1 PAPER PACK',
+      84,194,310,26,()=>this.refillAmenity(2),stock[2]<=0||paper>=90,0x39735f);
+  }
+  private refillAmenity(kind:0|1|2):void {
+    this.saveData.supplies??=Array.from(INITIAL_SUPPLIES);
+    if(this.saveData.supplies[kind]<=0)return;
+    const key=kind===0?'waterLevel':kind===1?'towelLevel':'paperLevel';
+    const current=this.saveData[key]??55;
+    if(current>=90)return;
+    this.saveData.supplies[kind]--;
+    this.saveData[key]=recharge(current,kind===0?WATER_REFILL:70);
+    this.persist();this.refresh();
+    this.openWaterStation();
+    this.showFeedback(['WATER REFILLED','TOWELS RESTOCKED','BATHROOM STOCKED'][kind]);
+    this.say('Students appreciate the stocked facility.');
+  }
+  private openSupplyOrders():void {
+    this.menuShell('ORDER GYM SUPPLIES','BULK ORDERS ARRIVE THE NEXT IN-GAME DAY.');
+    const stock=this.saveData.supplies??Array.from(INITIAL_SUPPLIES),
+      deliveries=this.saveData.pendingSupplies??[0,0,0,0];
+    SUPPLY_NAMES.forEach((name,i)=>{
+      const bundle=SUPPLY_BUNDLES[i],y=76+i*34;
+      this.panelButton(this.furniturePanel,'ORDER '+name.toUpperCase()+
+        '   $'+bundle.price,84,y,310,32,()=>this.orderSupply(i),
+        this.saveData.money<bundle.price,0x39735f,
+        'In stock '+stock[i]+'  |  Due next day '+deliveries[i]+'  |  +'+bundle.amount+' pack(s)');
+    });
+    this.furniturePanel.add(this.add.text(169,216,
+      'CASH $'+this.saveData.money+'    TRAINING PADS IN GEAR SHOP',{
+        fontFamily:UI_FONT,fontSize:'9px',color:'#e8d4ae'
+      }));
+  }
+  private orderSupply(index:number):void {
+    const bundle=SUPPLY_BUNDLES[index];
+    if(!bundle||this.saveData.money<bundle.price)return;
+    this.saveData.money-=bundle.price;
+    this.saveData.pendingSupplies??=[0,0,0,0];
+    this.saveData.pendingSupplies[index]+=bundle.amount;
+    this.persist();this.refresh();this.openSupplyOrders();
+    this.showFeedback('ORDER PLACED');
+    this.say(SUPPLY_NAMES[index]+' will arrive when you start the next day.');
   }
   private useNearbyStation():boolean {
     const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
@@ -866,10 +965,11 @@ class GymScene extends Phaser.Scene {
   }
   private recruitStudent():void {
     const count=this.students.length;
-    const capacity=studentCapacity(this.gymLevel()),cost=recruitmentCost(count);
+    const capacity=studentCapacity(this.gymLevel()),cost=discountRecruitment(recruitmentCost(count),this.saveData.phoneLeads??0);
     if(count>=capacity){this.say('Gym is at capacity. Expand before recruiting.');return;}
     if(this.saveData.money<cost){this.say('Need $'+cost+' to recruit another student.');return;}
     this.saveData.money-=cost;
+    if(this.saveData.phoneLeads)this.saveData.phoneLeads--;
     this.saveData.enrolledStudents=count+1;
     this.students.push({...STUDENT_HOMES[count%STUDENT_HOMES.length],
       name:STUDENT_NAMES[count],friendship:0,skill:0,chatCooldown:12+count*5});
@@ -1303,10 +1403,22 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
     this.selectedSlot=Math.min(this.saveData.classesToday,1);
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
+    this.saveData.waterLevel=maintenanceWear(this.saveData.waterLevel??55,
+      WATER_CONSUMPTION_PER_CLASS);
+    this.saveData.towelLevel=maintenanceWear(this.saveData.towelLevel??65,25);
+    this.saveData.paperLevel=maintenanceWear(this.saveData.paperLevel??65,12);
+    this.saveData.matCleanliness=maintenanceWear(this.saveData.matCleanliness??70,
+      MAT_DIRT_PER_CLASS);
+    this.saveData.phoneCallsSpawned=Math.min(PHONE_CALL_LIMIT,
+      (this.saveData.phoneCallsSpawned??1)+1);
     this.spawnTrash(4); // A full class leaves a noticeable mess to clean.
     const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
-    const earnings=Math.round(base*(0.7+performance*0.6));
+    const facilityPenalty=(this.saveData.waterLevel??55)<25?0.08:0;
+    const towelPenalty=(this.saveData.towelLevel??65)<25?0.05:0;
+    const matPenalty=(this.saveData.matCleanliness??70)<25?0.08:0;
+    const earnings=Math.round(base*(0.7+performance*0.6)*
+      (1-facilityPenalty-towelPenalty-matPenalty));
     const rep=performance>=0.85?4:performance>=0.6?3:
       performance>=0.5?CLASS_REPUTATION:1;
     this.saveData.money+=earnings;
@@ -1587,7 +1699,7 @@ class GymScene extends Phaser.Scene {
       ));
     });
     this.panelButton(panel,'PREV',83,211,75,26,()=>{this.rosterPage--;this.showRosterPage();},this.rosterPage===0);
-    const price=recruitmentCost(count),full=count>=capacity;
+    const price=discountRecruitment(recruitmentCost(count),this.saveData.phoneLeads??0),full=count>=capacity;
     this.panelButton(panel,full?'AT CAPACITY':'RECRUIT $'+price,169,211,138,26,()=>this.recruitStudent(),full||this.saveData.money<price,0x39735f);
     this.panelButton(panel,'NEXT',318,211,75,26,()=>{this.rosterPage++;this.showRosterPage();},this.rosterPage>=pages-1);
   }
@@ -1827,6 +1939,13 @@ class GymScene extends Phaser.Scene {
     this.clearIntent();
     this.students.forEach((student,i)=>{student.routine=this.idleRoutine(student,0.5+i);student.chatCooldown=10+i*4;});
     this.saveData.classesToday=0;
+    const delivery=this.saveData.pendingSupplies??[0,0,0,0];
+    this.saveData.supplies??=Array.from(INITIAL_SUPPLIES);
+    this.saveData.supplies=this.saveData.supplies.map((value,i)=>
+      Math.min(99,value+(delivery[i]||0)));
+    this.saveData.pendingSupplies=[0,0,0,0];
+    this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=1;
+    this.phoneClock=0;
     this.saveData.coachedToday=[];
     this.saveData.dailyShiftClaimed=false;
     this.saveData.gearDrillsToday=[];
