@@ -441,7 +441,7 @@ class GymScene extends Phaser.Scene {
       'Specialty: '+SEMINAR_STATS[coach.focus]+
         '   Bonus: '+SEMINAR_STATS[coach.secondary],
       'Guest fee: $'+coach.fee+'      Your cash: $'+this.saveData.money,
-      'Three interactive lessons. Better answers give bigger XP.',
+      'Short coaching cutscene. Watch or skip for the same full reward.',
       'All students attending today benefit from the seminar.'
     ];
     details.forEach((line,i)=>this.furniturePanel.add(this.add.text(86,83+i*22,line,{
