@@ -387,6 +387,12 @@ try{
     assert.notEqual(changed.texture,initial.texture,'Custom appearance must change the rendered atlas');
     assert.notEqual(changed.appearance.cut,initial.appearance.cut);
     await clickGame(page,309,233); // Open clothing shop.
+    const shopHeading=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.furniturePanel.list.find(item=>typeof item.text==='string'&&
+        (item.text.includes('CLOTHING SHOP')||item.text.includes('YOUR COACH')))?.text;
+    });
+    assert.equal(shopHeading,'COACH CLOTHING SHOP','Wardrobe shop button must open the purchase panel');
     await clickGame(page,180,84); // Purchase red training tee for $75.
     let purchased=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
