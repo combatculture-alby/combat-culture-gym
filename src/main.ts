@@ -89,6 +89,9 @@ class GymScene extends Phaser.Scene {
   private classHelped = 0;
   private friendshipBonus = 0;
   private quickBonus = 0;
+  private classMissed = 0;
+  private classIndex = 0;
+  private classRequestsTotal = 0;
   private requestAge: Record<number,number> = {};
   private pendingRequests: number[] = [];
   private nextRequestAt = 0;
@@ -215,7 +218,7 @@ class GymScene extends Phaser.Scene {
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
     this.input.keyboard!.on('keydown-SPACE',(event:KeyboardEvent)=>{if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;event.preventDefault();if(!this.collectNearby())this.say('Move closer to a material pile to pick it up.');});
-    this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
+    this.input.keyboard!.on('keydown-C',() => {if(!this.running&&!this.furniturePanel.visible)this.openClassSchedule();});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
     this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
     this.input.keyboard!.on('keydown-N',() => {if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())this.nextDay();});
@@ -363,7 +366,7 @@ class GymScene extends Phaser.Scene {
     if(this.running||this.isPlacing())return;
     this.clearIntent();
     const drills=this.drillsToday();
-    this.menuShell('TRAINING BOARD','Choose a class or a hands-on drill.');
+    this.menuShell('TRAINING BOARD','Teach interactive classes in the gym; arcade drills are optional.');
     this.menuAction('TEACH A CLASS',84,70,149,()=>this.openClassSchedule(),false,(this.saveData.classesToday||0)+'/2 classes today');
     this.menuAction('STUDENT GOALS',245,70,149,()=>this.showStudentGoals(),false,'Review their progress');
     TRAINING_OPTIONS.forEach(({label,mode,summary},i)=>{
@@ -852,24 +855,26 @@ class GymScene extends Phaser.Scene {
     const ready=finished<2&&slot===finished;
     const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':'TEACH SESSION '+(slot+1);
     this.panelButton(this.furniturePanel,label,238,180,157,30,()=>{
-      if(ready)this.simulateClass(programIndex);
+      if(ready)this.startClass(programIndex);
     },!ready,0x39735f);
-    this.furniturePanel.add(this.add.text(168,220,'Select a class. Your plan saves automatically.',
+    this.furniturePanel.add(this.add.text(168,220,'Class starts in the gym. Help students to earn better rewards.',
       {fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8',wordWrap:{width:224}}));
     this.furniturePanel.setVisible(true);
   }
-  private simulateClass(index:number):void {
+  private simulateClass(index:number,quality=0.5,showSchedule=true):void {
     if((this.saveData.classesToday||0)>=2){this.say('Two classes already taught today.');return;}
     const program=CLASS_PROGRAMS[index];
     if(!program)return;
     if(!this.saveData.studentStats)this.saveData.studentStats=initialStats();
     if(!this.saveData.studentXP)this.saveData.studentXP=initialXP();
-    for(let student=0;student<this.students.length;student++){
+    const attendance=this.activeStudents().map(student=>this.students.indexOf(student));
+    const performance=Math.max(0,Math.min(1,quality));
+    for(const student of attendance){
       for(const stat of program.stats){
         const matching=GEAR_ITEMS.filter((item,i)=>item.stat===stat&&
           this.saveData.ownedGear?.[i]&&!this.saveData.gearStored?.[i]).length;
         const gearBonus=matching>0?5:0;
-        let xp=(this.saveData.studentXP[student][stat]||0)+10+gearBonus;
+        let xp=(this.saveData.studentXP[student][stat]||0)+6+Math.round(performance*8)+gearBonus;
         let value=this.saveData.studentStats[student][stat]||10;
         while(value<100 && xp>=statThreshold(value)){xp-=statThreshold(value);value++;}
         this.saveData.studentStats[student][stat]=value;
@@ -880,17 +885,20 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
     this.selectedSlot=Math.min(this.saveData.classesToday,1);
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
-    const earnings=classEarnings(this.gymLevel(),this.students.length,
+    const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
+    const earnings=Math.round(base*(0.7+performance*0.6));
+    const rep=performance>=0.85?4:performance>=0.6?3:
+      performance>=0.5?CLASS_REPUTATION:1;
     this.saveData.money+=earnings;
     this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+earnings;
-    this.saveData.reputation+=CLASS_REPUTATION;
+    this.saveData.reputation+=rep;
     if((this.saveData.classesTaught||0)%4===0)
-      this.students.forEach(student=>student.skill++);
+      attendance.forEach(student=>this.students[student].skill++);
     this.persist();this.refresh();
-    this.say(program.name+' taught! +$'+earnings+' and +'+CLASS_REPUTATION+' REP. '+
-      this.students.length+' students trained.');
-    this.openClassSchedule();
+    this.say(program.name+' class completed! +$'+earnings+' and +'+rep+
+      ' REP. '+attendance.length+' students trained.');
+    if(showSchedule)this.openClassSchedule();
   }
   private checkStudentGoals():void {
     if(!this.saveData.studentGoals)this.saveData.studentGoals=initialGoals();
@@ -1180,7 +1188,7 @@ class GymScene extends Phaser.Scene {
     if(this.running) {
       const at=this.requests.indexOf(i);
       if(at<0) { this.say(nearest.name+': All good, coach!'); return; }
-      if((this.requestAge[i] ?? 99)<=7) this.quickBonus+=2;
+      if((this.requestAge[i] ?? 99)<=5) this.quickBonus+=2;
       this.requests.splice(at,1);
       this.updateIndicators();
       this.classHelped++;
@@ -1215,57 +1223,84 @@ class GymScene extends Phaser.Scene {
     this.persist();
     this.scene.start('Briefing',{mode});
   }
-  private startClass():void {
-    if(this.running || this.saveData.completed) { this.say('Class already started or completed.'); return; }
-    this.persist(); this.scene.start('Briefing',{mode:'Rush'}); return;
+  private startClass(index:number):void {
+    if(this.running||this.isPlacing()||(this.saveData.classesToday||0)>=2||
+      this.selectedSlot!==(this.saveData.classesToday||0))return;
+    const planned=(this.saveData.classPlan??[0,1])[this.selectedSlot];
+    if(index!==planned||!CLASS_PROGRAMS[index])return;
+    this.clearIntent();this.furniturePanel.setVisible(false);
     this.rosterPanel.setVisible(false);
-    this.modeLabel.setText('CLASS RUSH');
-    this.classOverlay.clear().lineStyle(3,0xe8bd6c).strokeRect(30,30,290,181);
-    this.placingDecor=-1;
-    this.selectedFurniture=-1;
-    this.furniturePanel.setVisible(false);
-    this.updateFurnitureActions();
-    this.drawEquipment();
-    this.running=true; this.seconds=50; this.classHelped=0; this.friendshipBonus=0; this.quickBonus=0; this.requestAge={}; this.nextRequestAt=5;
-    const offset=(this.saveData.day-1)%4;
-    this.pendingRequests=[offset,(offset+1)%4,(offset+2)%4];
-    this.requests=[];
-    const taskTypes=(this.saveData.classType||0)===1?['Kick technique','Pad work','Clinch drill']:(this.saveData.classType||0)===2?['Warm-up','Form check','Station change']:['Technique','Equipment','Station change'];
-    this.tasks={};
-    this.pendingRequests.forEach((index,position)=>{this.tasks[index]=taskTypes[(position+this.saveData.day-1)%taskTypes.length];});
-    this.spawnRequest();
-    this.updateIndicators();
-    this.say(this.classNames[this.saveData.classType||0]+'! Students request help throughout class.');
+    this.running=true;this.classIndex=index;this.seconds=36;
+    this.classHelped=0;this.classMissed=0;this.friendshipBonus=0;this.quickBonus=0;
+    this.requestAge={};this.nextRequestAt=4.5;
+    this.requests=[];this.tasks={};
+    const attending=this.activeStudents();
+    this.classRequestsTotal=Math.min(6,attending.length);
+    const offset=(this.saveData.day+this.selectedSlot-1)%attending.length;
+    this.pendingRequests=Array.from({length:this.classRequestsTotal},(_,i)=>
+      this.students.indexOf(attending[(offset+i)%attending.length]));
+    const taskSets=[
+      ['Check jab','Hold pads','Fix guard','Show footwork','Count punches','Fix stance'],
+      ['Hold Thai pads','Check kicks','Adjust guard','Show clinch','Correct knees','Check balance'],
+      ['Check grip','Show escape','Correct hip turn','Fix base','Drill takedown','Check posture'],
+      ['Check breathing','Count reps','Fix squat','Lead warmup','Check pacing','Water break']
+    ];
+    this.pendingRequests.forEach((id,i)=>{
+      this.tasks[id]=taskSets[index][(i+this.saveData.day)%6];
+    });
+    // Classes remain in the same hub. Students train rather than stand frozen.
+    attending.forEach((student,i)=>{
+      student.routine=this.idleRoutine(student,this.seconds+1,
+        index===2?(i%2?'stretch':'lift'):index===3?(i%2?'stretch':'shadow'):'shadow');
+    });
+    this.modeLabel.setText('TEACHING');
+    const b=trainingBounds(this.gymLevel());
+    this.classOverlay.clear().lineStyle(2,0xe8bd6c,0.85)
+      .strokeRect(b.left-3,b.top-3,b.right-b.left+6,b.bottom-b.top+6);
+    this.spawnRequest();this.updateIndicators();
+    this.say(CLASS_PROGRAMS[index].name+
+      ' class started. Tap students marked ! or move to them. Coach for 36 seconds.');
+    this.timer.setText('CLASS STARTED');
   }
   private spawnRequest():void {
     const index=this.pendingRequests.shift();
-    if(index===undefined) return;
-    this.requests.push(index);
-    this.requestAge[index]=0;
+    if(index===undefined)return;
+    this.requests.push(index);this.requestAge[index]=0;
     this.updateIndicators();
-    this.say(this.students[index].name+' needs '+this.tasks[index].toLowerCase()+' help!');
+    this.showSpeech(this.students[index],'Coach, help!',1150);
+    this.say(this.students[index].name+' needs '+this.tasks[index].toLowerCase()+'.');
   }
   private finishClass():void {
-    if(!this.running) return;
-    this.running=false;
-    this.modeLabel.setText('GYM HUB');
-    this.classOverlay.clear();
-    this.updateIndicators();
-    this.saveData.completed=true;
-    const gearBonus=(this.saveData.equipment||0)*5;
-    const classBonus=(this.saveData.classType||0)*4;
-    const reward=20+classBonus+this.classHelped*5+this.friendshipBonus+this.quickBonus+gearBonus;
-    this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
-    this.saveData.money+=reward;
-    this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+reward;
-    const oldRep=this.saveData.reputation;
-    this.saveData.reputation+=1+this.classHelped;
-    this.persist();
-    this.refresh();
-    this.timer.setText('CLASS COMPLETE');
-    const rating=this.classHelped===3?'Excellent':this.classHelped===2?'Good':this.classHelped===1?'Fair':'Needs practice';
-    const unlock=oldRep<5&&this.saveData.reputation>=5?' MUAY THAI UNLOCKED!':oldRep<15&&this.saveData.reputation>=15?' CONDITIONING UNLOCKED!':'';
-    this.say(rating+'! '+this.classHelped+'/3 helped | Earned $'+reward+' (speed $'+this.quickBonus+', gear $'+gearBonus+').'+unlock);
+    if(!this.running)return;
+    this.running=false;this.modeLabel.setText('GYM HUB');
+    this.clearIntent();this.classOverlay.clear();
+    const total=this.classRequestsTotal;
+    const quality=total>0?Math.min(1,
+      (this.classHelped+Math.min(this.quickBonus/4,1)*0.25)/total):0;
+    const previousMoney=this.saveData.money,previousRep=this.saveData.reputation;
+    const name=CLASS_PROGRAMS[this.classIndex].name;
+    this.simulateClass(this.classIndex,quality,false);
+    this.requests=[];this.pendingRequests=[];this.updateIndicators();
+    this.timer.setText('');
+    const earned=this.saveData.money-previousMoney,rep=this.saveData.reputation-previousRep;
+    const rating=quality>=0.85?'EXCELLENT':quality>=0.6?'GOOD':quality>=0.35?'FAIR':'NEEDS WORK';
+    this.menuShell('CLASS COMPLETE',name.toUpperCase()+'  /  '+rating);
+    const lines=[
+      'Students helped: '+this.classHelped+' / '+total+
+        '     Missed: '+this.classMissed,
+      'Class earnings: $'+earned+'     Reputation: +'+rep,
+      'Student XP and equipment bonuses have been applied.',
+      (this.saveData.classesToday||0)<2?
+        'Your afternoon class is ready to teach.':'Both classes finished for today.'
+    ];
+    lines.forEach((text,i)=>this.furniturePanel.add(this.add.text(87,78+i*27,text,{
+      fontFamily:UI_FONT,fontSize:'11px',color:i===1?'#c3eab5':'#f0e7d3',
+      wordWrap:{width:305}
+    })));
+    this.panelButton(this.furniturePanel,'CLASS SCHEDULE',85,189,148,28,
+      ()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2,0x39735f);
+    this.panelButton(this.furniturePanel,'RETURN TO GYM',245,189,148,28,
+      ()=>this.closePanel(),false,0x39735f);
   }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
@@ -1460,11 +1495,11 @@ class GymScene extends Phaser.Scene {
       if(this.time.now>=this.speechUntil[index])this.hideSpeech(student);
       else bubble.setPosition(student.x,student.y-48);
     }
-    const paused=this.running||this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
+    const paused=this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
     for(const station of this.stations)station.fixture?.setX(0);
     for(const [i,student] of this.activeStudents().entries()){
       const actor=student.actor!;
-      if(paused){actor.animate('idle',dt);continue;}
+      if(paused||this.running){actor.animate(this.running?(student.routine?.pose||'shadow'):'idle',dt);continue;}
       student.chatCooldown-=dt;
       let routine=student.routine!;
       if(routine.station&&!this.stations.includes(routine.station))routine=this.idleRoutine(student,0.3+i*0.2);
@@ -1567,20 +1602,29 @@ class GymScene extends Phaser.Scene {
     this.updateStudentLife(dt);
     this.updatePlacementPreview();
     if(this.running) {
-      const dt=Math.min(delta,100)/1000;
-      this.seconds-=dt;
-      for(const index of this.requests) this.requestAge[index]+=dt;
-      this.students.forEach((student,index)=>{
-        if(!student.indicator || !this.requests.includes(index)) return;
-        const remaining=Math.max(0,Math.ceil(7-(this.requestAge[index] ?? 0)));
-        student.indicator.setText('! '+this.tasks[index]+(remaining>0?' +$2 '+remaining+'s':''));
-        student.indicator.setBackgroundColor(remaining>0?'#a53d34':'#555b5d');
-      });
-      if(this.pendingRequests.length && 50-this.seconds>=this.nextRequestAt) {
-        this.spawnRequest(); this.nextRequestAt+=5;
+      const classDelta=Math.min(delta,100)/1000;
+      this.seconds-=classDelta;
+      for(const index of [...this.requests]){
+        this.requestAge[index]+=classDelta;
+        if(this.requestAge[index]>11){
+          this.requests.splice(this.requests.indexOf(index),1);
+          this.classMissed++;this.updateIndicators();
+          this.showSpeech(this.students[index],'Maybe next time',850);
+        }
       }
-      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s | '+this.requests.length+' active | '+this.pendingRequests.length+' upcoming');
-      if(this.seconds<=0) this.finishClass();
+      this.students.forEach((student,index)=>{
+        if(!student.indicator||!this.requests.includes(index))return;
+        const remaining=Math.max(0,Math.ceil(11-(this.requestAge[index]??0)));
+        student.indicator.setText('! '+this.tasks[index]+' '+remaining+'s');
+        student.indicator.setBackgroundColor(remaining>5?'#a53d34':'#914f44');
+      });
+      if(this.pendingRequests.length&&36-this.seconds>=this.nextRequestAt){
+        this.spawnRequest();this.nextRequestAt+=4.5;
+      }
+      this.timer.setText('CLASS '+Math.ceil(this.seconds)+'s  HELPED '+this.classHelped+
+        '/'+this.classRequestsTotal+'  OPEN '+this.requests.length);
+      if(this.seconds<=0||(!this.pendingRequests.length&&!this.requests.length))
+        this.finishClass();
     }
     if(this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)this.coach.animate('idle',dt);
     else this.moveCoach(dt);
@@ -1632,7 +1676,6 @@ function awardArcade(cash:number,rep:number,completeClass:boolean):void {
 type TrainingMode='Rush'|'Rhythm'|'Memory'|'Defense'|'Competition'|'Conditioning';
 type TrainingDifficulty='easy'|'normal'|'hard';
 const TRAINING_OPTIONS:{mode:TrainingMode;label:string;summary:string}[]=[
-  {mode:'Rush',label:'CLASS RUSH',summary:'Help students on the mat'},
   {mode:'Rhythm',label:'PAD WORK',summary:'Strike on the beat'},
   {mode:'Memory',label:'BAG WORK',summary:'Repeat the combination'},
   {mode:'Defense',label:'DEFENSE',summary:'React to incoming strikes'},
