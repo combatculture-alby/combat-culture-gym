@@ -10,7 +10,7 @@ import {
   discountRecruitment,availablePhoneCalls
 } from './facilityOps';
 import {DAILY_HELP_LIMIT,DAILY_CLEAN_TARGET,DAILY_SHIFT_CASH,DAILY_SHIFT_REP,
-  DAILY_GEAR_DRILLS,GEAR_WORKING_THRESHOLD,GEAR_WEAR_PER_CLASS,
+  DAILY_GEAR_DRILLS,GEAR_WEAR_PER_CLASS,
   GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftReady,workingGear,
   wornCondition,servicedCondition} from './hubActivities';
 import {SeminarScene} from './seminarScene';
