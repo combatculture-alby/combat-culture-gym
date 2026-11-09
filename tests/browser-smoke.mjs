@@ -460,7 +460,8 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       return {phase:s.dayPhase(),arrived:s.saveData.arrivedCount,
         water:s.saveData.waterLevel,mat:s.saveData.matCleanliness,
-        paper:s.saveData.paperLevel};
+        paper:s.saveData.paperLevel,
+        remainingTrash:s.saveData.trashSpawnedToday-s.saveData.gatheredToday.length};
     });
     assert.equal(closed.phase,'closing');
     assert.equal(closed.arrived,0);
@@ -482,7 +483,7 @@ try{
     assert.equal(tomorrow.paper,closed.paper,'Unrestocked toilet paper persists');
     assert.equal(tomorrow.stock,2,'Only ordered supplies arrive the next day');
     assert.equal(tomorrow.deliveries,0);
-    assert.equal(tomorrow.trash,9,'Class mess and uncleared litter carry forward');
+    assert.equal(tomorrow.trash,closed.remainingTrash,'Every uncollected pile carries forward, including any that spawned during gym hours');
     assert.equal(tomorrow.cleaned,0);
     assert.ok(tomorrow.condition<=15,'Broken equipment stays broken overnight');
     assert.ok(tomorrow.mat<100,'Unmopped mat remains dirty');
