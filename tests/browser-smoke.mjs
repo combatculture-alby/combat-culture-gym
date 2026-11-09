@@ -438,7 +438,7 @@ try{
     await page.screenshot({path:output+'/gym-opening-two-students.png'});
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
-      s.simulateClass(0);
+      s.simulateClass(0,0.5,false); // No schedule panel blocks the Close Gym HUD.
     });
     assert.equal((await sceneState(page)).classesToday,1);
     await clickGame(page,413,241); // Close Gym.
