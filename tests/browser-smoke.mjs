@@ -675,11 +675,12 @@ try{
     const started=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
       return {shift:scene.cleaningShift,menu:scene.furniturePanel.visible,
-        target:scene.pickupTarget,steps:scene.route.length};
+        target:scene.pickupTarget,cleaning:scene.cleaningAt,steps:scene.route.length};
     });
     assert.equal(started.menu,false);
     assert.equal(started.shift,true);
-    assert.ok(started.target||started.steps>0,'Cleanup button should move the coach');
+    assert.ok(started.target||started.cleaning||started.steps>0,
+      'Cleanup should walk to a pile or visibly pick up nearby trash');
     const result=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       for(let i=0;i<480;i++){
