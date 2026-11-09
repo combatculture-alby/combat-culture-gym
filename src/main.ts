@@ -25,9 +25,10 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
+const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=2,TRASH_INTERVAL=35;
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
 const DECOR_MATERIALS=[[0,2,2],[1,3,1],[0,3,1]];
 const FURNITURE_MATERIALS=[[1,1,1],[0,3,1],[2,2,0],[2,1,1],[1,1,2]];
@@ -51,7 +52,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -75,6 +76,12 @@ function loadSave(): Save {
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
+      trashSpawnedToday:Math.max(INITIAL_DAILY_TRASH,
+        Math.min(MAX_DAILY_TRASH,Math.max(
+          Number.isInteger(s.trashSpawnedToday)?Number(s.trashSpawnedToday):INITIAL_DAILY_TRASH,
+          Array.isArray(s.gatheredToday)?
+            s.gatheredToday.reduce((max,i)=>Number.isInteger(i)?Math.max(max,i+1):max,0):0
+        ))),
       seminarLastDay:Number.isInteger(s.seminarLastDay)&&Number(s.seminarLastDay)>0?s.seminarLastDay:undefined,
       seminarPending:s.seminarPending&&Number.isInteger(s.seminarPending.coachId)&&
         s.seminarPending.coachId>=0&&s.seminarPending.coachId<SEMINAR_COACHES.length&&
@@ -121,6 +128,7 @@ class GymScene extends Phaser.Scene {
   private buildPage=0;
   private stationTarget:'board'|'desk'|null=null;
   private pickupTarget:Point|null=null;
+  private trashClock=0;
   private studentCard!: Phaser.GameObjects.Text;
   private cardTimer?:Phaser.Time.TimerEvent;
   private rosterPanel!: Phaser.GameObjects.Container;
@@ -182,6 +190,7 @@ class GymScene extends Phaser.Scene {
     this.worldFixtures=[];
     this.gatheringNodes=[];
     this.gatheringPositions=dailySupplyPositions(this.gymLevel());
+    this.trashClock=0;
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
     }));
@@ -530,7 +539,10 @@ class GymScene extends Phaser.Scene {
     this.status.setText('LV '+this.gymLevel()+'  DAY '+this.saveData.day+'   $'+this.saveData.money+'   REP '+this.saveData.reputation);
     this.drawEquipment();
     this.drawGatheringNodes();
-    this.dailyStatus.setText('CLASSES '+(this.saveData.classesToday||0)+'/2  SUPPLIES '+(this.saveData.gatheredToday?.length||0)+'/12');
+    const visibleTrash=(this.saveData.trashSpawnedToday||INITIAL_DAILY_TRASH)-
+      (this.saveData.gatheredToday?.length||0);
+    this.dailyStatus.setText('CLASSES '+(this.saveData.classesToday||0)+
+      '/2  TRASH '+Math.max(0,visibleTrash));
   }
   private drawEquipment():void {
     this.footprints=this.solidFootprints();
@@ -930,10 +942,14 @@ class GymScene extends Phaser.Scene {
   }
   private openMaterials():void {
     const collected=this.saveData.gatheredToday?.length||0;
-    this.menuShell('MATERIALS & CRAFT',collected+'/12 pickups collected today',()=>this.openGymUpgrades());
+    const available=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)-collected;
+    this.menuShell('MATERIALS & CRAFT',Math.max(0,available)+' TRASH TO CLEAN  /  '+collected+' CLEANED TODAY',()=>this.openGymUpgrades());
     const stock=this.saveData.materials||[0,0,0];
     this.furniturePanel.add(this.add.text(84,75,MATERIAL_NAMES.map((name,i)=>name+': '+(stock[i]||0)).join('    '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
-    this.furniturePanel.add(this.add.text(84,94,collected>=12?'All pickups collected. New materials appear tomorrow.':'Tap scattered material piles in the gym to collect them.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b9d6c8',wordWrap:{width:310}}));
+    this.furniturePanel.add(this.add.text(84,94,
+      available>0?'Tap trash on the gym floor to clean up and recover materials.':
+      'Gym is clean! More litter appears as students train.',{
+        fontFamily:UI_FONT,fontSize:'9px',color:'#b9d6c8',wordWrap:{width:310}}));
     const recipes=[{name:'Gym Supplies',cost:[3,1,0],reward:25},{name:'Salvage Bundle',cost:[2,2,2],reward:60}];
     recipes.forEach((recipe,i)=>{
       const canCraft=recipe.cost.every((amount,j)=>stock[j]>=amount);
@@ -948,17 +964,27 @@ class GymScene extends Phaser.Scene {
         this.say('Crafted '+recipe.name+' and earned $'+recipe.reward+'.');
       },!canCraft,0x39735f,cost);
     });
-    this.panelButton(this.furniturePanel,collected===12?'ALL SUPPLIES COLLECTED':'FIND NEXT SUPPLY PILE',168,211,225,27,()=>this.collectNextSupply(),collected===12,0x39735f);
+    this.panelButton(this.furniturePanel,available>0?'CLEAN NEXT MESS':'GYM FLOOR IS CLEAN',168,211,225,27,()=>this.collectNextSupply(),available<=0,0x39735f);
     this.furniturePanel.setVisible(true);
   }
-  // Deterministic daily material locations. No real-time timers or mandatory cleanup.
+  // Gym mess accumulates during play and after teaching. Cleaning returns
+  // crafting materials; spots cannot be harvested repeatedly or respawned on reload.
   private gatheringPositions:Point[]=[];
+  private spawnTrash(count=1):void {
+    const before=this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH;
+    const next=Math.min(MAX_DAILY_TRASH,before+Math.max(0,Math.floor(count)));
+    if(next===before)return;
+    this.saveData.trashSpawnedToday=next;
+    this.persist();this.refresh();
+    this.say('The gym needs cleaning. Pick up trash to salvage materials.');
+  }
   private resourceKind(index:number):number {return (index+this.saveData.day)%3;}
   private resourceYield(index:number):number {return (index+this.saveData.day)%5===0?2:1;}
   private drawGatheringNodes():void {
     this.gatheringNodes.forEach(node=>node.destroy());this.gatheringNodes=[];
     this.gatheringPositions.forEach((pos,i)=>{
-      if(this.saveData.gatheredToday?.includes(i))return;
+      if(i>=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)||
+        this.saveData.gatheredToday?.includes(i))return;
       const g=this.add.graphics();
       g.fillStyle(0x263e3c,0.4).fillEllipse(0,3,15,5);
       const material=this.resourceKind(i);
@@ -979,14 +1005,14 @@ class GymScene extends Phaser.Scene {
   }
   private collectNextSupply():void {
     this.furniturePanel.setVisible(false);
-    const remaining=this.gatheringPositions.filter((_,i)=>!this.saveData.gatheredToday?.includes(i));
-    if(!remaining.length){this.say('All supplies collected today. Start a new day.');return;}
+    const remaining=this.gatheringPositions.filter((_,i)=>i<(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)&&!this.saveData.gatheredToday?.includes(i));
+    if(!remaining.length){this.say('No trash to clean right now. More accumulates while the gym is open.');return;}
     remaining.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
     this.collectNodeAt(remaining[0].x,remaining[0].y);
   }
   private collectNodeAt(x:number,y:number):boolean {
     const i=this.gatheringPositions.findIndex((p,index)=>!this.saveData.gatheredToday?.includes(index)&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<13);
-    if(i<0)return false;
+    if(i<0||i>=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)||this.running)return false;
     if(distance(this.player,this.gatheringPositions[i])>55){
       this.clearIntent();
       const pile=this.gatheringPositions[i];
@@ -1011,11 +1037,11 @@ class GymScene extends Phaser.Scene {
     const kind=this.resourceKind(i),amount=this.resourceYield(i);
     this.saveData.materials[kind]+=amount;this.saveData.gatheredToday.push(i);
     this.persist();this.refresh();this.showFeedback('+'+amount+' '+MATERIAL_NAMES[kind]);
-    this.say('Collected '+amount+' '+MATERIAL_NAMES[kind]+'. Save materials for equipment, furniture and decor.');
+    this.say('Cleaned up trash! Salvaged '+amount+' '+MATERIAL_NAMES[kind]+'.');
     return true;
   }
   private collectNearby():boolean {
-    const p=this.gatheringPositions.find((p,i)=>!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
+    const p=this.gatheringPositions.find((p,i)=>i<(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)&&!this.saveData.gatheredToday?.includes(i)&&Phaser.Math.Distance.Between(this.player.x,this.player.y,p.x,p.y)<24);
     return p?this.collectNodeAt(p.x,p.y):false;
   }
   private selectedSlot=0;
@@ -1090,6 +1116,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
     this.selectedSlot=Math.min(this.saveData.classesToday,1);
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
+    this.spawnTrash(2); // Training generates litter even if the player is fast.
     const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
     const earnings=Math.round(base*(0.7+performance*0.6));
@@ -1514,9 +1541,11 @@ class GymScene extends Phaser.Scene {
     this.students.forEach((student,i)=>{student.routine=this.idleRoutine(student,0.5+i);student.chatCooldown=10+i*4;});
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
+    this.saveData.trashSpawnedToday=INITIAL_DAILY_TRASH;
+    this.trashClock=0;
     this.saveData.completed=false;
     this.persist();
-    this.scene.restart({notice:'New day! Supplies have respawned and a new group of students is attending.'});
+    this.scene.restart({notice:'New day! The floor starts with a little litter; more appears as students train.'});
   }
   // The same solid-object footprints drive movement, routing and placement.
   // Feet are the character's anchor; leave room for the sprite around each fixture.
@@ -1806,6 +1835,13 @@ class GymScene extends Phaser.Scene {
     const dt=Math.min(delta,50)/1000;
     this.updateStudentLife(dt);
     this.updatePlacementPreview();
+    if(!this.isPlacing()&&!this.buildMode&&!this.furniturePanel.visible&&
+      !this.rosterPanel.visible&&this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH){
+      this.trashClock+=dt;
+      if(this.trashClock>=TRASH_INTERVAL){
+        this.trashClock=0;this.spawnTrash(1);
+      }
+    }
     if(this.running) {
       const classDelta=Math.min(delta,100)/1000;
       this.seconds-=classDelta;
