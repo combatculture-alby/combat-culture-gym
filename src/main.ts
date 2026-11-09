@@ -399,6 +399,74 @@ class GymScene extends Phaser.Scene {
     if(board)this.openTrainingBoard();else this.openGymUpgrades();
     return true;
   }
+  private servicePosition(type:'phone'|'water'|'stock'|'mop'):Point {
+    const positions={phone:{x:353,y:128},water:{x:353,y:155},
+      stock:{x:353,y:182},mop:{x:353,y:209}};
+    return positions[type];
+  }
+  private drawServiceHotspots():void {
+    for(const type of ['phone','water','stock','mop'] as const){
+      const {x,y}=this.servicePosition(type);
+      const bg=this.add.rectangle(x,y,48,23,0x30535a).setStrokeStyle(1,0xb9ae7b)
+        .setInteractive({useHandCursor:true}).setDepth(13);
+      const label=this.add.text(x,y,type.toUpperCase(),{
+        fontFamily:UI_FONT,fontSize:'9px',fontStyle:'bold',color:'#f1e5bd'
+      }).setOrigin(.5).setDepth(14);
+      bg.on('pointerover',()=>bg.setAlpha(.8));
+      bg.on('pointerout',()=>bg.setAlpha(1));
+      bg.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+          event:Phaser.Types.Input.EventData)=>{
+        event.stopPropagation();
+        if(this.furniturePanel.visible||this.rosterPanel.visible||this.running||
+          this.isPlacing()||this.buildMode)return;
+        this.useService(type);
+      });
+      this.serviceHotspots.push({type,frame:bg,label});
+    }
+  }
+  private refreshServiceHotspots():void {
+    for(const {type,frame,label} of this.serviceHotspots){
+      const supply=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
+      const ringing=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
+        this.saveData.phoneCallsAnswered??0)>0;
+      const urgent=type==='phone'?ringing:type==='water'?
+        (this.saveData.waterLevel??55)<35||supply[1]===0||supply[2]===0:
+        type==='stock'?supply.some((n,i)=>n<(i===0?1:2)):
+        (this.saveData.matCleanliness??70)<50&&!this.saveData.mopDoneToday;
+      const done=type==='mop'&&this.saveData.mopDoneToday===true;
+      frame.setFillStyle(done?0x374749:urgent?0x805139:0x30565a);
+      frame.setStrokeStyle(1,urgent?0xf1bf74:0x8ca9a0);
+      label.setText(type.toUpperCase()+(urgent?' !':done?' ✓':''));
+    }
+  }
+  private useService(type:'phone'|'water'|'stock'|'mop'):boolean {
+    if(this.running||this.isPlacing()||this.buildMode)return false;
+    this.clearIntent();
+    const point=this.servicePosition(type);
+    if(distance(this.player,point)<55){
+      this.openService(type);return true;
+    }
+    const candidates=[{x:point.x-37,y:point.y},
+      {x:point.x+34,y:point.y},{x:point.x-22,y:point.y+17},
+      {x:point.x-22,y:point.y-17}]
+      .filter(p=>this.canStand(p.x,p.y));
+    candidates.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+    for(const goal of candidates){
+      const route=this.playerRoute(goal,true);
+      if(route.length){
+        this.route=route;this.serviceTarget=type;
+        this.say('Walking to '+type+' station.');return true;
+      }
+    }
+    this.say('The '+type+' station is blocked. Clear the nearby space.');return true;
+  }
+  private openService(type:'phone'|'water'|'stock'|'mop'):void {
+    this.serviceTarget=null;
+    if(type==='phone')this.openPhone();
+    if(type==='water')this.openWaterStation();
+    if(type==='stock')this.openSupplyOrders();
+    if(type==='mop')this.openMopStation();
+  }
   private useNearbyStation():boolean {
     const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,deskApproach.x,deskApproach.y)<43){this.openGymUpgrades();return true;}
@@ -406,7 +474,9 @@ class GymScene extends Phaser.Scene {
     return false;
   }
   private menuShell(title:string,subtitle:string,back?:()=>void,p=this.furniturePanel):void {
-    this.cleaningShift=false;this.cleaningAt=null;this.clearIntent();
+    this.cleaningShift=false;this.cleaningAt=null;
+    if(this.mopActive){this.mopActive=false;this.clearMopMarks();}
+    this.clearIntent();
     p.removeAll(true);
     p.add(this.add.rectangle(0,23,480,203,0x10252a,.56).setOrigin(0));
     p.add(this.add.rectangle(67,24,346,222,0x152b30).setOrigin(0).setStrokeStyle(2,0xc7a579));
@@ -2053,6 +2123,10 @@ class GymScene extends Phaser.Scene {
     this.coach.animate(distance(from,next)>0.01?'walk':'idle',dt);
     if(!manual&&step===length){
       this.route.shift();
+      if(!this.route.length&&this.serviceTarget){
+        const type=this.serviceTarget;
+        this.clearIntent();this.openService(type);
+      }
       if(!this.route.length&&this.stationTarget){
         const station=this.stationTarget;
         this.clearIntent();
