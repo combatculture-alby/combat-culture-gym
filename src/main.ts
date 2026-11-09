@@ -125,7 +125,9 @@ class GymScene extends Phaser.Scene {
   private timer!: Phaser.GameObjects.Text;
   private students:Student[]=[];
   private activeStudents():Student[] {
-    return this.students.slice(0,activeStudentCount(this.students.length,this.gymLevel()));
+    const count=activeStudentCount(this.students.length,this.gymLevel());
+    const start=(this.saveData.day-1)*count%Math.max(1,this.students.length);
+    return Array.from({length:count},(_,i)=>this.students[(start+i)%this.students.length]);
   }
   private rosterPage=0;
   private goalsPage=0;
@@ -158,9 +160,12 @@ class GymScene extends Phaser.Scene {
     this.modeLabel=this.add.text(12,11,PLAYTEST?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
     this.coach=new GymCharacter(this,170,150,0);
     this.player=this.coach.body;
+    const attending=this.activeStudents();
     this.students.forEach((student,i)=>{
-      Object.assign(student,STUDENT_HOMES[i%STUDENT_HOMES.length],{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
-      if(i>=activeStudentCount(this.students.length,this.gymLevel()))return;
+      Object.assign(student,{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
+      const floorIndex=attending.indexOf(student);
+      if(floorIndex<0)return;
+      Object.assign(student,STUDENT_HOMES[floorIndex]);
       student.actor=new GymCharacter(this,student.x,student.y,1+(i%4));
       student.routine=this.idleRoutine(student,1+i);
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
@@ -1042,7 +1047,7 @@ class GymScene extends Phaser.Scene {
     this.tweens.add({targets:this.feedback,alpha:0,duration:900,delay:550,onComplete:()=>this.feedback.setVisible(false)});
   }
   private interact(target?:Student):void {
-    const nearest=target??[...this.students].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
+    const nearest=target??[...this.activeStudents()].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     nearest.routine=this.idleRoutine(nearest,3,'talk');
@@ -1147,9 +1152,8 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
     this.saveData.completed=false;
-    this.say('New day! Twelve material pickups have respawned. Gather whenever you like.');
-    this.persist(); this.refresh();
-    this.timer.setText('');
+    this.persist();
+    this.scene.restart({notice:'New day! Supplies have respawned and a new group of students is attending.'});
   }
   // The same solid-object footprints drive movement, routing and placement.
   // Feet are the character's anchor; leave room for the sprite around each fixture.
