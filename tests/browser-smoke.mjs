@@ -664,7 +664,7 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       return {spawned:s.saveData.trashSpawnedToday,cleaned:s.saveData.gatheredToday.length};
     });
-    assert.deepEqual(after,{spawned:4,cleaned:0},'New day resets daily litter and cleanup');
+    assert.deepEqual(after,{spawned:8,cleaned:0},'Uncollected litter carries into the following day');
   });
 
   await openScenario('cleanup-shift-walks-between-messes',sampleSave({
@@ -1360,7 +1360,16 @@ try{
     }
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===3);
-    assert.equal((await sceneState(page)).activeNames[0],'Ash','The daily shift must rotate NPC attendance');
+    assert.equal((await sceneState(page)).activeNames.length,0,
+      'Following day begins with an empty room before opening');
+    await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      scene.advanceGymPhase();
+      scene.arrivalsClock=4;
+      scene.updateArrivals(0.1);
+    });
+    assert.equal((await sceneState(page)).activeNames[0],'Ash',
+      'Next day's attending group arrives after opening');
   });
 
   // Real mobile touch input, not a mouse click masquerading as a tap.
