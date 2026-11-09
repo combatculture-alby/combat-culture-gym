@@ -59,6 +59,7 @@ jobs:
         run: |
           mkdir -p dist/test
           cp -R test-source/dist/. dist/test/
+      # Garage preview is rebuilt from the feature branch, including dialogue lifetime fixes.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
