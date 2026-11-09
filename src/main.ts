@@ -395,11 +395,12 @@ class GymScene extends Phaser.Scene {
       fontFamily:UI_FONT,fontSize:'10px',color:i===2?'#f5d49b':'#e3e9d9'
     })));
     const button=(label:string,x:number,y:number,fn:()=>void,disabled=false)=>
-      this.panelButton(this.furniturePanel,label,x,y,149,29,fn,disabled,0x39735f);
-    button('TEACH NEXT CLASS',84,166,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
-    button('FIND SUPPLIES',245,166,()=>this.collectNextSupply(),collected>=12);
-    button('EXPAND GYM',84,201,()=>this.openExpansion(),!next);
-    button('NEXT DAY',245,201,()=>{this.furniturePanel.setVisible(false);this.nextDay();});
+      this.panelButton(this.furniturePanel,label,x,y,149,24,fn,disabled,0x39735f);
+    // Keep the second row above menuShell's Back button (y=218).
+    button('TEACH NEXT CLASS',84,158,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
+    button('FIND SUPPLIES',245,158,()=>this.collectNextSupply(),collected>=12);
+    button('EXPAND GYM',84,188,()=>this.openExpansion(),!next);
+    button('NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.nextDay();});
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void,primary=false):Phaser.GameObjects.Container {
     const bg=this.add.rectangle(0,0,w,h,primary?0x426c62:0x294f52).setOrigin(0).setStrokeStyle(1,primary?0xe2c285:0x77958c).setInteractive({useHandCursor:true});
