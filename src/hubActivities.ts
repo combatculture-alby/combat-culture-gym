@@ -15,10 +15,14 @@ export function dailyHelpStudents(attending:number[],day:number):number[] {
   const start=(Math.max(1,Math.floor(day)||1)-1)%attending.length;
   return Array.from({length:count},(_,i)=>attending[(start+i)%attending.length]);
 }
+export function dailyShiftHelpTarget(attending:number):number {
+  return Math.min(DAILY_HELP_LIMIT,Math.max(0,Math.floor(attending)));
+}
 export function dailyShiftReady(
-  coached:number,cleaned:number,classes:number,claimed=false
+  coached:number,cleaned:number,classes:number,claimed=false,attending=DAILY_HELP_LIMIT
 ):boolean {
-  return !claimed&&coached>=DAILY_HELP_LIMIT&&
+  const target=dailyShiftHelpTarget(attending);
+  return target>0&&!claimed&&coached>=target&&
     cleaned>=DAILY_CLEAN_TARGET&&classes>=1;
 }
 export function workingGear(
