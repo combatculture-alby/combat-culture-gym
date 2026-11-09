@@ -2261,11 +2261,28 @@ class GymScene extends Phaser.Scene {
     if(phase==='open'){
       const next=this.todaysStudents()[present.length];
       if(!next)return;
-      next.actor?.body.setVisible(true);
-      next.routine=this.idleRoutine(next,1,'walk');
+      const home={x:next.x,y:next.y};
+      const {room,deskApproach}=gymServiceLayout(this.gymLevel());
+      const entrances=[
+        {x:deskApproach.x-24,y:deskApproach.y-4},
+        {x:deskApproach.x-45,y:deskApproach.y-12},
+        {x:room.right-114,y:room.bottom-24},
+        {x:room.left+30,y:room.bottom-20}
+      ];
       this.saveData.arrivedCount=present.length+1;
+      for(const entry of entrances){
+        const open=(x:number,y:number)=>this.studentSpace(next,x,y);
+        if(!this.canStand(entry.x,entry.y)||!open(entry.x,entry.y))continue;
+        const route=this.navigation.route(entry,home,open,true);
+        if(!route.length)continue;
+        Object.assign(next,entry);
+        next.actor?.place(entry.x,entry.y);
+        next.routine={pose:'idle',goal:home,route,remaining:1.5,elapsed:0};
+        break;
+      }
+      next.actor?.body.setVisible(true);
       this.showSpeech(next,'Hi, coach!',1250);
-      this.say(next.name+' arrived.');
+      this.say(next.name+' arrived for training.');
     }else{
       const leaving=present[present.length-1];
       this.hideSpeech(leaving);
