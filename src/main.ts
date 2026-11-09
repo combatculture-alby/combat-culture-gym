@@ -46,16 +46,9 @@ const walkable = (x:number,y:number,level:number):boolean => {
 };
 const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1] };
 function newSave():Save {
-  const save=JSON.parse(JSON.stringify(defaults)) as Save;
-  if(PLAYTEST){
-    Object.assign(save,{money:280,reputation:5,materials:[8,8,8],
-      ownedGear:[true,false,false,false,false,true,false,false],
-      gearPositions:[{x:78,y:121},{x:122,y:80},{x:179,y:80},{x:236,y:80},
-        {x:65,y:180},{x:261,y:137},{x:179,y:180},{x:236,y:180}],
-      furniture:[{kind:1,x:110,y:171,rotation:0,stored:false}]
-    });
-  }
-  return save;
+  // A new player now starts in a genuine empty garage, including in previews.
+  // Existing saves are read unchanged by loadSave().
+  return JSON.parse(JSON.stringify(defaults)) as Save;
 }
 function loadSave(): Save {
   try {
@@ -197,7 +190,7 @@ class GymScene extends Phaser.Scene {
     this.studentCard=this.add.text(12,25,'',{fontFamily:UI_FONT,fontSize:'11px',color:'#ffffff',backgroundColor:'#253e43',padding:{x:5,y:3}}).setDepth(34).setVisible(false);
     this.add.rectangle(0,226,480,104,0x152b30).setOrigin(0).setDepth(29);
     this.add.rectangle(12,248,456,28,0x203b42).setOrigin(0).setStrokeStyle(1,0x45635f).setDepth(29);
-    this.message=this.add.text(21,250,'Welcome to the gym. Tap Train to run a class or play a drill.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
+    this.message=this.add.text(21,250,'Welcome! Teach classes to earn cash and reputation, then grow your gym.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
     this.timer=this.add.text(12,211,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(240,322,'Tap the floor to walk. Tap a student to talk.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
@@ -652,6 +645,25 @@ class GymScene extends Phaser.Scene {
       ['NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
+    this.panelButton(this.furniturePanel,'START A NEW GYM (RESET SAVE)',84,216,310,25,
+      ()=>this.confirmNewGym(),false,0x564844);
+  }
+  private confirmNewGym():void {
+    this.menuShell('START OVER?','THIS WILL DELETE YOUR SAVED GARAGE PROGRESS.',
+      ()=>this.openGymUpgrades());
+    this.furniturePanel.add(this.add.text(84,91,
+      'Your day, students, money, equipment, and all unlocks will reset.\n' +
+      'Only the current game preview save is affected.',{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#f1cbb6',
+        wordWrap:{width:305},lineSpacing:7
+      }));
+    this.panelButton(this.furniturePanel,'CANCEL',84,185,149,30,
+      ()=>this.openGymUpgrades());
+    this.panelButton(this.furniturePanel,'ERASE + RESTART',245,185,149,30,()=>{
+      try {localStorage.removeItem(SAVE_KEY);}
+      catch {this.say('Unable to reset the save in this browser.');return;}
+      this.scene.restart({notice:'New garage started. Teach two classes each day to grow.'});
+    },false,0x87483f);
   }
   private addShopInventory(y:number):void {
     const stock=this.saveData.materials||[0,0,0];
