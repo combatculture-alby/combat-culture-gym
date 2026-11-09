@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -26,4 +26,18 @@ test('expansion is gated by money, reputation, classes and purchased gear',()=>{
   assert.equal(canExpandGym(5,999999,999,999,24),false);
   assert.equal(recruitmentCost(4),35);
   assert.equal(recruitmentCost(5),60);
+});
+
+test('attendance rotates across recruited students without exceeding floor space',()=>{
+  assert.deepEqual(attendingIndices(4,1,1),[0,1,2,3]);
+  assert.deepEqual(attendingIndices(6,2,1),[0,1,2,3,4]);
+  assert.deepEqual(attendingIndices(6,2,2),[5,0,1,2,3]);
+  const seen=new Set();
+  for(let day=1;day<=6;day++){
+    const group=attendingIndices(24,5,day);
+    assert.equal(group.length,8);
+    for(const student of group)seen.add(student);
+  }
+  assert.equal(seen.size,24);
+  assert.deepEqual(attendingIndices(0,1,1),[]);
 });
