@@ -537,39 +537,45 @@ class GymScene extends Phaser.Scene {
   }
   private openExpansion():void {
     const level=this.gymLevel();
-    const names=['Garage Gym','Neighborhood Gym','Fight Gym','Pro Facility','Combat Academy'];
-    const capacity=[4,6,10,16,24];
-    const costs=[0,400,1100,2600,6000];
-    const reps=[0,12,35,75,140];
-    const classes=[0,8,22,48,90];
-    const gear=[0,2,4,6,8];
-    this.menuShell('GYM EXPANSION','LEVEL '+level+' / 5   '+names[level-1],()=>this.openGymUpgrades());
-    this.furniturePanel.add(this.add.text(86,77,'CURRENT CAPACITY: '+capacity[level-1]+' STUDENTS',{fontFamily:UI_FONT,fontSize:'12px',color:'#fff0d3'}));
-    if(level===5){
+    const current=GYM_LEVELS[level-1],next=GYM_LEVELS[level];
+    this.menuShell('GYM EXPANSION','LEVEL '+level+' / 5   '+current.name,()=>this.openGymUpgrades());
+    this.furniturePanel.add(this.add.text(86,77,'STUDENTS '+this.students.length+' / '+current.capacity+'   ON FLOOR '+this.activeStudents().length,{fontFamily:UI_FONT,fontSize:'12px',color:'#fff0d3'}));
+    if(!next){
       this.furniturePanel.add(this.add.text(86,111,'MAX LEVEL: COMBAT ACADEMY',{fontFamily:UI_FONT,fontSize:'11px',color:'#a9dfbd'}));
       return;
     }
     const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
     const goals:[string,number,number][]=[
-      ['CASH',this.saveData.money,costs[level]],
-      ['REPUTATION',this.saveData.reputation,reps[level]],
-      ['CLASSES TAUGHT',this.saveData.classesTaught||0,classes[level]],
-      ['GEAR OWNED',owned,gear[level]]
+      ['CASH',this.saveData.money,next.cost],
+      ['REPUTATION',this.saveData.reputation,next.reputation],
+      ['CLASSES TAUGHT',this.saveData.classesTaught||0,next.classesTaught],
+      ['GEAR OWNED',owned,next.gearOwned]
     ];
-    this.furniturePanel.add(this.add.text(86,100,'NEXT: '+names[level]+'  /  '+capacity[level]+' STUDENTS',{fontFamily:UI_FONT,fontSize:'11px',color:'#f2d291'}));
-    goals.forEach(([label,current,required],i)=>{
-      this.furniturePanel.add(this.add.text(87,124+i*17,label+': '+current+' / '+required,{fontFamily:UI_FONT,fontSize:'10px',color:current>=required?'#a9dfbd':'#f1b4a6'}));
+    this.furniturePanel.add(this.add.text(86,100,'NEXT: '+next.name+'  /  '+next.capacity+' STUDENTS',{fontFamily:UI_FONT,fontSize:'11px',color:'#f2d291'}));
+    goals.forEach(([label,have,required],i)=>{
+      this.furniturePanel.add(this.add.text(87,124+i*17,label+': '+have+' / '+required,{fontFamily:UI_FONT,fontSize:'10px',color:have>=required?'#a9dfbd':'#f1b4a6'}));
     });
-    const ready=goals.every(([,current,required])=>current>=required);
+    const ready=canExpandGym(level,this.saveData.money,this.saveData.reputation,this.saveData.classesTaught||0,owned);
     this.panelButton(this.furniturePanel,ready?'EXPAND GYM':'LOCKED',229,201,167,31,()=>{
-      if(!ready)return;
-      this.saveData.money-=costs[level];
+      if(!canExpandGym(this.gymLevel(),this.saveData.money,this.saveData.reputation,
+        this.saveData.classesTaught||0,this.saveData.ownedGear?.filter(Boolean).length||0))return;
+      this.saveData.money-=next.cost;
       this.saveData.gymLevel=level+1;
       this.persist();
-      this.refresh();
-      this.openExpansion();
-      this.say('Expanded to '+names[level]+'!');
+      this.scene.restart({notice:'Expanded to '+next.name+'! Open Roster to recruit students.'});
     },!ready);
+  }
+  private recruitStudent():void {
+    const count=this.students.length;
+    const capacity=studentCapacity(this.gymLevel()),cost=recruitmentCost(count);
+    if(count>=capacity){this.say('Gym is at capacity. Expand before recruiting.');return;}
+    if(this.saveData.money<cost){this.say('Need $'+cost+' to recruit another student.');return;}
+    this.saveData.money-=cost;
+    this.saveData.enrolledStudents=count+1;
+    this.students.push({...STUDENT_HOMES[count%STUDENT_HOMES.length],
+      name:STUDENT_NAMES[count],friendship:0,skill:0,chatCooldown:12+count*5});
+    this.persist();
+    this.scene.restart({notice:STUDENT_NAMES[count]+' joined your gym! ('+(count+1)+'/'+capacity+')'});
   }
   private openGymUpgrades():void {
     if(this.running||this.isPlacing())return;
