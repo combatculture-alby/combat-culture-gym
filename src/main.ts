@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {SeminarScene} from './seminarScene';
+import {SEMINAR_COACHES,SEMINAR_STATS,seminarAvailable,seminarNextVisit,
+  seminarBook,type SeminarPending} from './seminars';
 import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   CLOTHING_SHOP,DEFAULT_COACH,normalizeCoachAppearance,normalizeCloset,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
@@ -22,7 +25,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -72,6 +75,11 @@ function loadSave(): Save {
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
+      seminarLastDay:Number.isInteger(s.seminarLastDay)&&Number(s.seminarLastDay)>0?s.seminarLastDay:undefined,
+      seminarPending:s.seminarPending&&Number.isInteger(s.seminarPending.coachId)&&
+        s.seminarPending.coachId>=0&&s.seminarPending.coachId<SEMINAR_COACHES.length&&
+        Number.isInteger(s.seminarPending.day)&&s.seminarPending.day>0?
+        {coachId:s.seminarPending.coachId,day:s.seminarPending.day}:undefined,
       friendships:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.friendships?.[i])||0))),
       skills:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.skills?.[i])||0))), equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:enrolled},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return newSave(); }
@@ -381,8 +389,81 @@ class GymScene extends Phaser.Scene {
       this.menuAction(label,84+(i%2)*161,106+Math.floor(i/2)*35,149,()=>this.openArcade(mode),done||drills>=2,
         done?'Completed today':drills>=2?'Daily limit reached':summary);
     });
+    this.menuAction('GUEST SEMINARS',245,176,149,()=>this.openSeminars(),false,
+      this.saveData.seminarPending?'Resume your booking':'Rotating guest coaches');
     this.panelButton(this.furniturePanel,'DAILY GYM PLAN  /  NO MINIGAMES NEEDED',
       84,211,310,28,()=>this.openDailyHubPlan(),false,0x39735f);
+  }
+  private openSeminars():void {
+    if(this.running||this.isPlacing())return;
+    this.clearIntent();
+    this.menuShell('GUEST SEMINARS','EXPENSIVE TRAINING EVENTS. COACH AVAILABILITY ROTATES DAILY.',
+      ()=>this.openTrainingBoard());
+    const pending=this.saveData.seminarPending;
+    const hostedToday=this.saveData.seminarLastDay===this.saveData.day;
+    SEMINAR_COACHES.forEach((coach,i)=>{
+      const available=seminarAvailable(this.saveData.day,i);
+      const next=seminarNextVisit(this.saveData.day,i);
+      const status=hostedToday?'Already hosted today':
+        pending?'Finish your paid seminar first':
+        !available?'Next visit in '+next+' day'+(next===1?'':'s'):
+        this.saveData.money<coach.fee?'Available / need $'+coach.fee:
+        'Available today!';
+      this.panelButton(this.furniturePanel,coach.name+' / '+coach.discipline+
+        '  $'+coach.fee,84,72+i*33,310,31,()=>this.previewSeminar(i),
+        !!pending||hostedToday||!available||this.saveData.money<coach.fee,
+        0x39735f,SEMINAR_STATS[coach.focus]+' + '+SEMINAR_STATS[coach.secondary]+'   |   '+status);
+    });
+    if(pending){
+      this.panelButton(this.furniturePanel,'RESUME PAID SEMINAR',169,216,224,27,
+        ()=>this.launchSeminar(pending.coachId),false,0x39735f);
+    }else{
+      this.furniturePanel.add(this.add.text(169,218,
+        hostedToday?'Already hosted a seminar today.':'$'+this.saveData.money+
+        ' available. Seminars do not use class slots.',{
+          fontFamily:UI_FONT,fontSize:'10px',color:'#d2ded1'
+        }));
+    }
+  }
+  private previewSeminar(coachId:number):void {
+    const coach=SEMINAR_COACHES[coachId];
+    if(!coach||this.running)return;
+    if(!seminarAvailable(this.saveData.day,coachId)||
+      this.saveData.seminarPending||
+      this.saveData.seminarLastDay===this.saveData.day||
+      this.saveData.money<coach.fee){
+      this.openSeminars();return;
+    }
+    this.menuShell('HOST '+coach.discipline.toUpperCase()+' SEMINAR',
+      coach.name+' is available today.',()=>this.openSeminars());
+    const details=[
+      coach.description,
+      'Specialty: '+SEMINAR_STATS[coach.focus]+
+        '   Bonus: '+SEMINAR_STATS[coach.secondary],
+      'Guest fee: $'+coach.fee+'      Your cash: $'+this.saveData.money,
+      'Three interactive lessons. Better answers give bigger XP.',
+      'All students attending today benefit from the seminar.'
+    ];
+    details.forEach((line,i)=>this.furniturePanel.add(this.add.text(86,83+i*22,line,{
+      fontFamily:UI_FONT,fontSize:'10px',color:i===2?'#f0c890':'#d9e8df',
+      wordWrap:{width:305}
+    })));
+    this.panelButton(this.furniturePanel,'BOOK SEMINAR / PAY $'+coach.fee,170,211,224,29,
+      ()=>this.bookSeminar(coachId),false,0x39735f);
+  }
+  private bookSeminar(coachId:number):void {
+    if(this.running||!seminarBook(this.saveData,coachId)){
+      this.openSeminars();return;
+    }
+    this.persist();this.refresh();
+    this.launchSeminar(coachId);
+  }
+  private launchSeminar(coachId:number):void {
+    if(this.running||this.saveData.seminarPending?.coachId!==coachId)return;
+    this.clearIntent();
+    this.furniturePanel.setVisible(false);
+    this.persist();
+    this.scene.start('Seminar',{coachId,saveKey:SAVE_KEY});
   }
   private openDailyHubPlan():void {
     const level=this.gymLevel(),next=GYM_LEVELS[level];
@@ -2379,6 +2460,6 @@ class ConditioningScene extends Phaser.Scene {
   }
 }
 
-const combatGym = new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
+const combatGym = new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,SeminarScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
 // Test-only visibility for headless browser QA. Production builds do not expose the game object.
 if(import.meta.env.DEV)(window as unknown as {__combatGym?:Phaser.Game}).__combatGym=combatGym;
