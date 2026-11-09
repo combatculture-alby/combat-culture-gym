@@ -113,7 +113,7 @@ export class SeminarScene extends Phaser.Scene {
     const stages=['DEMONSTRATION','GUIDED DRILLS','TECHNIQUE CORRECTIONS'];
     this.titleText.setText((this.phase+1)+'/3  '+stages[this.phase]);
     this.lessonText.setText(coach.lessons[this.phase]);
-    this.progressText.setText('SEMINAR IN PROGRESS  '+Math.round(this.phase/3*100)+'%');
+    this.progressText.setText('SCENE '+(this.phase+1)+' / 3');
     this.progressFill.setDisplaySize(258*this.phase/3,5);
     this.advanceTimer?.remove(false);
     this.advanceTimer=this.time.delayedCall(PHASE_DURATION_MS,()=>{
@@ -147,7 +147,11 @@ export class SeminarScene extends Phaser.Scene {
     }
     this.finished=true;this.skip.setVisible(false);
     this.progressFill.setDisplaySize(258,5);
-    this.progressText.setText('SEMINAR COMPLETE');
+    this.progressText.setVisible(false);
+    // Results sit above the student sprites on an opaque score panel.
+    this.add.rectangle(307,205,281,145,0x173740,0.94).setDepth(11);
+    this.titleText.setDepth(12);
+    this.lessonText.setDepth(12);
     const coach=SEMINAR_COACHES[this.coachId];
     this.titleText.setText('SEMINAR COMPLETE');
     this.lessonText.setText(coach.discipline+' training finished.\n'+
@@ -155,7 +159,7 @@ export class SeminarScene extends Phaser.Scene {
       SEMINAR_STATS[coach.focus]+' +'+outcome.primaryXp+' XP\n'+
       SEMINAR_STATS[coach.secondary]+' +'+outcome.secondaryXp+' XP\n'+
       'Reputation +'+outcome.reputation);
-    this.resultUi.push(this.button('RETURN TO GYM',328,261,180,30,
+    this.resultUi.push(this.button('RETURN TO GYM',333,302,173,26,
       ()=>this.returnToGym()));
   }
   private returnToGym():void {
