@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {serviceFixtureLayout,type HubService} from './hubServiceLayout';
+import {paintHubFixture} from './hubServiceSprites';
 import {
   SUPPLY_NAMES,SUPPLY_BUNDLES,INITIAL_SUPPLIES,WATER_REFILL,
   WATER_CONSUMPTION_PER_CLASS,MAT_DIRT_PER_CLASS,MOP_SPOTS,PHONE_CALL_LIMIT,
@@ -64,7 +66,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:1,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65 };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -102,7 +104,7 @@ function loadSave(): Save {
       mopSpotsToday:Array.isArray(s.mopSpotsToday)?
         [...new Set(s.mopSpotsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<MOP_SPOTS))]:[],
       mopDoneToday:s.mopDoneToday===true,
-      phoneCallsSpawned:Math.max(1,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned)||1))),
+      phoneCallsSpawned:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned??1)))),
       phoneCallsAnswered:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsAnswered)||0))),
       phoneLeads:Math.max(0,Math.min(5,Math.floor(Number(s.phoneLeads)||0))),
       waterRefillsToday:Math.max(0,Math.min(3,Math.floor(Number(s.waterRefillsToday)||0))),
@@ -170,12 +172,14 @@ class GymScene extends Phaser.Scene {
   private pickupTarget:Point|null=null;
   private trashClock=0;
   private phoneClock=0;
+  private phoneRingAt=30;
+  private phoneRingSoundClock=0;
   private complaintClock=0;
   private mopActive=false;
   private mopMarks:Phaser.GameObjects.Graphics[]=[];
-  private serviceTarget: 'phone'|'water'|'stock'|'mop'|null=null;
+  private serviceTarget:HubService|null=null;
   private gearTarget=-1;
-  private serviceHotspots:{type:'phone'|'water'|'stock'|'mop';frame:Phaser.GameObjects.Rectangle;label:Phaser.GameObjects.Text}[]=[];
+  private serviceHotspots:{type:HubService;frame:Phaser.GameObjects.Graphics;hit:Phaser.GameObjects.Zone;hint:Phaser.GameObjects.Text;ring?:Phaser.GameObjects.Text}[]=[];
   private cleaningShift=false;
   private cleaningAt:Point|null=null;
   private cleaningCountdown=0;
@@ -241,7 +245,8 @@ class GymScene extends Phaser.Scene {
     this.worldFixtures=[];
     this.gatheringNodes=[];
     this.gatheringPositions=dailySupplyPositions(this.gymLevel());
-    this.trashClock=0;this.phoneClock=0;this.complaintClock=0;
+    this.trashClock=0;this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(18,43);
+    this.phoneRingSoundClock=0;this.complaintClock=0;
     this.mopActive=false;this.mopMarks=[];this.serviceHotspots=[];
     this.cleaningShift=false;this.cleaningAt=null;this.cleaningTotal=0;
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
@@ -273,7 +278,7 @@ class GymScene extends Phaser.Scene {
     this.message=this.add.text(21,250,'Welcome! Teach classes to earn cash and reputation, then grow your gym.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
     this.timer=this.add.text(16,208,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#f5e5c4',backgroundColor:'#25434b',padding:{x:4,y:2}}).setDepth(17);
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
-    this.add.text(240,322,'Walk around. Tap students, equipment, PHONE / WATER / STOCK / MOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
+    this.add.text(240,322,'Explore the gym. Tap the desk phone, cooler, supply closet or mop.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
     this.hubControls=[
       this.addButton(12,278,111,36,'TRAIN',()=>this.openTrainingBoard(),true),
       this.addButton(127,278,111,36,'MANAGE',()=>this.openGymUpgrades()),
@@ -405,68 +410,87 @@ class GymScene extends Phaser.Scene {
     if(board)this.openTrainingBoard();else this.openGymUpgrades();
     return true;
   }
-  private servicePosition(type:'phone'|'water'|'stock'|'mop'):Point {
-    const positions={phone:{x:353,y:128},water:{x:353,y:155},
-      stock:{x:353,y:182},mop:{x:353,y:209}};
-    return positions[type];
+  private servicePosition(type:HubService):Point {
+    const {x,y}=serviceFixtureLayout(this.gymLevel())[type];
+    return {x,y};
   }
   private drawServiceHotspots():void {
+    const layout=serviceFixtureLayout(this.gymLevel());
     for(const type of ['phone','water','stock','mop'] as const){
-      const {x,y}=this.servicePosition(type);
-      const bg=this.add.rectangle(x,y,48,23,0x30535a).setStrokeStyle(1,0xb9ae7b)
-        .setInteractive({useHandCursor:true}).setDepth(13);
-      const label=this.add.text(x,y,type.toUpperCase(),{
-        fontFamily:UI_FONT,fontSize:'9px',fontStyle:'bold',color:'#f1e5bd'
-      }).setOrigin(.5).setDepth(14);
-      bg.on('pointerover',()=>bg.setAlpha(.8));
-      bg.on('pointerout',()=>bg.setAlpha(1));
-      bg.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
-          event:Phaser.Types.Input.EventData)=>{
-        event.stopPropagation();
-        if(this.furniturePanel.visible||this.rosterPanel.visible||this.running||
-          this.isPlacing()||this.buildMode)return;
+      const prop=layout[type];
+      const frame=this.add.graphics().setPosition(prop.x,prop.y)
+        .setDepth(type==='phone'?15:13.6);
+      paintHubFixture(frame,type,this.gymLevel());
+      // A transparent hit area overlays the prop. No permanent UI tiles.
+      const hit=this.add.zone(prop.x,prop.y,prop.hitWidth,prop.hitHeight)
+        .setDepth(19).setInteractive({useHandCursor:true});
+      const names={phone:'Answer desk phone',water:'Water cooler',stock:'Supply closet',mop:'Mop & bucket'};
+      const hint=this.add.text(prop.x,Math.max(38,prop.y-36),names[type],{
+        fontFamily:UI_FONT,fontSize:'9px',color:'#fff0d0',
+        backgroundColor:'#244349',padding:{x:4,y:2}
+      }).setOrigin(.5,1).setDepth(23).setVisible(false);
+      const ring=type==='phone'?this.add.text(prop.x,prop.y-19,'RING!',{
+        fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',
+        color:'#ffe1a0',backgroundColor:'#6d4336',padding:{x:3,y:2}
+      }).setOrigin(.5,1).setDepth(24).setVisible(false):undefined;
+      if(ring)this.tweens.add({targets:ring,alpha:{from:0.6,to:1},
+        y:prop.y-22,duration:430,yoyo:true,repeat:-1});
+      hit.on('pointerover',()=>{if(!this.furniturePanel.visible&&!this.rosterPanel.visible)
+        hint.setVisible(true);});
+      hit.on('pointerout',()=>hint.setVisible(false));
+      hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+        event:Phaser.Types.Input.EventData)=>{
+        event.stopPropagation();hint.setVisible(false);
+        if(this.furniturePanel.visible||this.rosterPanel.visible||
+          this.running||this.isPlacing()||this.buildMode)return;
         this.useService(type);
       });
-      this.serviceHotspots.push({type,frame:bg,label});
+      this.serviceHotspots.push({type,frame,hit,hint,ring});
     }
   }
   private refreshServiceHotspots():void {
-    for(const {type,frame,label} of this.serviceHotspots){
+    for(const {type,frame,ring} of this.serviceHotspots){
       const supply=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
-      const ringing=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
+      const ringing=availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
         this.saveData.phoneCallsAnswered??0)>0;
       const urgent=type==='phone'?ringing:type==='water'?
-        (this.saveData.waterLevel??55)<35||(this.saveData.towelLevel??65)<30||(this.saveData.paperLevel??65)<30:
+        (this.saveData.waterLevel??55)<35:
         type==='stock'?supply.some((n,i)=>n<(i===0?1:2)):
         (this.saveData.matCleanliness??70)<50&&!this.saveData.mopDoneToday;
-      const done=type==='mop'&&this.saveData.mopDoneToday===true;
-      frame.setFillStyle(done?0x374749:urgent?0x805139:0x30565a);
-      frame.setStrokeStyle(1,urgent?0xf1bf74:0x8ca9a0);
-      label.setText(type.toUpperCase()+(urgent?' !':done?' ✓':''));
+      paintHubFixture(frame,type,this.gymLevel(),urgent);
+      ring?.setVisible(ringing);
     }
   }
-  private useService(type:'phone'|'water'|'stock'|'mop'):boolean {
+  private useService(type:HubService):boolean {
     if(this.running||this.isPlacing()||this.buildMode)return false;
     this.clearIntent();
-    const point=this.servicePosition(type);
-    if(distance(this.player,point)<55){
+    const fixture=serviceFixtureLayout(this.gymLevel())[type];
+    const point={x:fixture.x,y:fixture.y};
+    if(distance(this.player,point)<53||
+      distance(this.player,fixture.approach)<16){
       this.openService(type);return true;
     }
-    const candidates=[{x:point.x-37,y:point.y},
-      {x:point.x+34,y:point.y},{x:point.x-22,y:point.y+17},
-      {x:point.x-22,y:point.y-17}]
+    const {approach}=fixture;
+    const candidates=[approach,
+      {x:approach.x-12,y:approach.y},
+      {x:approach.x,y:approach.y+12},
+      {x:approach.x-12,y:approach.y+12},
+      {x:approach.x+12,y:approach.y}]
       .filter(p=>this.canStand(p.x,p.y));
     candidates.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
     for(const goal of candidates){
       const route=this.playerRoute(goal,true);
       if(route.length){
         this.route=route;this.serviceTarget=type;
-        this.say('Walking to '+type+' station.');return true;
+        this.say('Walking to '+({phone:'the desk phone',water:'the cooler',
+          stock:'the supply closet',mop:'the mop and bucket'}[type])+'.');
+        return true;
       }
     }
-    this.say('The '+type+' station is blocked. Clear the nearby space.');return true;
+    this.say('No clear path to the '+type+' station. Try another approach.');
+    return true;
   }
-  private openService(type:'phone'|'water'|'stock'|'mop'):void {
+  private openService(type:HubService):void {
     this.serviceTarget=null;
     if(type==='phone')this.openPhone();
     if(type==='water')this.openWaterStation();
@@ -500,6 +524,8 @@ class GymScene extends Phaser.Scene {
     if(!availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
       this.saveData.phoneCallsAnswered??0))return;
     this.saveData.phoneCallsAnswered=(this.saveData.phoneCallsAnswered??0)+1;
+    this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(28,72);
+    this.phoneRingSoundClock=0;
     if(kind==='trial'){
       this.saveData.phoneLeads=Math.min(5,(this.saveData.phoneLeads??0)+1);
       this.saveData.reputation++;
@@ -1599,8 +1625,11 @@ class GymScene extends Phaser.Scene {
     this.saveData.paperLevel=maintenanceWear(this.saveData.paperLevel??65,12);
     this.saveData.matCleanliness=maintenanceWear(this.saveData.matCleanliness??70,
       MAT_DIRT_PER_CLASS);
-    this.saveData.phoneCallsSpawned=Math.min(PHONE_CALL_LIMIT,
-      (this.saveData.phoneCallsSpawned??1)+1);
+    // Teaching attracts inquiries, but the phone still rings at an
+    // unpredictable time rather than immediately awarding a call.
+    if((this.saveData.phoneCallsSpawned??0)<PHONE_CALL_LIMIT)
+      this.phoneRingAt=Math.min(this.phoneRingAt,
+        this.phoneClock+Phaser.Math.Between(9,21));
     this.spawnTrash(4); // A full class leaves a noticeable mess to clean.
     const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
@@ -2146,8 +2175,9 @@ class GymScene extends Phaser.Scene {
     this.saveData.supplies=this.saveData.supplies.map((value,i)=>
       Math.min(99,value+(delivery[i]||0)));
     this.saveData.pendingSupplies=[0,0,0,0];
-    this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=1;
-    this.phoneClock=0;
+    this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=0;
+    this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(18,43);
+    this.phoneRingSoundClock=0;
     this.saveData.coachedToday=[];
     this.saveData.mopDoneToday=false;this.saveData.mopSpotsToday=[];
     this.mopActive=false;this.clearMopMarks();
@@ -2509,13 +2539,23 @@ class GymScene extends Phaser.Scene {
           this.trashClock=0;this.spawnTrash(1);
         }
       }
-      if((this.saveData.phoneCallsSpawned??1)<PHONE_CALL_LIMIT){
+      const queued=availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
+        this.saveData.phoneCallsAnswered??0);
+      if(!queued&&(this.saveData.phoneCallsSpawned??0)<PHONE_CALL_LIMIT){
         this.phoneClock+=dt;
-        if(this.phoneClock>=46){
-          this.phoneClock=0;
-          this.saveData.phoneCallsSpawned=PHONE_CALL_LIMIT;
+        if(this.phoneClock>=this.phoneRingAt){
+          this.phoneClock=0;this.phoneRingSoundClock=0;
+          this.saveData.phoneCallsSpawned=(this.saveData.phoneCallsSpawned??0)+1;
+          this.phoneRingAt=Phaser.Math.Between(28,72);
           this.persist();this.refresh();
-          this.say('The front desk phone is ringing. Answer to earn REP or a member lead.');
+          this.say('The desk phone is ringing! Walk to reception to answer.');
+          playGymCue('ring');
+        }
+      }else if(queued){
+        this.phoneRingSoundClock+=dt;
+        if(this.phoneRingSoundClock>=7){
+          this.phoneRingSoundClock=0;
+          if(!this.running)playGymCue('ring');
         }
       }
       if(!this.running){
@@ -2927,7 +2967,7 @@ function fightDamage(a:FightMove,b:FightMove,sp:number):number {
   return n;
 }
 // Shared lightweight audio cues for every training activity.
-type GymCue='tap'|'success'|'miss'|'timeout'|'complete';
+type GymCue='tap'|'success'|'miss'|'timeout'|'complete'|'ring';
 let gymAudio:AudioContext|undefined;
 function playGymCue(kind:GymCue):void {
   try {
@@ -2939,7 +2979,7 @@ function playGymCue(kind:GymCue):void {
     const notes:Record<GymCue,[number,number,number,OscillatorType]>={
       tap:[480,390,.055,'sine'],success:[600,870,.13,'sine'],
       miss:[240,130,.16,'triangle'],timeout:[330,120,.22,'sawtooth'],
-      complete:[540,920,.35,'sine']
+      complete:[540,920,.35,'sine'],ring:[660,850,.16,'triangle']
     };
     const [start,end,duration,wave]=notes[kind],t=ctx.currentTime;
     const osc=ctx.createOscillator(),gain=ctx.createGain();
