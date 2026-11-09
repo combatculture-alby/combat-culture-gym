@@ -909,7 +909,7 @@ class GymScene extends Phaser.Scene {
     SEMINAR_COACHES.forEach((coach,i)=>{
       const available=seminarAvailable(this.saveData.day,i);
       const next=seminarNextVisit(this.saveData.day,i);
-      const canHost=available&&!hostedToday&&!pending&&this.dayPhase()==='open'&&this.activeStudents().length>0&&this.saveData.money>=coach.fee;
+      const canHost=available&&!hostedToday&&!pending&&this.dayPhase()==='open'&&this.activeStudents().length===this.todaysStudents().length&&this.saveData.money>=coach.fee;
       const status=pending&&pending.coachId===i?'BOOKED / RESUME BELOW':
         hostedToday?'TODAY\'S SEMINAR COMPLETE':
         !available?'VISITS IN '+next+' DAY'+(next===1?'':'S'):
@@ -960,8 +960,8 @@ class GymScene extends Phaser.Scene {
       ()=>this.bookSeminar(coachId),false,0x39735f);
   }
   private bookSeminar(coachId:number):void {
-    if(this.dayPhase()!=='open'||this.activeStudents().length===0){
-      this.say('Seminars can be hosted only after the gym opens and students arrive.');
+    if(this.dayPhase()!=='open'||this.activeStudents().length<this.todaysStudents().length){
+      this.say('Wait until all the students have arrived before hosting a seminar.');
       return;
     }
     if(this.running||!seminarBook(this.saveData,coachId)){
@@ -982,7 +982,7 @@ class GymScene extends Phaser.Scene {
     const collected=this.saveData.gatheredToday?.length||0;
     const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
     const classes=this.saveData.classesTaught||0;
-    this.menuShell('YOUR GYM PLAN','COACH, CLEAN AND TEACH TO COMPLETE THE DAILY SHIFT.',
+    this.menuShell('YOUR GYM PLAN',this.dayPhase()==='closing'?'CLOSING REPORT / PREP TOMORROW':'COACH, CLEAN AND TEACH TO COMPLETE THE DAILY SHIFT.',
       ()=>this.openTrainingBoard());
     const phase=this.dayPhase();
     const broken=(this.saveData.ownedGear||[]).filter((owned,i)=>owned&&
