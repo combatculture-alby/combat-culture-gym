@@ -51,3 +51,17 @@ export function normalizeClassPlan(value:unknown):number[] {
     return Number.isInteger(program)&&program>=0&&program<4?program:fallback;
   });
 }
+
+/** Visible training area, also enforced for equipment footprint placement.
+ * The right-hand board and reception corridor stay accessible at every level. */
+export const GYM_TRAINING_BOUNDS=[
+  {left:60,right:287,top:95,bottom:193},
+  {left:51,right:296,top:90,bottom:198},
+  {left:44,right:303,top:87,bottom:201},
+  {left:38,right:309,top:84,bottom:204},
+  {left:32,right:319,top:80,bottom:212},
+] as const;
+
+export function trainingBounds(level:number) {
+  return GYM_TRAINING_BOUNDS[normalizeGymLevel(level)-1];
+}
