@@ -28,7 +28,7 @@ import { GymNavigation, clearSegment, type Footprint, type Point } from './navig
 
 const W = 480, H = 270;
 const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
-type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'; fixture?:Phaser.GameObjects.Graphics };
+type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'|'drink'; fixture?:Phaser.GameObjects.Graphics };
 type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
 type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
 const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183},{x:164,y:111},{x:220,y:185},{x:164,y:188},{x:78,y:151}];
