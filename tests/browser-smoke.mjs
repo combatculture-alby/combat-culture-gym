@@ -214,6 +214,7 @@ try{
     assert.equal(running.total,4);
     assert.ok(running.marked>=1,'Students must show visible coaching requests');
     assert.equal(running.routine,'shadow');
+    await page.screenshot({path:output+'/interactive-class-active.png'});
     const score=await finishScheduledClass(page);
     assert.equal(score.helped,running.total);
     assert.ok(score.rep>=3);
@@ -389,6 +390,7 @@ try{
     });
     assert.notEqual(changed.texture,initial.texture,'Custom appearance must change the rendered atlas');
     assert.notEqual(changed.appearance.cut,initial.appearance.cut);
+    await page.screenshot({path:output+'/coach-editor.png'});
     await clickGame(page,309,233); // Open clothing shop.
     const shopHeading=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
@@ -406,6 +408,7 @@ try{
     assert.ok(purchased.owned.includes(0));
     assert.equal(purchased.outfit.top,2);
     assert.notEqual(purchased.texture,changed.texture);
+    await page.screenshot({path:output+'/coach-shop-purchase.png'});
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     const persisted=await page.evaluate(()=>{
