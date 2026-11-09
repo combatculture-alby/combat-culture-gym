@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
@@ -115,4 +116,19 @@ test('each gym has twelve daily piles on its own mat without overlapping indices
   const small=dailySupplyPositions(1),large=dailySupplyPositions(5);
   assert.ok(large[5].x>small[5].x,'Higher levels spread supplies across the larger room');
   assert.ok(large[0].x<small[0].x);
+});
+
+
+test('daily shift target adjusts to the students available and never grants an empty-gym reward',()=>{
+  assert.equal(dailyShiftHelpTarget(0),0);
+  assert.equal(dailyShiftHelpTarget(1),1);
+  assert.equal(dailyShiftHelpTarget(4),2);
+  assert.equal(dailyShiftReady(0,3,1,false,0),false);
+  assert.equal(dailyShiftReady(1,3,1,false,1),true);
+  assert.equal(dailyShiftReady(0,3,1,false,1),false);
+  assert.equal(dailyShiftReady(1,2,1,false,1),false);
+  assert.equal(dailyShiftReady(1,3,0,false,1),false);
+  assert.equal(dailyShiftReady(1,3,1,true,1),false);
+  assert.equal(dailyShiftReady(1,3,1,false,2),false);
+  assert.equal(dailyShiftReady(2,3,1,false,2),true);
 });
