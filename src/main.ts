@@ -1,6 +1,10 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {DAILY_HELP_LIMIT,DAILY_CLEAN_TARGET,DAILY_SHIFT_CASH,DAILY_SHIFT_REP,
+  DAILY_GEAR_DRILLS,GEAR_WORKING_THRESHOLD,GEAR_WEAR_PER_CLASS,
+  GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftReady,workingGear,
+  wornCondition,servicedCondition} from './hubActivities';
 import {SeminarScene} from './seminarScene';
 import {SEMINAR_COACHES,SEMINAR_STATS,seminarAvailable,seminarNextVisit,
   seminarBook,type SeminarPending} from './seminars';
@@ -25,7 +29,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -52,7 +56,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[] };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -77,6 +81,15 @@ function loadSave(): Save {
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
       decorStored:Array.from({length:3},(_,i)=>s.decorStored?.[i]===true),
+      coachedToday:Array.isArray(s.coachedToday)?
+        [...new Set(s.coachedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<enrolled))].slice(0,DAILY_HELP_LIMIT):[],
+      dailyShiftClaimed:s.dailyShiftClaimed===true,
+      gearCondition:Array.from({length:8},(_,i)=>Math.max(0,Math.min(100,
+        Math.floor(Number(s.gearCondition?.[i]??100)||0)))),
+      gearDrillsToday:Array.isArray(s.gearDrillsToday)?
+        [...new Set(s.gearDrillsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))].slice(0,DAILY_GEAR_DRILLS):[],
+      gearServicedToday:Array.isArray(s.gearServicedToday)?
+        [...new Set(s.gearServicedToday.filter(v=>Number.isInteger(v)&&v>=0&&v<8))]:[],
       trashSpawnedToday:Math.max(INITIAL_DAILY_TRASH,
         Math.min(MAX_DAILY_TRASH,Math.max(
           Number.isInteger(s.trashSpawnedToday)?Number(s.trashSpawnedToday):INITIAL_DAILY_TRASH,
@@ -496,7 +509,7 @@ class GymScene extends Phaser.Scene {
     const collected=this.saveData.gatheredToday?.length||0;
     const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
     const classes=this.saveData.classesTaught||0;
-    this.menuShell('YOUR GYM PLAN','CLASSES + SUPPLIES + GEAR + STUDENTS. NO ARCADE REQUIRED.',
+    this.menuShell('YOUR GYM PLAN','COACH, CLEAN AND TEACH TO COMPLETE THE DAILY SHIFT.',
       ()=>this.openTrainingBoard());
     const lines=[
       'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Trash cleaned '+collected+'/'+(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH),
@@ -511,6 +524,12 @@ class GymScene extends Phaser.Scene {
     lines.forEach((line,i)=>this.furniturePanel.add(this.add.text(83,73+i*20,line,{
       fontFamily:UI_FONT,fontSize:'10px',color:i===2?'#f5d49b':'#e3e9d9'
     })));
+    this.furniturePanel.add(this.add.text(84,144,
+      'SHIFT '+(this.saveData.dailyShiftClaimed?'COMPLETE':
+        'HELP '+(this.saveData.coachedToday?.length||0)+'/2  CLEAN '+Math.min(collected,3)+'/3  CLASS '+Math.min(this.saveData.classesToday||0,1)+'/1'),{
+        fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',
+        color:this.saveData.dailyShiftClaimed?'#a8e6bd':'#f4d69c'
+      }));
     const button=(label:string,x:number,y:number,fn:()=>void,disabled=false)=>
       this.panelButton(this.furniturePanel,label,x,y,149,24,fn,disabled,0x39735f);
     // Keep the second row above menuShell's Back button (y=218).
@@ -548,8 +567,10 @@ class GymScene extends Phaser.Scene {
     this.drawGatheringNodes();
     const visibleTrash=(this.saveData.trashSpawnedToday||INITIAL_DAILY_TRASH)-
       (this.saveData.gatheredToday?.length||0);
-    this.dailyStatus.setText('CLASSES '+(this.saveData.classesToday||0)+
+    this.dailyStatus.setText('CLASS '+(this.saveData.classesToday||0)+
+      '/2  HELP '+(this.saveData.coachedToday?.length||0)+
       '/2  TRASH '+Math.max(0,visibleTrash));
+    this.updateIndicators();
   }
   private drawEquipment():void {
     this.footprints=this.solidFootprints();
@@ -1097,6 +1118,7 @@ class GymScene extends Phaser.Scene {
     const kind=this.resourceKind(i),amount=this.resourceYield(i);
     this.saveData.materials[kind]+=amount;this.saveData.gatheredToday.push(i);
     if(this.cleaningShift)this.cleaningTotal++;
+    this.checkDailyShift();
     this.persist();this.refresh();this.showFeedback('+'+amount+' '+MATERIAL_NAMES[kind]);
     this.say('Cleaned up gym trash! Salvaged '+amount+' '+MATERIAL_NAMES[kind]+'.');
     return true;
@@ -1186,6 +1208,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.money+=earnings;
     this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+earnings;
     this.saveData.reputation+=rep;
+    this.checkDailyShift();
     if((this.saveData.classesTaught||0)%4===0)
       attendance.forEach(student=>this.students[student].skill++);
     this.persist();this.refresh();
@@ -1484,11 +1507,83 @@ class GymScene extends Phaser.Scene {
     this.say('Purchased '+['Heavy bag','Weight station','Training rack'][level]+'! Gym gear adds $'+((level+1)*5)+' per class.');
   }
   private say(message:string):void { this.message.setText(message); }
+  private requestStudentIds():number[] {
+    return dailyHelpStudents(
+      this.activeStudents().map(student=>this.students.indexOf(student)),
+      this.saveData.day
+    );
+  }
   private updateIndicators():void {
+    const requests=this.requestStudentIds();
     this.students.forEach((s,i)=>{
-      const active=this.running && this.requests.includes(i);
-      s.indicator?.setVisible(active).setText(active ? '! '+this.tasks[i] : '!');
+      const active=this.running&&this.requests.includes(i);
+      const help=!this.running&&requests.includes(i)&&
+        !this.saveData.coachedToday?.includes(i)&&
+        (this.saveData.coachedToday?.length||0)<DAILY_HELP_LIMIT;
+      s.indicator?.setVisible(active||help)
+        .setText(active?'! '+this.tasks[i]:'?')
+        .setBackgroundColor(active?'#a53d34':'#5d6650');
     });
+  }
+  private checkDailyShift():void {
+    if(!dailyShiftReady(this.saveData.coachedToday?.length||0,
+      this.saveData.gatheredToday?.length||0,this.saveData.classesToday||0,
+      this.saveData.dailyShiftClaimed===true))return;
+    this.saveData.dailyShiftClaimed=true;
+    this.saveData.money+=DAILY_SHIFT_CASH;
+    this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+DAILY_SHIFT_CASH;
+    this.saveData.reputation+=DAILY_SHIFT_REP;
+    this.showFeedback('SHIFT COMPLETE +$'+DAILY_SHIFT_CASH);
+    this.say('Daily shift complete! +$'+DAILY_SHIFT_CASH+
+      ' and +'+DAILY_SHIFT_REP+' REP for coaching, cleaning and teaching.');
+  }
+  private openStudentRequest(index:number):void {
+    if(this.running||!this.requestStudentIds().includes(index)||
+      this.saveData.coachedToday?.includes(index))return;
+    const student=this.students[index],goal=this.saveData.studentGoals?.[index]||
+      initialGoals()[index];
+    this.menuShell('STUDENT NEEDS HELP',student.name.toUpperCase()+
+      '  /  HELP  '+(this.saveData.coachedToday?.length||0)+' / '+DAILY_HELP_LIMIT);
+    this.furniturePanel.add(this.add.text(86,83,
+      student.name+' is working toward '+CORE_STATS[goal[1]]+' '+goal[0]+'.',{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#eee5cb',wordWrap:{width:305}
+    }));
+    this.furniturePanel.add(this.add.text(86,108,
+      'Choose how to help. Each student can request coaching once per day.',{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#bcd6cb',wordWrap:{width:302}
+    }));
+    this.panelButton(this.furniturePanel,'COACH '+CORE_STATS[goal[1]].toUpperCase()+
+      '   +25 XP',84,151,310,30,()=>this.completeStudentRequest(index,'goal'),false,0x39735f);
+    this.panelButton(this.furniturePanel,'ENCOURAGE / CHECK IN  +3 BOND',
+      84,188,310,27,()=>this.completeStudentRequest(index,'bond'),false,0x355b5d);
+  }
+  private completeStudentRequest(index:number,kind:'goal'|'bond'):void {
+    if(this.running||this.saveData.coachedToday?.includes(index)||
+      !this.requestStudentIds().includes(index))return;
+    const student=this.students[index],goal=this.saveData.studentGoals?.[index]||
+      initialGoals()[index];
+    this.saveData.coachedToday??=[];
+    this.saveData.coachedToday.push(index);
+    if(kind==='goal'){
+      const stat=goal[1],value=this.saveData.studentStats?.[index]?.[stat]||10;
+      let xp=(this.saveData.studentXP?.[index]?.[stat]||0)+25,next=value;
+      while(next<100&&xp>=statThreshold(next)){xp-=statThreshold(next);next++;}
+      this.saveData.studentStats![index][stat]=next;
+      this.saveData.studentXP![index][stat]=next>=100?0:xp;
+      student.friendship++;student.routine=this.idleRoutine(student,2,'shadow');
+      this.checkStudentGoals();
+    }else{
+      student.friendship+=3;
+      student.routine=this.idleRoutine(student,2,'talk');
+    }
+    this.saveData.reputation+=1;
+    this.closePanel();
+    this.showSpeech(student,kind==='goal'?'Thanks for the coaching!':'That helped, coach!',1600);
+    this.checkDailyShift();
+    this.persist();this.refresh();
+    this.showFeedback(kind==='goal'?'+25 GOAL XP':'+3 BOND');
+    if(!this.saveData.dailyShiftClaimed)
+      this.say(student.name+' helped! Coach 2 students, clean 3 messes and teach a class for your shift bonus.');
   }
   private showFeedback(text:string):void {
     this.feedback.setText(text).setVisible(true).setAlpha(1);
@@ -1532,6 +1627,8 @@ class GymScene extends Phaser.Scene {
       const dialogue=lines[i%lines.length][Math.max(0,nearest.friendship-1)%2];
       this.showSpeech(nearest,dialogue,1800);
       this.say(nearest.name+': '+dialogue+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
+      if(this.requestStudentIds().includes(i)&&
+        !this.saveData.coachedToday?.includes(i))this.openStudentRequest(i);
     }
   }
   private openArcade(mode:TrainingMode):void {
@@ -1626,6 +1723,10 @@ class GymScene extends Phaser.Scene {
     this.clearIntent();
     this.students.forEach((student,i)=>{student.routine=this.idleRoutine(student,0.5+i);student.chatCooldown=10+i*4;});
     this.saveData.classesToday=0;
+    this.saveData.coachedToday=[];
+    this.saveData.dailyShiftClaimed=false;
+    this.saveData.gearDrillsToday=[];
+    this.saveData.gearServicedToday=[];
     this.saveData.gatheredToday=[];
     this.saveData.trashSpawnedToday=INITIAL_DAILY_TRASH;
     this.trashClock=0;this.cleaningShift=false;this.cleaningAt=null;
