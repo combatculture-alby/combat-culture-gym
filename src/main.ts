@@ -194,7 +194,7 @@ class GymScene extends Phaser.Scene {
     this.recoverActors();
     if(data?.notice)this.say(data.notice);
     this.cursors = this.input.keyboard!.createCursorKeys();
-    this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
+    this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
     this.input.keyboard!.on('keydown-SPACE',(event:KeyboardEvent)=>{if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;event.preventDefault();if(!this.collectNearby())this.say('Move closer to a material pile to pick it up.');});
     this.input.keyboard!.on('keydown-C',() => {if(!this.furniturePanel.visible)this.openArcade('Rush');});
