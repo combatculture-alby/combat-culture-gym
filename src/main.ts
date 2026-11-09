@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import { drawGym } from './gymWorld';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan} from './gymProgression';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -1183,8 +1183,8 @@ class GymScene extends Phaser.Scene {
   }
   private validPlacement(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1,excludePlant=false):boolean {
     // Check the full footprint, including margins, rather than only its center.
-    const margin=this.gymLevel()===1?22:this.gymLevel()===2?13:this.gymLevel()===3?6:0;
-    if(x-rx<38+margin||x+rx>309-margin||y-ry<84+margin/2||y+ry>204-margin/2)return false;
+    const {left,right,top,bottom}=trainingBounds(this.gymLevel());
+    if(x-rx<left||x+rx>right||y-ry<top||y+ry>bottom)return false;
     if(!this.canPlace(x,y,rx,ry,excludeGear,excludeFurniture,excludePlant))return false;
     if(this.activeStudents().some(s=>Math.abs(s.x-x)<rx+11&&Math.abs(s.y-y)<ry+8))return false;
     if(Math.abs(this.player.x-x)<rx+9&&Math.abs(this.player.y-y)<ry+7)return false;
