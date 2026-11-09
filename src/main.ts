@@ -25,7 +25,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=2,TRASH_INTERVAL=35;
@@ -52,7 +52,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false] };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -76,6 +76,7 @@ function loadSave(): Save {
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
+      decorStored:Array.from({length:3},(_,i)=>s.decorStored?.[i]===true),
       trashSpawnedToday:Math.max(INITIAL_DAILY_TRASH,
         Math.min(MAX_DAILY_TRASH,Math.max(
           Number.isInteger(s.trashSpawnedToday)?Number(s.trashSpawnedToday):INITIAL_DAILY_TRASH,
@@ -674,28 +675,28 @@ class GymScene extends Phaser.Scene {
     });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
-    if(decor>=1) {
+    if(decor>=1&&!this.saveData.decorStored?.[0]) {
       const p=pos[0];
       layer(p.y);
       this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
       this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
       this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
     }
-    if(decor>=2) {
+    if(decor>=2&&!this.saveData.decorStored?.[1]) {
       const p=pos[1];
       layer(p.y);
       this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
       this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
       this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
     }
-    if(decor>=3) {
+    if(decor>=3&&!this.saveData.decorStored?.[2]) {
       const p=pos[2];
       layer(p.y);
       this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
       this.decor.fillStyle(0x4d885c).fillCircle(p.x,p.y-11,12);
       this.decor.fillStyle(0x7ca76d).fillCircle(p.x-5,p.y-14,5);
     }
-    if(this.placingDecor>=0) {
+    if(this.placingDecor>=0&&!this.saveData.decorStored?.[this.placingDecor]) {
       const p=pos[this.placingDecor];
       layer(p.y);
       this.decor.lineStyle(2,0xffe08a).strokeRect(p.x-27,p.y-22,54,42);
@@ -894,11 +895,30 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.add(this.add.rectangle(80,y-4,319,23,0x152f33).setOrigin(0).setStrokeStyle(1,0xd4b783));
     this.furniturePanel.add(this.add.text(84,y,label,{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
   }
+  private showNewItemChoice(name:string,place:()=>void,store:()=>void):void {
+    this.menuShell('ITEM PURCHASED',name.toUpperCase()+' ADDED TO INVENTORY.');
+    this.furniturePanel.add(this.add.text(86,90,
+      'Would you like to place it in your gym right now?',{
+        fontFamily:UI_FONT,fontSize:'12px',color:'#fff0d3',
+        wordWrap:{width:304}
+      }));
+    this.furniturePanel.add(this.add.text(86,124,
+      'Stored gear does not improve class rewards or student XP.\n'+
+      'You can place stored items later through Build.',{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#bfdad1',
+        wordWrap:{width:302},lineSpacing:5
+      }));
+    this.panelButton(this.furniturePanel,'PLACE NOW',84,181,149,32,
+      ()=>{this.furniturePanel.setVisible(false);place();},false,0x39735f);
+    this.panelButton(this.furniturePanel,'STORE FOR LATER',245,181,149,32,
+      ()=>{store();this.say(name+' stored in inventory.');},false,0x505a61);
+    this.furniturePanel.setVisible(true);
+  }
   private openGearShop():void {
     this.menuShell('TRAINING EQUIPMENT','PURCHASE  /  PLACE  /  UPGRADE',()=>this.openGymUpgrades());
     GEAR_ITEMS.forEach((gear,i)=>{
       const owned=this.saveData.ownedGear?.[i]===true;
-      const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?'[MOVE]':'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
+      const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?(this.saveData.gearStored?.[i]?'[PLACE]':'[MOVE]'):'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
         if(owned){this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
@@ -909,8 +929,9 @@ class GymScene extends Phaser.Scene {
         this.saveData.ownedGear[i]=true;
         if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
         this.saveData.gearStored[i]=true;
-        this.persist();this.refresh();this.furniturePanel.setVisible(false);
-        this.say('Purchased '+gear.name+'! Open Build to place it.');
+        this.persist();this.refresh();
+        this.showNewItemChoice(gear.name,()=>this.beginGearPlacement(i),
+          ()=>this.openGearShop());
       });this.furniturePanel.add(line);
     });
     this.addShopInventory(189);
@@ -1175,8 +1196,8 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.add(this.add.text(84,134,kind==='equipment'?'Unlocks gym fixtures and improves class rewards.':'Adds a visible decoration you can reposition in Build mode.',{fontFamily:UI_FONT,fontSize:'10px',color:'#e1d4bb',wordWrap:{width:305}}));
     if(!complete)this.panelButton(this.furniturePanel,canPay?'PURCHASE UPGRADE':'INSUFFICIENT RESOURCES',84,168,310,33,()=>{
       if(!canPay)return;
-      if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();
-      this.openUpgradePurchase(kind);
+      if(kind==='equipment') {this.upgradeEquipment();this.openUpgradePurchase(kind);}
+      else this.buyDecor();
     },!canPay,0x39735f);
     const stock=this.saveData.materials||[0,0,0];
     this.furniturePanel.add(this.add.text(168,217,'$'+this.saveData.money+
@@ -1216,11 +1237,9 @@ class GymScene extends Phaser.Scene {
       });
       for(let i=0;i<(this.saveData.decorLevel||0);i++){
         const idx=i;
-        entries.push({name:['Gym Banner','Training Poster','Indoor Plant'][i],status:'DECOR',select:()=>{
-          this.placingDecor=idx;this.selectedFurniture=-1;this.placingGear=-1;this.buildMode=true;
-          const p=this.saveData.decorPositions?.[idx];this.placementCursor=p?{...p}:{x:168,y:144};this.keyboardPlacement=true;
-          this.furniturePanel.setVisible(false);this.updateFurnitureActions();this.say('Tap a new spot or use arrows and Enter.');
-        }});
+        entries.push({name:['Gym Banner','Training Poster','Indoor Plant'][i],
+          status:this.saveData.decorStored?.[i]?'STORED':'PLACED',
+          select:()=>this.beginDecorPlacement(idx)});
       }
       const pageSize=5,pages=Math.max(1,Math.ceil(entries.length/pageSize));
       this.buildPage=Math.min(this.buildPage,pages-1);
@@ -1261,12 +1280,13 @@ class GymScene extends Phaser.Scene {
     this.saveData.money-=item.price;
     this.saveData.materials=spendMaterials(this.saveData.materials,FURNITURE_MATERIALS[kind]||[1,1,1]);
     this.saveData.furniture=[...(this.saveData.furniture||[]),{kind,x:160,y:120,rotation:0,stored:true}];
+    const index=this.saveData.furniture.length-1;
     this.selectedFurniture=-1;
     this.placingDecor=-1;
-    this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
     this.persist();this.refresh();
-    this.say('Purchased '+item.name+'! Open Build to place it.');
+    this.showNewItemChoice(item.name,()=>this.selectFurniture(index),
+      ()=>this.openFurniture('shop'));
   }
   private selectFurniture(i:number):void {
     this.clearIntent();
@@ -1276,10 +1296,22 @@ class GymScene extends Phaser.Scene {
     const item=this.saveData.furniture?.[i];
     if(item) this.say('Moving '+FURNITURE[item.kind].name+'. Arrows move, Enter place, Q rotate, X store, Esc cancel.');
   }
+  private beginDecorPlacement(index:number):void {
+    this.clearIntent();
+    this.placingDecor=index;this.selectedFurniture=-1;this.placingGear=-1;
+    this.buildMode=true;
+    const pos=this.saveData.decorPositions?.[index];
+    this.placementCursor=pos&&!this.saveData.decorStored?.[index]?
+      {...pos}:{x:168,y:144};
+    this.keyboardPlacement=true;
+    this.furniturePanel.setVisible(false);
+    this.updateFurnitureActions();this.drawEquipment();
+    this.say('Tap a clear spot to place the decoration, or Store for later.');
+  }
   private updateFurnitureActions():void {
     this.hubControls.forEach(button=>button.setVisible(!this.isPlacing()));
     this.rotateControl.setVisible(this.selectedFurniture>=0);
-    this.storeControl.setVisible(this.selectedFurniture>=0||this.placingGear>=0);
+    this.storeControl.setVisible(this.selectedFurniture>=0||this.placingGear>=0||this.placingDecor>=0);
     this.cancelControl.setVisible(this.isPlacing());
   }
   private placeFurniture(x:number,y:number):void {
@@ -1303,6 +1335,14 @@ class GymScene extends Phaser.Scene {
   }
   private storeSelection():void {
     if(this.running)return;
+    if(this.placingDecor>=0){
+      const index=this.placingDecor;
+      this.saveData.decorStored??=[false,false,false];
+      this.saveData.decorStored[index]=true;
+      this.cancelPlacement();this.persist();this.refresh();
+      this.say('Decoration stored. Place it later through Build.');
+      return;
+    }
     if(this.placingGear>=0){
       const index=this.placingGear;
       this.saveData.gearStored??=Array(8).fill(false);
@@ -1319,7 +1359,8 @@ class GymScene extends Phaser.Scene {
     const plant=this.placingDecor===2;
     const positions=this.saveData.decorPositions??defaults.decorPositions!;
     return this.validPlacement(x,y,plant?11:25,12,-1,-1,plant)&&
-      !positions.some((p,i)=>i!==this.placingDecor&&i<(this.saveData.decorLevel||0)&&distance(p,{x,y})<44);
+      !positions.some((p,i)=>i!==this.placingDecor&&i<(this.saveData.decorLevel||0)&&
+        !this.saveData.decorStored?.[i]&&distance(p,{x,y})<44);
   }
   private placeDecor(x:number,y:number):void {
     if(this.running||this.placingDecor<0)return;
@@ -1328,7 +1369,10 @@ class GymScene extends Phaser.Scene {
     const positions=this.saveData.decorPositions??defaults.decorPositions!.map(p=>({...p}));
     positions[this.placingDecor]={x,y};
     this.saveData.decorPositions=positions;
-    this.cancelPlacement();this.persist();this.say('Decoration moved and saved.');
+    this.saveData.decorStored??=[false,false,false];
+    this.saveData.decorStored[this.placingDecor]=false;
+    this.cancelPlacement();this.persist();this.refresh();
+    this.say('Decoration placed and saved.');
   }
   private buyDecor():void {
     if(this.running) { this.say('Shop after class.'); return; }
@@ -1340,10 +1384,12 @@ class GymScene extends Phaser.Scene {
     this.saveData.materials=spendMaterials(this.saveData.materials,DECOR_MATERIALS[level]);
     this.saveData.money-=cost;
     this.saveData.decorLevel=level+1;
-    this.persist(); this.refresh();
-    this.recoverActors();
-    this.showFeedback('GYM DECOR +1');
-    this.say('Added '+['Gym banner','Training poster','Indoor plant'][level]+'! Your gym is growing.');
+    this.saveData.decorStored??=[false,false,false];
+    this.saveData.decorStored[level]=true;
+    this.persist();this.refresh();
+    const name=['Gym Banner','Training Poster','Indoor Plant'][level];
+    this.showNewItemChoice(name,()=>this.beginDecorPlacement(level),
+      ()=>this.openUpgradePurchase('decor'));
   }
   private toggleRoster():void {
     if(this.running){this.say('Check the roster after class.');return;}
@@ -1627,7 +1673,8 @@ class GymScene extends Phaser.Scene {
         solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
       }
     });
-    if(!excludePlant&&(this.saveData.decorLevel||0)>=3)solids.push({...this.saveData.decorPositions![2],rx:11,ry:12});
+    if(!excludePlant&&(this.saveData.decorLevel||0)>=3&&!this.saveData.decorStored?.[2])
+      solids.push({...this.saveData.decorPositions![2],rx:11,ry:12});
     if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:13});
     if((this.saveData.equipment||0)>=2)solids.push({x:310,y:150,rx:15,ry:9});
     return solids;
