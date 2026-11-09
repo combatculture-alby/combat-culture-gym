@@ -2228,9 +2228,71 @@ class GymScene extends Phaser.Scene {
     this.panelButton(this.furniturePanel,'RETURN TO GYM',245,189,148,28,
       ()=>this.closePanel(),false,0x39735f);
   }
+  private advanceGymPhase():void {
+    if(this.running||this.isPlacing()||this.buildMode)return;
+    const phase=this.dayPhase();
+    if(phase==='opening'){
+      this.saveData.gymPhase='open';
+      this.saveData.arrivedCount=0;
+      this.arrivalsClock=0;
+      this.persist();this.refresh();
+      this.say('GYM OPEN. Students arrive gradually. Finish preparations between arrivals.');
+    }else if(phase==='open'){
+      if(!canCloseInPhase(phase,this.saveData.classesToday||0)){
+        this.say('Teach at least one class before closing, or keep preparing.');
+        return;
+      }
+      this.saveData.gymPhase='closing';
+      this.arrivalsClock=0;this.persist();this.refresh();
+      this.say('CLOSING TIME. Students are heading out. Prepare for tomorrow.');
+    }else if(canAdvanceDay(phase,this.saveData.arrivedCount??0)){
+      this.nextDay();
+    }else this.say('Students are still leaving. You can prepare the gym while they go.');
+  }
+  private updateArrivals(dt:number):void {
+    const phase=this.dayPhase();
+    if(phase==='opening'||this.running)return;
+    const present=this.activeStudents();
+    if(phase==='open'&&present.length>=this.todaysStudents().length)return;
+    if(phase==='closing'&&present.length===0)return;
+    this.arrivalsClock+=dt;
+    if(this.arrivalsClock<(phase==='open'?ARRIVAL_INTERVAL_SECONDS:DEPARTURE_INTERVAL_SECONDS))return;
+    this.arrivalsClock=0;
+    if(phase==='open'){
+      const next=this.todaysStudents()[present.length];
+      if(!next)return;
+      next.actor?.body.setVisible(true);
+      next.routine=this.idleRoutine(next,1,'walk');
+      this.saveData.arrivedCount=present.length+1;
+      this.showSpeech(next,'Hi, coach!',1250);
+      this.say(next.name+' arrived.');
+    }else{
+      const leaving=present[present.length-1];
+      this.hideSpeech(leaving);
+      leaving.actor?.body.setVisible(false);
+      leaving.indicator?.setVisible(false);
+      this.saveData.arrivedCount=Math.max(0,present.length-1);
+      if(this.saveData.arrivedCount===0)
+        this.say('Gym is empty. Finish tomorrow’s preparation, then end the day.');
+    }
+    this.persist();this.refresh();
+  }
+  private updatePhaseDisplay():void {
+    const phase=this.dayPhase(),present=this.activeStudents().length;
+    const label=phase==='opening'?'OPEN GYM':phase==='open'?'CLOSE GYM':
+      present>0?'LEAVING...':'NEXT DAY';
+    this.phaseActionText?.setText(label);
+    this.phaseStatus?.setText(phase==='opening'?'OPENING PREP / EMPTY GYM':
+      phase==='open'?'OPEN / '+present+' STUDENTS PRESENT':
+      present>0?'CLOSING / '+present+' STUDENTS LEAVING':
+      'CLOSING PREP / READY FOR TOMORROW');
+  }
   private nextDay():void {
     if(this.running) { this.say('Finish class first.'); return; }
+    const left=outstandingTrash(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH,
+      this.saveData.gatheredToday?.length||0);
     this.saveData.day++;
+    this.saveData.gymPhase='opening';this.saveData.arrivedCount=0;
     this.clearIntent();
     this.students.forEach((student,i)=>{student.routine=this.idleRoutine(student,0.5+i);student.chatCooldown=10+i*4;});
     this.saveData.classesToday=0;
@@ -2250,11 +2312,11 @@ class GymScene extends Phaser.Scene {
     this.saveData.gearServicedToday=[];
     this.saveData.gearWipedToday=[];
     this.saveData.gatheredToday=[];
-    this.saveData.trashSpawnedToday=INITIAL_DAILY_TRASH;
+    this.saveData.trashSpawnedToday=left;
     this.trashClock=0;this.cleaningShift=false;this.cleaningAt=null;
     this.saveData.completed=false;
     this.persist();
-    this.scene.restart({notice:'New day! The floor starts with a little litter; more appears as students train.'});
+    this.scene.restart({notice:'Opening prep: your gym is empty. Unfinished cleanup and missing supplies carry over.'});
   }
   // The same solid-object footprints drive movement, routing and placement.
   // Feet are the character's anchor; leave room for the sprite around each fixture.
