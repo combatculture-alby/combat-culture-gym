@@ -309,7 +309,10 @@ class GymScene extends Phaser.Scene {
     const inRect=(r:{x:number;y:number;w:number;h:number},pad=0)=>
       x>=r.x-pad&&x<=r.x+r.w+pad&&y>=r.y-pad&&y<=r.y+r.h+pad;
     const board=inRect(layout.board,3);
-    const desk=inRect(layout.desk,3);
+    const staff=this.gymLevel()===5&&
+      x>=layout.desk.x+18&&x<=layout.desk.x+layout.desk.w-12&&
+      y>=139&&y<layout.desk.y;
+    const desk=inRect(layout.desk,3)||staff;
     if(!board&&!desk)return false;
     const anchor=board?layout.boardApproach:layout.deskApproach;
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,anchor.x,anchor.y)>43){
