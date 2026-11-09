@@ -270,6 +270,25 @@ try{
     assert.equal((await sceneState(page)).level,2,'Expansion should work without launching a minigame');
   });
 
+  await openScenario('hub-find-supplies-button',sampleSave({
+    materials:[0,0,0],gatheredToday:[]
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openMaterials());
+    await clickGame(page,235,222); // Real Materials > Find next supply button.
+    await page.waitForFunction(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return (scene.saveData.gatheredToday?.length||0)>0;
+    },{timeout:7000});
+    const state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {supplies:scene.saveData.gatheredToday.length,stock:scene.saveData.materials,
+        scene:scene.scene.key};
+    });
+    assert.ok(state.supplies>0);
+    assert.ok(state.stock.some(x=>x>0));
+    assert.equal(state.scene,'Gym','Collecting supplies must never launch a minigame');
+  });
+
   await openScenario('safe-new-game-reset',sampleSave({
     gymLevel:3,enrolledStudents:8,day:6,money:333,reputation:65,
     friendships:Array(8).fill(1),skills:Array(8).fill(3)
