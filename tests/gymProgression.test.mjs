@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -88,4 +88,31 @@ test('reception and community board are progressively upgraded with the room',()
       assert.ok(approach.y>=room.top&&approach.y<=room.bottom);
     }
   }
+});
+
+test('normal classes alone provide enough reputation for every gym expansion',()=>{
+  assert.equal(CLASS_REPUTATION,2);
+  assert.equal(classEarnings(1,4),53);
+  assert.equal(classEarnings(2,6),76);
+  assert.equal(classEarnings(5,24),229);
+  assert.equal(classEarnings(3,10,2,3),classEarnings(3,10)+22);
+  for(const level of GYM_LEVELS){
+    assert.ok(level.reputation<=level.classesTaught*CLASS_REPUTATION,
+      'Classes alone must supply enough reputation by the required class milestone');
+  }
+});
+
+test('each gym has twelve daily piles on its own mat without overlapping indices',()=>{
+  for(let level=1;level<=5;level++){
+    const supply=dailySupplyPositions(level),b=trainingBounds(level);
+    assert.equal(supply.length,12);
+    assert.equal(new Set(supply.map(p=>p.x+','+p.y)).size,12);
+    for(const point of supply){
+      assert.ok(point.x>=b.left&&point.x<=b.right);
+      assert.ok(point.y>=b.top&&point.y<=b.bottom);
+    }
+  }
+  const small=dailySupplyPositions(1),large=dailySupplyPositions(5);
+  assert.ok(large[5].x>small[5].x,'Higher levels spread supplies across the larger room');
+  assert.ok(large[0].x<small[0].x);
 });
