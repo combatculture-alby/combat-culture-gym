@@ -50,7 +50,7 @@ async function openScenario(name,save,action){
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),
+  await page.addInitScript(({key,value})=>{if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(value));},
     {key:saveKey,value:save});
   try{
     await page.goto(url,{waitUntil:'networkidle',timeout:30000});
