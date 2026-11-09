@@ -769,6 +769,19 @@ try{
     assert.deepEqual(after,{calls:1,visible:true},
       'Random elapsed waiting time should make the physical desk phone ring');
     await page.screenshot({path:output+'/phone-ringing-at-desk.png'});
+    // Tap the animated RING! callout itself; it should reach the phone.
+    const bubble=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const phone=s.servicePosition('phone');
+      s.coach.place(phone.x-24,phone.y+11);
+      const ring=s.serviceHotspots.find(p=>p.type==='phone').ring;
+      return {x:ring.x,y:ring.y-7};
+    });
+    await clickGame(page,bubble.x,bubble.y);
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').furniturePanel.list
+        .some(t=>t.text==='FRONT DESK PHONE')),true,
+      'The flashing callout must be a touch target');
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       s.answerPhone('info');
@@ -787,6 +800,42 @@ try{
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     assert.equal(await page.evaluate(()=>
       window.__combatGym.scene.getScene('Gym').saveData.phoneCallsAnswered),1);
+  });
+
+  await openScenario('keyboard-walk-up-service-objects',sampleSave({
+    phoneCallsSpawned:1,phoneCallsAnswered:0
+  }),async page=>{
+    for(const type of ['water','stock','mop']){
+      const result=await page.evaluate(type=>{
+        const s=window.__combatGym.scene.getScene('Gym');
+        const p=s.servicePosition(type);
+        const approach=type==='water'?{x:p.x+27,y:174}:
+          type==='stock'?{x:p.x-33,y:165}:{x:p.x+8,y:193};
+        s.coach.place(approach.x,approach.y);
+        s.closePanel();
+        const activated=s.useNearbyStation();
+        const labels=s.furniturePanel.list.map(x=>x.text||'');
+        return {activated,labels};
+      },type);
+      const heading={water:'GYM WATER & AMENITIES',stock:'ORDER GYM SUPPLIES',
+        mop:'MOP THE TRAINING MAT'}[type];
+      assert.equal(result.activated,true);
+      assert.ok(result.labels.includes(heading),
+        'E proximity should open '+type+' rather than the reception menu');
+    }
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.closePanel();
+      const phone=s.servicePosition('phone');
+      s.coach.place(phone.x-30,phone.y+10);
+    });
+    // Point E toward reception, with a call waiting. It should answer phone.
+    const keyboard=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.useNearbyStation();
+      return s.furniturePanel.list.map(x=>x.text||'');
+    });
+    assert.ok(keyboard.includes('FRONT DESK PHONE'));
   });
 
   await openScenario('phone-inquiries-recruitment-discount',sampleSave({
