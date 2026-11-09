@@ -65,6 +65,9 @@ async function clickGame(page,x,y){
   const box=await canvas.boundingBox();
   assert.ok(box,'Game canvas absent');
   await page.mouse.click(box.x+x/480*box.width,box.y+y/330*box.height);
+  // Phaser consumes pointer events on its game tick. Two synthetic clicks in
+  // the same 16ms frame can be dropped, unlike ordinary human input.
+  await page.waitForTimeout(90);
 }
 
 /** Exercise one real pointer help, then complete the other scheduled requests
