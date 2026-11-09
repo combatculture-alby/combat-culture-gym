@@ -2355,6 +2355,8 @@ class GymScene extends Phaser.Scene {
     const choose=Math.floor(this.saveData.day+(this.saveData.classesTaught||0)+
       this.time.now/19000)%concerns.length;
     const student=active[(this.saveData.day+choose)%active.length];
+    // Pause the complaining student briefly so the bubble remains readable.
+    student.routine=this.idleRoutine(student,2.9,'talk');
     this.showSpeech(student,concerns[choose],2600);
   }
   private updateStudentLife(dt:number):void {
