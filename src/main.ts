@@ -493,7 +493,7 @@ class GymScene extends Phaser.Scene {
     this.menuShell('YOUR GYM PLAN','CLASSES + SUPPLIES + GEAR + STUDENTS. NO ARCADE REQUIRED.',
       ()=>this.openTrainingBoard());
     const lines=[
-      'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Supplies '+collected+'/12',
+      'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Trash cleaned '+collected+'/'+(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH),
       'Students '+this.students.length+'/'+studentCapacity(level)+
         '   Cash $'+this.saveData.money+'   REP '+this.saveData.reputation,
       next?'Next: '+next.name+'   Expansion $'+next.cost:'Flagship academy unlocked. Keep building!',
@@ -509,7 +509,7 @@ class GymScene extends Phaser.Scene {
       this.panelButton(this.furniturePanel,label,x,y,149,24,fn,disabled,0x39735f);
     // Keep the second row above menuShell's Back button (y=218).
     button('TEACH NEXT CLASS',84,158,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
-    button('FIND SUPPLIES',245,158,()=>this.collectNextSupply(),collected>=12);
+    button('CLEAN THE GYM',245,158,()=>this.collectNextSupply(),collected>=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH));
     button('EXPAND GYM',84,188,()=>this.openExpansion(),!next);
     button('NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.nextDay();});
   }
@@ -1009,17 +1009,24 @@ class GymScene extends Phaser.Scene {
       const g=this.add.graphics();
       g.fillStyle(0x263e3c,0.4).fillEllipse(0,3,15,5);
       const material=this.resourceKind(i);
-      if(material===0){
-        g.fillStyle(0x4b5556).fillRect(-6,-4,8,6).fillRect(2,-2,4,6);
-        g.fillStyle(0xbcc6ba).fillRect(-5,-3,6,2).fillRect(3,-1,2,3);
-      }else if(material===1){
-        g.fillStyle(0x855e48).fillRect(-7,-2,14,5).fillRect(-4,-5,9,4);
-        g.fillStyle(0xe6b47c).fillRect(-6,-2,12,2).fillRect(-3,-5,7,2);
-      }else{
-        g.fillStyle(0x886b66).fillRect(-6,-4,12,7);
-        g.fillStyle(0xd9a899).fillRect(-5,-3,10,5);
-        g.fillStyle(0xf1d7ab).fillRect(-1,-4,2,7);
+      // Visibly discarded gym waste, not magical resource crystals.
+      if(material===0){ // crushed bottle and tin can -> scrap
+        g.fillStyle(0x899c9c).fillRect(-7,-2,8,5).fillRect(3,-3,4,7);
+        g.fillStyle(0xc6d0c2).fillRect(-5,-3,5,2).fillRect(4,-2,2,4);
+        g.fillStyle(0x537577).fillRect(-3,1,4,1);
+        g.fillStyle(0xd4d6bd).fillRect(-8,-4,3,2);
+      }else if(material===1){ // torn cardboard and paper -> wood
+        g.fillStyle(0x765846).fillRect(-7,-3,12,6);
+        g.fillStyle(0xc69c6a).fillRect(-5,-5,12,5);
+        g.fillStyle(0x9a7857).fillRect(-1,-4,1,5);
+        g.fillStyle(0xe0c18f).fillRect(2,-3,5,2);
+      }else{ // abandoned hand wrap and towel -> fabric
+        g.fillStyle(0x8d554d).fillRect(-7,-2,13,5);
+        g.fillStyle(0xe4b0a2).fillRect(-6,-4,10,5);
+        g.fillStyle(0xdac8a5).fillRect(1,-2,7,5);
+        g.fillStyle(0xb6766b).fillRect(-4,0,5,2);
       }
+      g.fillStyle(0xe6c677).fillRect(-1,-8,2,2);
       const node=this.add.container(pos.x,pos.y,[g]).setDepth(6);
       this.gatheringNodes.push(node);
     });
@@ -1058,7 +1065,7 @@ class GymScene extends Phaser.Scene {
     const kind=this.resourceKind(i),amount=this.resourceYield(i);
     this.saveData.materials[kind]+=amount;this.saveData.gatheredToday.push(i);
     this.persist();this.refresh();this.showFeedback('+'+amount+' '+MATERIAL_NAMES[kind]);
-    this.say('Cleaned up trash! Salvaged '+amount+' '+MATERIAL_NAMES[kind]+'.');
+    this.say('Cleaned up gym trash! Salvaged '+amount+' '+MATERIAL_NAMES[kind]+'.');
     return true;
   }
   private collectNearby():boolean {
