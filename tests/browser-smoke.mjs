@@ -464,7 +464,8 @@ try{
     });
     assert.equal(closed.phase,'closing');
     assert.equal(closed.arrived,0);
-    assert.equal(closed.water,8,'Empty water remains empty at closing');
+    assert.ok(closed.water<=8,'Class usage cannot magically refill water');
+    assert.ok(closed.paper<=14,'Paper is consumed rather than restocked');
     await clickGame(page,413,241); // Next Day, no hard reset of neglected services.
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===3);
     const tomorrow=await page.evaluate(()=>{
@@ -477,8 +478,8 @@ try{
     });
     assert.equal(tomorrow.phase,'opening');
     assert.equal(tomorrow.present,0);
-    assert.equal(tomorrow.water,8,'No free water refill overnight');
-    assert.equal(tomorrow.paper,14,'Unrestocked toilet paper persists');
+    assert.equal(tomorrow.water,closed.water,'No free water refill overnight');
+    assert.equal(tomorrow.paper,closed.paper,'Unrestocked toilet paper persists');
     assert.equal(tomorrow.stock,2,'Only ordered supplies arrive the next day');
     assert.equal(tomorrow.deliveries,0);
     assert.equal(tomorrow.trash,9,'Class mess and uncleared litter carry forward');
