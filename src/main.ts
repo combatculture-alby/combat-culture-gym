@@ -566,6 +566,99 @@ class GymScene extends Phaser.Scene {
     this.showFeedback('ORDER PLACED');
     this.say(SUPPLY_NAMES[index]+' will arrive when you start the next day.');
   }
+  private mopSpotPositions():Point[] {
+    const b=trainingBounds(this.gymLevel()),w=b.right-b.left,h=b.bottom-b.top;
+    return [
+      {x:Math.round(b.left+w*.15),y:Math.round(b.top+h*.20)},
+      {x:Math.round(b.left+w*.50),y:Math.round(b.top+h*.18)},
+      {x:Math.round(b.left+w*.84),y:Math.round(b.top+h*.22)},
+      {x:Math.round(b.left+w*.72),y:Math.round(b.top+h*.76)},
+      {x:Math.round(b.left+w*.27),y:Math.round(b.top+h*.78)}
+    ];
+  }
+  private clearMopMarks():void {
+    this.mopMarks.forEach(mark=>mark.destroy());
+    this.mopMarks=[];
+    if(!this.running)this.timer.setText('');
+  }
+  private drawMopMarks():void {
+    this.clearMopMarks();
+    if(!this.mopActive)return;
+    const done=this.saveData.mopSpotsToday??[];
+    this.mopSpotPositions().forEach((spot,i)=>{
+      if(done.includes(i))return;
+      const mark=this.add.graphics().setDepth(9);
+      mark.lineStyle(2,0xc2e9ed,0.85).strokeCircle(spot.x,spot.y,13);
+      mark.fillStyle(0xa5e0e7,0.24).fillCircle(spot.x,spot.y,10);
+      mark.fillStyle(0xf5f1cf).fillCircle(spot.x,spot.y,2);
+      this.mopMarks.push(mark);
+    });
+    this.timer.setText('MOP THE MAT  '+done.length+' / '+MOP_SPOTS+
+      '  |  WALK OVER EACH BLUE SPOT');
+  }
+  private openMopStation():void {
+    const mat=this.saveData.matCleanliness??70;
+    const cleaned=this.saveData.mopSpotsToday?.length||0;
+    const cleaner=this.saveData.supplies?.[3]??3;
+    this.menuShell('MOP THE TRAINING MAT',
+      'THE MAT NEEDS CLEANING AFTER CLASSES. MOVE THROUGH THE BLUE MARKERS.');
+    this.furniturePanel.add(this.add.text(88,81,'MAT CONDITION  '+mat+'%',{
+      fontFamily:UI_FONT,fontSize:'13px',fontStyle:'bold',
+      color:mat<35?'#f0aa95':'#b9e2c6'
+    }));
+    this.furniturePanel.add(this.add.text(88,117,
+      'Mopping progress: '+cleaned+' / '+MOP_SPOTS+'\n'+
+      'Cleaning solution in stock: '+cleaner+'\n\n'+
+      'Walk or tap across five spots on the mat.\n'+
+      'Full cleaning restores the mat and earns +$20 / +1 REP.',{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#d9e5d7',
+        lineSpacing:6,wordWrap:{width:302}
+      }));
+    this.panelButton(this.furniturePanel,
+      this.saveData.mopDoneToday?'MAT MOPPED TODAY':
+        cleaned>0?'RESUME MOPPING':'START MOPPING',
+      168,209,225,29,()=>this.startMopping(),
+      this.saveData.mopDoneToday===true||cleaner<=0,0x39735f);
+  }
+  private startMopping():void {
+    if(this.running||this.saveData.mopDoneToday||!(this.saveData.supplies?.[3]??3)||
+      this.isPlacing())return;
+    this.clearIntent();
+    this.furniturePanel.setVisible(false);
+    this.mopActive=true;this.drawMopMarks();
+    this.say('Walk across each blue mop marker on the training mat. '+MOP_SPOTS+
+      ' spots must be cleaned.');
+  }
+  private updateMopping():void {
+    if(!this.mopActive||this.running)return;
+    this.saveData.mopSpotsToday??=[];
+    const spots=this.mopSpotPositions();
+    for(let i=0;i<spots.length;i++){
+      if(this.saveData.mopSpotsToday.includes(i))continue;
+      if(distance(this.player,spots[i])<18){
+        this.saveData.mopSpotsToday.push(i);
+        this.showFeedback('MOPPED '+this.saveData.mopSpotsToday.length+'/'+MOP_SPOTS);
+        this.coach.animate('stretch',.1);
+        this.persist();
+        if(this.saveData.mopSpotsToday.length>=MOP_SPOTS){
+          this.finishMopping();return;
+        }
+        this.drawMopMarks();break;
+      }
+    }
+  }
+  private finishMopping():void {
+    if(this.saveData.mopDoneToday||!this.mopActive)return;
+    this.saveData.supplies??=Array.from(INITIAL_SUPPLIES);
+    if(this.saveData.supplies[3]<=0){this.mopActive=false;this.clearMopMarks();return;}
+    this.saveData.supplies[3]--;
+    this.saveData.mopDoneToday=true;this.saveData.matCleanliness=100;
+    this.saveData.money+=20;this.saveData.reputation++;
+    this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+20;
+    this.mopActive=false;this.clearMopMarks();
+    this.persist();this.refresh();this.showFeedback('MAT CLEAN  +$20  +1 REP');
+    this.say('Mat mopped and disinfected. +$20 / +1 REP. Good work!');
+  }
   private useNearbyStation():boolean {
     const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,deskApproach.x,deskApproach.y)<43){this.openGymUpgrades();return true;}
@@ -1947,6 +2040,8 @@ class GymScene extends Phaser.Scene {
     this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=1;
     this.phoneClock=0;
     this.saveData.coachedToday=[];
+    this.saveData.mopDoneToday=false;this.saveData.mopSpotsToday=[];
+    this.mopActive=false;this.clearMopMarks();
     this.saveData.dailyShiftClaimed=false;
     this.saveData.gearDrillsToday=[];
     this.saveData.gearServicedToday=[];
@@ -2303,6 +2398,7 @@ class GymScene extends Phaser.Scene {
     }
     if(this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)this.coach.animate('idle',dt);
     else this.moveCoach(dt);
+    if(this.mopActive)this.updateMopping();
   }
 }
 
