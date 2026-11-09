@@ -77,6 +77,11 @@ jobs:
         run: |
           mkdir -p dist/garage
           cp -R garage-source/dist/. dist/garage/
+      - name: Verify the isolated garage build was packaged
+        run: |
+          test -f dist/garage/index.html
+          grep -q '/combat-culture-gym/garage/assets/' dist/garage/index.html
+          test -n "$(find dist/garage/assets -name '*.js' -print -quit)"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
