@@ -1049,7 +1049,7 @@ class GymScene extends Phaser.Scene {
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     nearest.routine=this.idleRoutine(nearest,3,'talk');
-    this.showSpeech(nearest,['Working on my jab!','Good to see you!','Ready to train!','Thanks, coach!'][i],3400);
+    this.showSpeech(nearest,['Working on my jab!','Good to see you!','Ready to train!','Thanks, coach!'][i%4],3400);
     nearest.actor?.face(this.player.x-nearest.x,this.player.y-nearest.y);
     this.coach.face(nearest.x-this.player.x,nearest.y-this.player.y);
     if(this.running) {
@@ -1078,7 +1078,7 @@ class GymScene extends Phaser.Scene {
       this.showStudentCard(nearest);
       const lines=[['My jab needs work.','I want to compete someday.'],['I brought snacks!','I love this gym community.'],['I studied some fight footage.','I am working on combinations.'],['I am sore today.','I keep showing up!']];
       const milestone=nearest.friendship===3?' You are becoming regular training partners.':nearest.friendship===5?' Friendship milestone: Trusted teammate!':'';
-      const dialogue=lines[i][Math.max(0,nearest.friendship-1)%2];
+      const dialogue=lines[i%lines.length][Math.max(0,nearest.friendship-1)%2];
       this.showSpeech(nearest,dialogue,3800);
       this.say(nearest.name+': '+dialogue+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
