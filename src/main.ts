@@ -740,7 +740,7 @@ class GymScene extends Phaser.Scene {
         this.say('Crafted '+recipe.name+' and earned $'+recipe.reward+'.');
       },!canCraft,0x39735f,cost);
     });
-    this.panelButton(this.furniturePanel,collected===12?'ALL SUPPLIES COLLECTED':'FIND NEXT SUPPLY PILE',84,207,310,28,()=>this.collectNextSupply(),collected===12,0x39735f);
+    this.panelButton(this.furniturePanel,collected===12?'ALL SUPPLIES COLLECTED':'FIND NEXT SUPPLY PILE',168,211,225,27,()=>this.collectNextSupply(),collected===12,0x39735f);
     this.furniturePanel.setVisible(true);
   }
   // Deterministic daily material locations. No real-time timers or mandatory cleanup.
@@ -854,8 +854,8 @@ class GymScene extends Phaser.Scene {
     this.panelButton(this.furniturePanel,label,238,180,157,30,()=>{
       if(ready)this.simulateClass(programIndex);
     },!ready,0x39735f);
-    this.furniturePanel.add(this.add.text(84,216,'Select a session, then choose a class. Plan is saved for tomorrow.',
-      {fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8',wordWrap:{width:308}}));
+    this.furniturePanel.add(this.add.text(168,220,'Select a class. Your plan saves automatically.',
+      {fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8',wordWrap:{width:224}}));
     this.furniturePanel.setVisible(true);
   }
   private simulateClass(index:number):void {
@@ -938,7 +938,10 @@ class GymScene extends Phaser.Scene {
       if(kind==='equipment')this.upgradeEquipment();else this.buyDecor();
       this.openUpgradePurchase(kind);
     },!canPay,0x39735f);
-    this.addShopInventory(207);
+    const stock=this.saveData.materials||[0,0,0];
+    this.furniturePanel.add(this.add.text(168,217,'$'+this.saveData.money+
+      '   SCRAP '+(stock[0]||0)+'   WOOD '+(stock[1]||0)+'   FABRIC '+(stock[2]||0),
+      {fontFamily:UI_FONT,fontSize:'9px',color:'#f4d68c'}));
     this.furniturePanel.setVisible(true);
   }
   private sellFurniture(index:number):void {
