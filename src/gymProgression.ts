@@ -43,3 +43,11 @@ export function attendingIndices(enrolled:number,level:number,day:number):number
   const start=(Math.max(1,Math.floor(day))-1)*attending%total;
   return Array.from({length:attending},(_,i)=>(start+i)%total);
 }
+
+export function normalizeClassPlan(value:unknown):number[] {
+  const incoming=Array.isArray(value)?value:[];
+  return [0,1].map((fallback,i)=>{
+    const program=incoming[i];
+    return Number.isInteger(program)&&program>=0&&program<4?program:fallback;
+  });
+}
