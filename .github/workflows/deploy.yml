@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p dist/test
           cp -R test-source/dist/. dist/test/
-      # Refresh verified standalone hub with playable daily plan and unobstructed menu controls.
+      # Refresh verified garage preview: interactive class coaching, cosmetics, and rotating guest seminars.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
