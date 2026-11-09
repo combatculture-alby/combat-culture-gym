@@ -110,7 +110,7 @@ function loadSave(): Save {
       mopSpotsToday:Array.isArray(s.mopSpotsToday)?
         [...new Set(s.mopSpotsToday.filter(v=>Number.isInteger(v)&&v>=0&&v<MOP_SPOTS))]:[],
       mopDoneToday:s.mopDoneToday===true,
-      phoneCallsSpawned:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned??1)))),
+      phoneCallsSpawned:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned??(phase==='opening'?0:1))))),
       phoneCallsAnswered:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsAnswered)||0))),
       phoneLeads:Math.max(0,Math.min(5,Math.floor(Number(s.phoneLeads)||0))),
       waterRefillsToday:Math.max(0,Math.min(3,Math.floor(Number(s.waterRefillsToday)||0))),
