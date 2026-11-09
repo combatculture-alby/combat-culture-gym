@@ -16,7 +16,7 @@ import {
 } from './facilityOps';
 import {DAILY_HELP_LIMIT,DAILY_CLEAN_TARGET,DAILY_SHIFT_CASH,DAILY_SHIFT_REP,
   DAILY_GEAR_DRILLS,GEAR_WEAR_PER_CLASS,
-  GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftReady,workingGear,
+  GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftHelpTarget,dailyShiftReady,workingGear,
   wornCondition,servicedCondition} from './hubActivities';
 import {SeminarScene} from './seminarScene';
 import {SEMINAR_COACHES,SEMINAR_STATS,seminarAvailable,seminarNextVisit,
@@ -1014,7 +1014,7 @@ class GymScene extends Phaser.Scene {
     })));
     this.furniturePanel.add(this.add.text(84,144,
       'SHIFT '+(this.saveData.dailyShiftClaimed?'COMPLETE':
-        'HELP '+(this.saveData.coachedToday?.length||0)+'/2  CLEAN '+Math.min(collected,3)+'/3  CLASS '+Math.min(this.saveData.classesToday||0,1)+'/1'),{
+        'HELP '+(this.saveData.coachedToday?.length||0)+'/'+dailyShiftHelpTarget(this.requestStudentIds().length)+'  CLEAN '+Math.min(collected,3)+'/3  CLASS '+Math.min(this.saveData.classesToday||0,1)+'/1'),{
         fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',
         color:this.saveData.dailyShiftClaimed?'#a8e6bd':'#f4d69c'
       }));
@@ -1059,7 +1059,7 @@ class GymScene extends Phaser.Scene {
       (this.saveData.gatheredToday?.length||0);
     this.dailyStatus.setText('CLASS '+(this.saveData.classesToday||0)+
       '/2  HELP '+(this.saveData.coachedToday?.length||0)+
-      '/2  TRASH '+Math.max(0,visibleTrash));
+      '/'+dailyShiftHelpTarget(this.requestStudentIds().length)+'  TRASH '+Math.max(0,visibleTrash));
     this.refreshServiceHotspots();
     this.updateIndicators();
   }
@@ -2068,7 +2068,7 @@ class GymScene extends Phaser.Scene {
   private checkDailyShift():void {
     if(!dailyShiftReady(this.saveData.coachedToday?.length||0,
       this.saveData.gatheredToday?.length||0,this.saveData.classesToday||0,
-      this.saveData.dailyShiftClaimed===true))return;
+      this.saveData.dailyShiftClaimed===true,this.requestStudentIds().length))return;
     this.saveData.dailyShiftClaimed=true;
     this.saveData.money+=DAILY_SHIFT_CASH;
     this.saveData.lifetimeEarnings=(this.saveData.lifetimeEarnings||0)+DAILY_SHIFT_CASH;
