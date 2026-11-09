@@ -28,7 +28,7 @@ const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep
 type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
-const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=2,TRASH_INTERVAL=35;
+const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
 const DECOR_MATERIALS=[[0,2,2],[1,3,1],[0,3,1]];
 const FURNITURE_MATERIALS=[[1,1,1],[0,3,1],[2,2,0],[2,1,1],[1,1,2]];
@@ -130,6 +130,10 @@ class GymScene extends Phaser.Scene {
   private stationTarget:'board'|'desk'|null=null;
   private pickupTarget:Point|null=null;
   private trashClock=0;
+  private cleaningShift=false;
+  private cleaningAt:Point|null=null;
+  private cleaningCountdown=0;
+  private cleaningTotal=0;
   private studentCard!: Phaser.GameObjects.Text;
   private cardTimer?:Phaser.Time.TimerEvent;
   private rosterPanel!: Phaser.GameObjects.Container;
@@ -192,6 +196,7 @@ class GymScene extends Phaser.Scene {
     this.gatheringNodes=[];
     this.gatheringPositions=dailySupplyPositions(this.gymLevel());
     this.trashClock=0;
+    this.cleaningShift=false;this.cleaningAt=null;this.cleaningTotal=0;
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
     }));
@@ -355,6 +360,7 @@ class GymScene extends Phaser.Scene {
     return false;
   }
   private menuShell(title:string,subtitle:string,back?:()=>void,p=this.furniturePanel):void {
+    this.cleaningShift=false;this.cleaningAt=null;this.clearIntent();
     p.removeAll(true);
     p.add(this.add.rectangle(0,23,480,203,0x10252a,.56).setOrigin(0));
     p.add(this.add.rectangle(67,24,346,222,0x152b30).setOrigin(0).setStrokeStyle(2,0xc7a579));
@@ -1032,11 +1038,37 @@ class GymScene extends Phaser.Scene {
     });
   }
   private collectNextSupply():void {
+    if(this.running||this.isPlacing())return;
     this.furniturePanel.setVisible(false);
-    const remaining=this.gatheringPositions.filter((_,i)=>i<(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)&&!this.saveData.gatheredToday?.includes(i));
-    if(!remaining.length){this.say('No trash to clean right now. More accumulates while the gym is open.');return;}
-    remaining.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
-    this.collectNodeAt(remaining[0].x,remaining[0].y);
+    this.cleaningShift=true;this.cleaningTotal=0;
+    this.queueNextTrash();
+  }
+  private queueNextTrash():void {
+    if(!this.cleaningShift)return;
+    const remaining=this.gatheringPositions
+      .filter((_,i)=>i<(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)&&
+        !this.saveData.gatheredToday?.includes(i))
+      .sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+    if(!remaining.length){
+      this.cleaningShift=false;this.clearIntent();
+      this.showFeedback('GYM CLEAN +'+this.cleaningTotal);
+      this.say('Cleanup complete! '+this.cleaningTotal+
+        ' piles cleared. More litter appears throughout the day.');return;
+    }
+    for(const pile of remaining){
+      if(distance(this.player,pile)<=55){
+        this.clearIntent();this.pickupTarget=pile;
+        this.say('Cleaning the gym... '+remaining.length+' messes left.');
+        return;
+      }
+      this.collectNodeAt(pile.x,pile.y);
+      if(this.pickupTarget&&this.route.length){
+        this.say('Cleaning the gym... moving to '+remaining.length+' remaining piles.');
+        return;
+      }
+    }
+    this.cleaningShift=false;this.clearIntent();
+    this.say('Some trash is blocked by equipment or students. Clear the path to finish.');
   }
   private collectNodeAt(x:number,y:number):boolean {
     const i=this.gatheringPositions.findIndex((p,index)=>!this.saveData.gatheredToday?.includes(index)&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<13);
@@ -1064,6 +1096,7 @@ class GymScene extends Phaser.Scene {
     if(!this.saveData.gatheredToday)this.saveData.gatheredToday=[];
     const kind=this.resourceKind(i),amount=this.resourceYield(i);
     this.saveData.materials[kind]+=amount;this.saveData.gatheredToday.push(i);
+    if(this.cleaningShift)this.cleaningTotal++;
     this.persist();this.refresh();this.showFeedback('+'+amount+' '+MATERIAL_NAMES[kind]);
     this.say('Cleaned up gym trash! Salvaged '+amount+' '+MATERIAL_NAMES[kind]+'.');
     return true;
@@ -1144,7 +1177,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=(this.saveData.classesToday||0)+1;
     this.selectedSlot=Math.min(this.saveData.classesToday,1);
     this.saveData.classesTaught=(this.saveData.classesTaught||0)+1;
-    this.spawnTrash(2); // Training generates litter even if the player is fast.
+    this.spawnTrash(4); // A full class leaves a noticeable mess to clean.
     const base=classEarnings(this.gymLevel(),this.students.length,
       this.matchingClassGear(program.stats),this.saveData.equipment||0);
     const earnings=Math.round(base*(0.7+performance*0.6));
@@ -1595,7 +1628,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=0;
     this.saveData.gatheredToday=[];
     this.saveData.trashSpawnedToday=INITIAL_DAILY_TRASH;
-    this.trashClock=0;
+    this.trashClock=0;this.cleaningShift=false;this.cleaningAt=null;
     this.saveData.completed=false;
     this.persist();
     this.scene.restart({notice:'New day! The floor starts with a little litter; more appears as students train.'});
@@ -1840,14 +1873,22 @@ class GymScene extends Phaser.Scene {
     const dx=Number(this.cursors.right.isDown||this.wasd.D.isDown)-Number(this.cursors.left.isDown||this.wasd.A.isDown);
     const dy=Number(this.cursors.down.isDown||this.wasd.S.isDown)-Number(this.cursors.up.isDown||this.wasd.W.isDown);
     const manual=!!(dx||dy);
-    if(manual)this.clearIntent();
+    if(manual){
+      if(this.cleaningShift||this.cleaningAt){
+        this.cleaningShift=false;this.cleaningAt=null;
+        this.say('Cleanup paused. Tap Clean the Gym to resume.');
+      }
+      this.clearIntent();
+    }
     if(this.targetStudent){
       this.targetRefresh-=dt;
       if(this.targetRefresh<=0||distance(this.player,this.targetStudent)<NEAR)this.followStudent();
     }
     if(this.pickupTarget&&distance(this.player,this.pickupTarget)<=55){
-      const {x,y}=this.pickupTarget;
-      this.clearIntent();this.collectNodeAt(x,y);
+      const target={...this.pickupTarget};
+      this.clearIntent();this.cleaningAt=target;this.cleaningCountdown=0.65;
+      this.coach.animate('stretch',dt);
+      return;
     }
     const waypoint=this.route[0];
     const heading=manual?{x:dx,y:dy}:waypoint?{x:waypoint.x-this.player.x,y:waypoint.y-this.player.y}:null;
@@ -1889,6 +1930,17 @@ class GymScene extends Phaser.Scene {
     const dt=Math.min(delta,50)/1000;
     this.updateStudentLife(dt);
     this.updatePlacementPreview();
+    if(this.cleaningAt){
+      this.cleaningCountdown-=dt;
+      this.coach.animate('stretch',dt);
+      if(this.cleaningCountdown<=0){
+        const target=this.cleaningAt;
+        this.cleaningAt=null;
+        this.collectNodeAt(target.x,target.y);
+        if(this.cleaningShift)this.queueNextTrash();
+      }
+      return;
+    }
     if(!this.isPlacing()&&!this.buildMode&&!this.furniturePanel.visible&&
       !this.rosterPanel.visible&&this.saveData.trashSpawnedToday!==MAX_DAILY_TRASH){
       this.trashClock+=dt;
