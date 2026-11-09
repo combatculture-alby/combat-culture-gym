@@ -1003,7 +1003,9 @@ class GymScene extends Phaser.Scene {
       this.showStudentCard(nearest);
       const lines=[['My jab needs work.','I want to compete someday.'],['I brought snacks!','I love this gym community.'],['I studied some fight footage.','I am working on combinations.'],['I am sore today.','I keep showing up!']];
       const milestone=nearest.friendship===3?' You are becoming regular training partners.':nearest.friendship===5?' Friendship milestone: Trusted teammate!':'';
-      this.say(nearest.name+': '+lines[i][Math.max(0,nearest.friendship-1)%2]+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
+      const dialogue=lines[i][Math.max(0,nearest.friendship-1)%2];
+      this.showSpeech(nearest,dialogue,3800);
+      this.say(nearest.name+': '+dialogue+' Bond '+nearest.friendship+'.'+(firstToday?milestone:' Already chatted today.'));
     }
   }
   private openArcade(mode:TrainingMode):void {
@@ -1203,7 +1205,7 @@ class GymScene extends Phaser.Scene {
       ['bag','rest','bag','shadow','rest'],
     ];
     const options=preferred[index];
-    const pose=options[(Math.floor(Math.random()*options.length)+this.saveData.day)%options.length];
+    const pose=options[Math.floor(Math.random()*options.length)];
     const open=(x:number,y:number)=>this.studentSpace(student,x,y);
     const plan=(goal:Point,action:Pose,station?:Station):Routine|undefined=>{
       if(!this.canStand(goal.x,goal.y)||!open(goal.x,goal.y))return;
