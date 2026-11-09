@@ -584,8 +584,11 @@ try{
         const s=window.__combatGym.scene.getScene('Gym');
         s.simulateClass(0);s.simulateClass(1);s.nextDay();
       });
-      await page.waitForFunction(day=>
-        window.__combatGym.scene.getScene('Gym').saveData.day===day+1,day);
+      await page.waitForFunction(day=>{
+        const g=window.__combatGym.scene.getScene('Gym');
+        return g.saveData.day===day+1&&g.sys.isActive()&&g.message?.text?.includes('Opening prep');
+      },day);
+      await page.waitForTimeout(120); // Phaser has completed the scene restart.
     }
     const state=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
