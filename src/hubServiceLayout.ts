@@ -34,7 +34,7 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
     mop:{
       x:coolerX+36,y:205,
       hitWidth:31,hitHeight:38,
-      approach:{x:coolerX+14,y:204}
+      approach:{x:coolerX+44,y:193}
     }
   };
 }
