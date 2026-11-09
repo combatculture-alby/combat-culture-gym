@@ -1,6 +1,10 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
+  CLOTHING_SHOP,DEFAULT_COACH,normalizeCoachAppearance,normalizeCloset,
+  normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
+} from './coachStyle';
 import { drawGym } from './gymWorld';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
@@ -18,7 +22,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[] };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[] };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -44,7 +48,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[] };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -66,6 +70,8 @@ function loadSave(): Save {
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
+      coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
+      wardrobeOwned:normalizeCloset(s.wardrobeOwned),
       friendships:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.friendships?.[i])||0))),
       skills:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.skills?.[i])||0))), equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:enrolled},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return newSave(); }
@@ -130,6 +136,7 @@ class GymScene extends Phaser.Scene {
   }
   private rosterPage=0;
   private goalsPage=0;
+  private wardrobePage=0;
   private speechBubbles:Phaser.GameObjects.Text[]=[];
   private speechLines=['...','blah blah','psst!','haha!','nice!','you got this','one more!'];
   private speechUntil:number[]=[];
@@ -174,7 +181,7 @@ class GymScene extends Phaser.Scene {
     this.classOverlay=this.add.graphics().setDepth(2);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
     this.modeLabel=this.add.text(12,11,PLAYTEST?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
-    this.coach=new GymCharacter(this,170,150,0);
+    this.coach=new GymCharacter(this,170,150,this.saveData.coachAppearance||DEFAULT_COACH);
     this.player=this.coach.body;
     const attending=this.activeStudents();
     this.students.forEach((student,i)=>{
@@ -649,9 +656,116 @@ class GymScene extends Phaser.Scene {
       ['NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
-    this.panelButton(this.furniturePanel,'START A NEW GYM (RESET SAVE)',84,216,310,25,
+    this.panelButton(this.furniturePanel,'EDIT COACH / WARDROBE',84,216,149,25,
+      ()=>this.openCoachWardrobe(),false,0x39735f);
+    this.panelButton(this.furniturePanel,'NEW GYM / RESET',245,216,149,25,
       ()=>this.confirmNewGym(),false,0x564844);
   }
+  private coachStyle():CoachAppearance {
+    return normalizeUnlockedAppearance(this.saveData.coachAppearance,this.saveData.wardrobeOwned);
+  }
+  private changeCoachStyle(field:keyof CoachAppearance,direction:number):void {
+    if(this.running)return;
+    const appearance=this.coachStyle(),owned=normalizeCloset(this.saveData.wardrobeOwned);
+    const lengths:Record<keyof CoachAppearance,number>={
+      skin:COACH_SKINS.length,hair:COACH_HAIR.length,cut:5,
+      top:COACH_SHIRTS.length,shorts:COACH_SHORTS.length,gloves:COACH_GLOVES.length
+    };
+    const total=lengths[field];
+    for(let shift=1;shift<=total;shift++){
+      const next=(appearance[field]+direction*shift+total*4)%total;
+      if(['skin','hair','cut'].includes(field)||
+        hasClothing(field as ClothingSlot,next,owned)){
+        appearance[field]=next;break;
+      }
+    }
+    this.saveData.coachAppearance=normalizeCoachAppearance(appearance);
+    this.coach.setAppearance(this.saveData.coachAppearance);
+    this.persist();
+    this.openCoachWardrobe();
+  }
+  private openCoachWardrobe():void {
+    if(this.running)return;
+    this.clearIntent();
+    this.menuShell('YOUR COACH','Change your look. Purchases are cosmetic only.');
+    const appearance=this.coachStyle();
+    const fields:{field:keyof CoachAppearance;label:string;total:number}[]=[
+      {field:'skin',label:'Skin Tone',total:COACH_SKINS.length},
+      {field:'hair',label:'Hair Color',total:COACH_HAIR.length},
+      {field:'cut',label:'Haircut',total:5},
+      {field:'top',label:'Shirt',total:COACH_SHIRTS.length},
+      {field:'shorts',label:'Shorts',total:COACH_SHORTS.length},
+      {field:'gloves',label:'Gloves',total:COACH_GLOVES.length}
+    ];
+    fields.forEach(({field,label,total},i)=>{
+      const y=69+i*24;
+      this.panelButton(this.furniturePanel,'‹',84,y,26,22,
+        ()=>this.changeCoachStyle(field,-1));
+      this.furniturePanel.add(this.add.text(119,y+5,
+        label+' '+(appearance[field]+1)+'/'+total,
+        {fontFamily:UI_FONT,fontSize:'10px',color:'#e4e7d7'}));
+      this.panelButton(this.furniturePanel,'›',210,y,24,22,
+        ()=>this.changeCoachStyle(field,1));
+    });
+    const avatar=this.add.image(318,129,this.coach.getTextureKey(),0).setScale(2.1);
+    this.furniturePanel.add(avatar);
+    this.furniturePanel.add(this.add.text(318,169,'YOUR COACH',{
+      fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#f3d5a0'
+    }).setOrigin(.5));
+    this.furniturePanel.add(this.add.text(318,187,'$'+this.saveData.money+
+      '   |   '+normalizeCloset(this.saveData.wardrobeOwned).length+' items',{
+      fontFamily:UI_FONT,fontSize:'10px',color:'#a6d2ba'
+    }).setOrigin(.5));
+    this.panelButton(this.furniturePanel,'BACK TO MANAGE',84,218,149,25,
+      ()=>this.openGymUpgrades());
+    this.panelButton(this.furniturePanel,'CLOTHING SHOP',245,218,149,25,
+      ()=>{this.wardrobePage=0;this.openClothingShop();},false,0x39735f);
+  }
+  private buyOrEquipStyle(id:number):void {
+    const item=CLOTHING_SHOP[id];
+    if(!item||this.running)return;
+    const owned=normalizeCloset(this.saveData.wardrobeOwned);
+    if(!owned.includes(id)){
+      if(this.saveData.money<item.price){
+        this.say('Need $'+item.price+' to buy '+item.name+'.');return;
+      }
+      this.saveData.money-=item.price;
+      owned.push(id);
+      this.saveData.wardrobeOwned=normalizeCloset(owned);
+    }
+    const appearance=this.coachStyle();
+    appearance[item.slot]=item.value;
+    this.saveData.coachAppearance=appearance;
+    this.coach.setAppearance(appearance);
+    this.persist();this.refresh();
+    this.openClothingShop();
+    this.say(item.name+' equipped. Cosmetic only.');
+  }
+  private openClothingShop():void {
+    if(this.running)return;
+    this.menuShell('COACH CLOTHING SHOP','Buy shirts, shorts and training gloves for your coach.');
+    const owned=normalizeCloset(this.saveData.wardrobeOwned);
+    const pageSize=5, pages=Math.ceil(CLOTHING_SHOP.length/pageSize);
+    this.wardrobePage=Math.max(0,Math.min(pages-1,this.wardrobePage));
+    CLOTHING_SHOP.slice(this.wardrobePage*pageSize,(this.wardrobePage+1)*pageSize)
+      .forEach(item=>{
+        const i=item.id%pageSize,already=owned.includes(item.id);
+        const label=(already?'EQUIP  ':'BUY $'+item.price+'  ')+item.name;
+        this.panelButton(this.furniturePanel,label,84,72+i*28,310,25,
+          ()=>this.buyOrEquipStyle(item.id),!already&&this.saveData.money<item.price);
+      });
+    this.furniturePanel.add(this.add.text(183,218,
+      'PAGE '+(this.wardrobePage+1)+'/'+pages+'   $'+this.saveData.money,{
+        fontFamily:UI_FONT,fontSize:'10px',color:'#d9c8ab'
+      }));
+    this.panelButton(this.furniturePanel,'‹',84,216,35,26,
+      ()=>{this.wardrobePage--;this.openClothingShop();},this.wardrobePage===0);
+    this.panelButton(this.furniturePanel,'›',275,216,35,26,
+      ()=>{this.wardrobePage++;this.openClothingShop();},this.wardrobePage>=pages-1);
+    this.panelButton(this.furniturePanel,'WARDROBE',318,216,78,26,
+      ()=>this.openCoachWardrobe());
+  }
+
   private confirmNewGym():void {
     this.menuShell('START OVER?','THIS WILL DELETE YOUR SAVED GARAGE PROGRESS.',
       ()=>this.openGymUpgrades());
