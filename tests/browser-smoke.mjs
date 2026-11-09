@@ -161,6 +161,138 @@ try{
     assert.ok(state.route>0,'Receptionist must be reachable');
   });
 
+  // The full daily loop must work without opening a single arcade scene.
+  await openScenario('hub-only-training-and-save',sampleSave({
+    money:100,reputation:0,classesTaught:0,materials:[0,0,0],
+    ownedGear:Array(8).fill(false),gearStored:Array(8).fill(false)
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openDailyHubPlan());
+    const plan=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.furniturePanel.visible&&
+        scene.furniturePanel.list.some(o=>o.text?.includes('YOUR GYM PLAN'));
+    });
+    assert.equal(plan,true,'A standalone daily plan must be accessible');
+    await clickGame(page,154,180); // Teach next class, actual pointer button.
+    await clickGame(page,308,195); // Teach session one.
+    let state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {money:scene.saveData.money,rep:scene.saveData.reputation,
+        classesToday:scene.saveData.classesToday,
+        taught:scene.saveData.classesTaught,
+        xp:scene.saveData.studentXP?.[0]?.[0],activities:scene.saveData.playedActivities,
+        scene:scene.scene.key};
+    });
+    assert.equal(state.money,153,'Class one should pay the garage rate without arcade');
+    assert.equal(state.rep,2,'Class one should grant reputation without arcade');
+    assert.equal(state.classesToday,1);
+    assert.ok(state.xp>0);
+    assert.equal(state.scene,'Gym');
+    assert.equal(state.activities?.Rush,undefined);
+    await clickGame(page,308,195); // Teach afternoon session.
+    state=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {money:scene.saveData.money,rep:scene.saveData.reputation,
+        classesToday:scene.saveData.classesToday,taught:scene.saveData.classesTaught};
+    });
+    assert.equal(state.money,206);
+    assert.equal(state.rep,4);
+    assert.equal(state.classesToday,2);
+    assert.equal(state.taught,2);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const saved=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym').saveData;
+      return {cash:s.money,rep:s.reputation,classesToday:s.classesToday,day:s.day};
+    });
+    assert.deepEqual(saved,{cash:206,rep:4,classesToday:0,day:2},
+      'Daily training rewards and reset must survive reload');
+  });
+
+  for(const level of [1,5]){
+    await openScenario('hub-supplies-level-'+level,sampleSave({
+      gymLevel:level,enrolledStudents:level===1?4:24,
+      friendships:Array(level===1?4:24).fill(0),skills:Array(level===1?4:24).fill(0),
+      materials:[0,0,0],gatheredToday:[]
+    }),async page=>{
+      const gathered=await page.evaluate(()=>{
+        const scene=window.__combatGym.scene.getScene('Gym');
+        const first=scene.gatheringPositions[0];
+        scene.coach.place(first.x,first.y);
+        const result=scene.collectNodeAt(first.x,first.y);
+        const total=scene.saveData.materials.reduce((a,b)=>a+b,0);
+        scene.openMaterials();
+        return {result,total,collected:scene.saveData.gatheredToday?.length,
+          points:scene.gatheringPositions.length,menu:scene.furniturePanel.visible};
+      });
+      assert.equal(gathered.result,true);
+      assert.ok(gathered.total>=1);
+      assert.equal(gathered.collected,1);
+      assert.equal(gathered.points,12);
+      assert.equal(gathered.menu,true);
+      await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
+      assert.equal(await page.evaluate(()=>
+        window.__combatGym.scene.getScene('Gym').saveData.gatheredToday?.length||0),0,
+      'Piles must respawn for each new day');
+    });
+  }
+
+  await openScenario('hub-only-first-expansion',sampleSave({
+    money:500,reputation:0,classesTaught:0,
+    ownedGear:[true,true,false,false,false,false,false,false],
+    gearStored:Array(8).fill(true)
+  }),async page=>{
+    for(let day=1;day<=4;day++){
+      await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('Gym');
+        s.simulateClass(0);s.simulateClass(1);s.nextDay();
+      });
+      await page.waitForFunction(day=>
+        window.__combatGym.scene.getScene('Gym').saveData.day===day+1,day);
+    }
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {rep:s.saveData.reputation,classes:s.saveData.classesTaught,
+        level:s.gymLevel(),cash:s.saveData.money,
+        canExpand:s.saveData.ownedGear?.filter(Boolean).length>=2};
+    });
+    assert.equal(state.classes,8);
+    assert.ok(state.rep>=12,'Hub classes alone must unlock first expansion reputation');
+    assert.ok(state.cash>=400,'Hub classes should finance first expansion');
+    assert.equal(state.canExpand,true);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openExpansion());
+    await clickGame(page,300,217);
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.gymLevel===2);
+    assert.equal((await sceneState(page)).level,2,'Expansion should work without launching a minigame');
+  });
+
+  await openScenario('hub-equipment-placement-save',sampleSave({
+    money:400,materials:[10,10,10],
+    ownedGear:[true,false,false,false,false,false,false,false],
+    gearStored:[true,false,false,false,false,false,false,false]
+  }),async page=>{
+    const placed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.beginGearPlacement(0);
+      s.placeGear(120,150);
+      return {stored:s.saveData.gearStored?.[0],position:s.saveData.gearPositions?.[0],
+        status:s.placingGear};
+    });
+    assert.equal(placed.stored,false,'Owned gear must be placeable in garage');
+    assert.deepEqual(placed.position,{x:120,y:150});
+    assert.equal(placed.status,-1);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const saved=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym').saveData;
+      return {stored:s.gearStored?.[0],position:s.gearPositions?.[0]};
+    });
+    assert.deepEqual(saved,{stored:false,position:{x:120,y:150}});
+  });
+
   await openScenario('speech-bubble-lifetime',sampleSave(),async page=>{
     const initial=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
