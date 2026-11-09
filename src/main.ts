@@ -901,7 +901,7 @@ class GymScene extends Phaser.Scene {
     SEMINAR_COACHES.forEach((coach,i)=>{
       const available=seminarAvailable(this.saveData.day,i);
       const next=seminarNextVisit(this.saveData.day,i);
-      const canHost=available&&!hostedToday&&!pending&&this.saveData.money>=coach.fee;
+      const canHost=available&&!hostedToday&&!pending&&this.dayPhase()==='open'&&this.activeStudents().length>0&&this.saveData.money>=coach.fee;
       const status=pending&&pending.coachId===i?'BOOKED / RESUME BELOW':
         hostedToday?'TODAY\'S SEMINAR COMPLETE':
         !available?'VISITS IN '+next+' DAY'+(next===1?'':'S'):
@@ -952,6 +952,10 @@ class GymScene extends Phaser.Scene {
       ()=>this.bookSeminar(coachId),false,0x39735f);
   }
   private bookSeminar(coachId:number):void {
+    if(this.dayPhase()!=='open'||this.activeStudents().length===0){
+      this.say('Seminars can be hosted only after the gym opens and students arrive.');
+      return;
+    }
     if(this.running||!seminarBook(this.saveData,coachId)){
       this.openSeminars();return;
     }
@@ -1252,7 +1256,7 @@ class GymScene extends Phaser.Scene {
   private openGymUpgrades():void {
     if(this.running||this.isPlacing())return;
     this.clearIntent();
-    this.menuShell('MANAGE GYM','Shop, arrange equipment, or start a new day.');
+    this.menuShell('MANAGE GYM','Manage supplies, upgrades and the daily opening / closing cycle.');
     const actions:[string,()=>void][]=[
       ['TRAINING GEAR',()=>this.openGearShop()],
       ['DECORATIONS',()=>this.openUpgradePurchase('decor')],
@@ -2142,6 +2146,9 @@ class GymScene extends Phaser.Scene {
     }
   }
   private openArcade(mode:TrainingMode):void {
+    if(this.dayPhase()!=='open'||this.activeStudents().length===0){
+      this.say('Open the gym and let students arrive before training.');return;
+    }
     if(this.running||this.isPlacing()||this.rosterPanel.visible) return;
     if(this.saveData.playedActivities?.[mode]===this.saveData.day) {this.say('Already played today. Close gym for a new day.');return;}
     if(this.drillsToday()>=2){this.say('Two minigames already played today.');return;}
@@ -2299,6 +2306,8 @@ class GymScene extends Phaser.Scene {
     const label=phase==='opening'?'OPEN GYM':phase==='open'?'CLOSE GYM':
       present>0?'LEAVING...':'NEXT DAY';
     this.phaseActionText?.setText(label);
+    if(!this.running)this.modeLabel?.setText(phase==='opening'?'OPENING PREP':
+      phase==='open'?'GYM OPEN':'CLOSING PREP');
     this.phaseStatus?.setText(phase==='opening'?'OPENING PREP / EMPTY GYM':
       phase==='open'?'OPEN / '+present+' STUDENTS PRESENT':
       present>0?'CLOSING / '+present+' STUDENTS LEAVING':
