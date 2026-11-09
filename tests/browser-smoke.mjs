@@ -697,15 +697,108 @@ try{
     assert.equal(result.visible,4-result.cleaned,'Physical rubbish should disappear');
   });
 
+  // Physical hub props remain walk-up objects rather than persistent UI tiles.
+  for(const level of [1,3,5]){
+    await openScenario('level-'+level+'-physical-service-props',sampleSave({
+      gymLevel:level,money:300,phoneCallsSpawned:0,
+      enrolledStudents:level===1?4:level===3?10:24,
+      friendships:Array(level===1?4:level===3?10:24).fill(0),
+      skills:Array(level===1?4:level===3?10:24).fill(0)
+    }),async page=>{
+      const info=await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('Gym');
+        const props=s.serviceHotspots.map(({type,frame,hit,hint})=>({
+          type,graphic:frame.type,hit:hit.type,
+          visible:frame.visible,clickable:!!hit.input?.enabled,
+          hintHidden:!hint.visible,point:s.servicePosition(type)
+        }));
+        const blocked=['water','stock','mop'].map(type=>{
+          const p=s.servicePosition(type);
+          return {type,blocked:!s.canStand(p.x,p.y+7)};
+        });
+        return {props,blocked};
+      });
+      assert.deepEqual(info.props.map(p=>p.type),['phone','water','stock','mop']);
+      assert.ok(info.props.every(p=>p.graphic==='Graphics'&&p.hit==='Zone'&&
+        p.visible&&p.clickable&&p.hintHidden),
+        'Every service must be a tappable rendered object, not a floating labeled button');
+      assert.ok(info.blocked.every(x=>x.blocked),
+        'World props should have solid collision footprints');
+      await page.screenshot({path:output+'/physical-services-level-'+level+'.png'});
+      // Use actual graphical fixture taps with a coach close to each object.
+      for(const [type,panel] of [
+        ['water','GYM WATER & AMENITIES'],
+        ['stock','ORDER GYM SUPPLIES'],
+        ['mop','MOP THE TRAINING MAT'],
+        ['phone','FRONT DESK PHONE']
+      ]){
+        const p=await page.evaluate(type=>{
+          const s=window.__combatGym.scene.getScene('Gym');
+          const fixture=s.servicePosition(type);
+          s.coach.place(fixture.x-25,fixture.y+10);
+          return fixture;
+        },type);
+        await clickGame(page,p.x,p.y);
+        const heading=await page.evaluate(title=>
+          window.__combatGym.scene.getScene('Gym').furniturePanel.list
+            .some(obj=>obj.text===title),panel);
+        assert.equal(heading,true,type+' physical fixture should open its existing workflow');
+        await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').closePanel());
+      }
+    });
+  }
+
+  await openScenario('random-phone-rings-from-reception',sampleSave({
+    phoneCallsSpawned:0,phoneCallsAnswered:0,day:2
+  }),async page=>{
+    const before=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {calls:s.saveData.phoneCallsSpawned,
+        ringVisible:s.serviceHotspots.find(p=>p.type==='phone')?.ring?.visible,
+        hit:s.servicePosition('phone')};
+    });
+    assert.equal(before.calls,0);
+    assert.equal(before.ringVisible,false,'No immediate phone call on a fresh day');
+    const after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.phoneClock=s.phoneRingAt;
+      s.update(0,16);
+      return {calls:s.saveData.phoneCallsSpawned,
+        visible:s.serviceHotspots.find(p=>p.type==='phone')?.ring?.visible};
+    });
+    assert.deepEqual(after,{calls:1,visible:true},
+      'Random elapsed waiting time should make the physical desk phone ring');
+    await page.screenshot({path:output+'/phone-ringing-at-desk.png'});
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.answerPhone('info');
+    });
+    const answered=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {available:s.saveData.phoneCallsSpawned-s.saveData.phoneCallsAnswered,
+        visible:s.serviceHotspots.find(p=>p.type==='phone')?.ring?.visible,
+        rep:s.saveData.reputation,nextRing:s.phoneRingAt};
+    });
+    assert.equal(answered.available,0);
+    assert.equal(answered.visible,false,'Phone stops flashing when call is answered');
+    assert.equal(answered.rep,2);
+    assert.ok(answered.nextRing>=28&&answered.nextRing<=72);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.phoneCallsAnswered),1);
+  });
+
   await openScenario('phone-inquiries-recruitment-discount',sampleSave({
     gymLevel:2,enrolledStudents:4,money:500,
     phoneCallsSpawned:1,phoneCallsAnswered:0,phoneLeads:0
   }),async page=>{
-    await page.evaluate(()=>{
-      const s=window.__combatGym.scene.getScene('Gym');
-      s.coach.place(325,128);
+    const phone=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym'),p=s.servicePosition('phone');
+      s.coach.place(p.x-26,p.y+10);
+      return p;
     });
-    await clickGame(page,353,128); // Click the in-world PHONE fixture.
+    await clickGame(page,phone.x,phone.y); // Click the physical desk phone, not a floating button.
     const opened=await page.evaluate(()=>window.__combatGym.scene.getScene('Gym')
       .furniturePanel.list.some(x=>x.text==='FRONT DESK PHONE'));
     assert.equal(opened,true,'Phone must be interactable on the gym floor');
@@ -732,10 +825,12 @@ try{
     money:600,supplies:[1,1,1,2],pendingSupplies:[0,0,0,0],
     waterLevel:20,towelLevel:15,paperLevel:10
   }),async page=>{
-    await page.evaluate(()=>{
-      const s=window.__combatGym.scene.getScene('Gym');s.coach.place(327,182);
+    const closet=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym'),p=s.servicePosition('stock');
+      s.coach.place(p.x-30,p.y+14);
+      return p;
     });
-    await clickGame(page,353,182); // In-world STOCK shelf.
+    await clickGame(page,closet.x,closet.y); // Click physical supply closet.
     assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('Gym')
       .furniturePanel.list.some(x=>x.text==='ORDER GYM SUPPLIES')),true);
     await clickGame(page,175,90); // Order 3 water jugs ($35).
