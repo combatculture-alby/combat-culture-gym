@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import { drawGym } from './gymWorld';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym} from './gymProgression';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -125,9 +125,7 @@ class GymScene extends Phaser.Scene {
   private timer!: Phaser.GameObjects.Text;
   private students:Student[]=[];
   private activeStudents():Student[] {
-    const count=activeStudentCount(this.students.length,this.gymLevel());
-    const start=(this.saveData.day-1)*count%Math.max(1,this.students.length);
-    return Array.from({length:count},(_,i)=>this.students[(start+i)%this.students.length]);
+    return attendingIndices(this.students.length,this.gymLevel(),this.saveData.day).map(i=>this.students[i]);
   }
   private rosterPage=0;
   private goalsPage=0;
