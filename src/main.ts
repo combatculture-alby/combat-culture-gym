@@ -1015,6 +1015,13 @@ class GymScene extends Phaser.Scene {
     this.footprints=this.solidFootprints();
     this.navigation.rebuild();
     this.stations=[];
+    // The real water cooler is a student activity station. When it is empty,
+    // students stop using it and may complain until it is refilled.
+    if((this.saveData.waterLevel??55)>10){
+      const c=serviceFixtureLayout(this.gymLevel()).water;
+      this.stations.push({x:c.x,y:c.y+6,rx:10,ry:13,
+        id:'water-cooler',pose:'drink'});
+    }
     this.worldFixtures.forEach(g=>g.destroy());this.worldFixtures=[];
     const layer=(y:number):void=>{
       const g=this.add.graphics().setDepth(10+y/100-0.05);
@@ -2345,10 +2352,10 @@ class GymScene extends Phaser.Scene {
   }
   private planStudent(student:Student,index:number):Routine {
     const preferred:Pose[][]=[
-      ['bag','shadow','rest','stretch','rest'],
-      ['stretch','rest','shadow','bag','rest'],
-      ['lift','rest','stretch','shadow','rest'],
-      ['bag','rest','bag','shadow','rest'],
+      ['bag','shadow','rest','stretch','drink','rest'],
+      ['stretch','drink','rest','shadow','bag','rest'],
+      ['lift','rest','stretch','shadow','drink','rest'],
+      ['bag','rest','drink','bag','shadow','rest'],
     ];
     const options=preferred[index%preferred.length];
     const pose=options[Math.floor(Math.random()*options.length)];
@@ -2378,7 +2385,7 @@ class GymScene extends Phaser.Scene {
       }
       student.chatCooldown=4+index;
     }
-    if(pose==='bag'||pose==='lift'||pose==='rest'){
+    if(pose==='bag'||pose==='lift'||pose==='rest'||pose==='drink'){
       const stations=this.stations.filter(s=>s.pose===pose).sort((a,b)=>distance(a,student)-distance(b,student));
       for(const station of stations){
         const side=station.rx+7,front=station.ry+6;
@@ -2395,7 +2402,7 @@ class GymScene extends Phaser.Scene {
     // Sitting/resting is reserved for an actual bench or rest station.
     // Rotate rest breaks between sitting on the mat and drinking water.
     // This also works in a new gym before any benches have been purchased.
-    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?(Math.random()<0.5?'rest':'drink'):pose==='lift'?'stretch':'shadow';
+    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?(Math.random()<0.5?'rest':'drink'):pose==='lift'?'stretch':pose==='drink'?'stretch':'shadow';
     for(let i=0;i<6;i++){
       const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
       const routine=plan({x,y},action);
