@@ -42,7 +42,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number; dayStartMoney?:number; dayStartRep?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -69,7 +69,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0,dayStartMoney:100,dayStartRep:0 };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -94,6 +94,8 @@ function loadSave(): Save {
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
       gymPhase:phase,arrivedCount:normalizeArrivalCount(s.arrivedCount,phase,attendance),
+      dayStartMoney:Number.isFinite(s.dayStartMoney)?s.dayStartMoney:s.money,
+      dayStartRep:Number.isFinite(s.dayStartRep)?s.dayStartRep:s.reputation,
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
       decorStored:Array.from({length:3},(_,i)=>s.decorStored?.[i]===true),
@@ -982,7 +984,19 @@ class GymScene extends Phaser.Scene {
     const classes=this.saveData.classesTaught||0;
     this.menuShell('YOUR GYM PLAN','COACH, CLEAN AND TEACH TO COMPLETE THE DAILY SHIFT.',
       ()=>this.openTrainingBoard());
-    const lines=[
+    const phase=this.dayPhase();
+    const broken=(this.saveData.ownedGear||[]).filter((owned,i)=>owned&&
+      !this.saveData.gearStored?.[i]&&(this.saveData.gearCondition?.[i]??100)<GEAR_WORKING_THRESHOLD).length;
+    const net=this.saveData.money-(this.saveData.dayStartMoney??this.saveData.money);
+    const repGained=this.saveData.reputation-(this.saveData.dayStartRep??this.saveData.reputation);
+    const lines=phase==='closing'?[
+      'DAY '+this.saveData.day+' SUMMARY  /  '+(this.saveData.classesToday||0)+' CLASSES TAUGHT',
+      'NET CASH '+(net>=0?'+':'')+'$'+net+'   REP '+(repGained>=0?'+':'')+repGained,
+      'WATER '+(this.saveData.waterLevel??55)+'   TOWELS '+(this.saveData.towelLevel??65)+
+        '   PAPER '+(this.saveData.paperLevel??65),
+      'MAT '+(this.saveData.matCleanliness??70)+'%   BROKEN GEAR '+broken+
+        '   TRASH LEFT '+outstandingTrash(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH,collected)
+    ]:[
       'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Trash cleaned '+collected+'/'+(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH),
       'Students '+this.students.length+'/'+studentCapacity(level)+
         '   Cash $'+this.saveData.money+'   REP '+this.saveData.reputation,
@@ -2350,6 +2364,8 @@ class GymScene extends Phaser.Scene {
     this.saveData.trashSpawnedToday=left;
     this.trashClock=0;this.cleaningShift=false;this.cleaningAt=null;
     this.saveData.completed=false;
+    this.saveData.dayStartMoney=this.saveData.money;
+    this.saveData.dayStartRep=this.saveData.reputation;
     this.persist();
     this.scene.restart({notice:'Opening prep: your gym is empty. Unfinished cleanup and missing supplies carry over.'});
   }
