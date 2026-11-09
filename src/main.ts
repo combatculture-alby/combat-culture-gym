@@ -515,7 +515,7 @@ class GymScene extends Phaser.Scene {
     const available=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
       this.saveData.phoneCallsAnswered??0);
     this.menuShell('FRONT DESK PHONE',
-      available?'RING RING! A NEW MEMBER IS CALLING.':'NO CALLS CURRENTLY. MORE MAY COME AFTER CLASS.');
+      available?'RING RING! A NEW MEMBER IS CALLING.':'NO CALLS RIGHT NOW. THE PHONE RINGS AT RANDOM TIMES.');
     this.furniturePanel.add(this.add.text(86,86,
       'PHONE INQUIRIES  '+(this.saveData.phoneCallsAnswered??0)+' / '+
       PHONE_CALL_LIMIT+'   |   MEMBER LEADS '+(this.saveData.phoneLeads??0),{
