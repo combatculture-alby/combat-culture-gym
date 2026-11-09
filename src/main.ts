@@ -397,22 +397,32 @@ class GymScene extends Phaser.Scene {
   private openSeminars():void {
     if(this.running||this.isPlacing())return;
     this.clearIntent();
-    this.menuShell('GUEST SEMINARS','EXPENSIVE TRAINING EVENTS. COACH AVAILABILITY ROTATES DAILY.',
-      ()=>this.openTrainingBoard());
     const pending=this.saveData.seminarPending;
     const hostedToday=this.saveData.seminarLastDay===this.saveData.day;
+    const guests=SEMINAR_COACHES.filter(coach=>seminarAvailable(this.saveData.day,coach.id));
+    this.menuShell('GUEST SEMINARS','ONLY HIGHLIGHTED GUESTS ARE VISITING TODAY.',
+      ()=>this.openTrainingBoard());
+    this.furniturePanel.add(this.add.rectangle(84,61,310,17,0x476b53)
+      .setOrigin(0).setStrokeStyle(1,0xdec18a));
+    this.furniturePanel.add(this.add.text(91,65,
+      'TODAY: '+guests.map(guest=>guest.name).join(' + '),{
+        fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff1bf'
+      }));
     SEMINAR_COACHES.forEach((coach,i)=>{
       const available=seminarAvailable(this.saveData.day,i);
       const next=seminarNextVisit(this.saveData.day,i);
-      const status=hostedToday?'Already hosted today':
-        pending?'Finish your paid seminar first':
-        !available?'Next visit in '+next+' day'+(next===1?'':'s'):
-        this.saveData.money<coach.fee?'Available / need $'+coach.fee:
-        'Available today!';
-      this.panelButton(this.furniturePanel,coach.name+' / '+coach.discipline+
-        '  $'+coach.fee,84,72+i*33,310,31,()=>this.previewSeminar(i),
-        !!pending||hostedToday||!available||this.saveData.money<coach.fee,
-        0x39735f,SEMINAR_STATS[coach.focus]+' + '+SEMINAR_STATS[coach.secondary]+'   |   '+status);
+      const canHost=available&&!hostedToday&&!pending&&this.saveData.money>=coach.fee;
+      const status=pending&&pending.coachId===i?'BOOKED / RESUME BELOW':
+        hostedToday?'TODAY\'S SEMINAR COMPLETE':
+        !available?'VISITS IN '+next+' DAY'+(next===1?'':'S'):
+        this.saveData.money<coach.fee?'AVAILABLE NOW / NEED $'+coach.fee:'AVAILABLE NOW';
+      this.panelButton(this.furniturePanel,
+        (available?'[HERE] ':'[AWAY] ')+coach.name+' / '+coach.discipline+
+        '  $'+coach.fee,84,84+i*33,310,30,
+        ()=>this.previewSeminar(i),!canHost,
+        available?0x427b59:0x30474b,
+        SEMINAR_STATS[coach.focus]+' + '+SEMINAR_STATS[coach.secondary]+
+        '   |   '+status);
     });
     if(pending){
       this.panelButton(this.furniturePanel,'RESUME PAID SEMINAR',169,216,224,27,
@@ -420,7 +430,7 @@ class GymScene extends Phaser.Scene {
     }else{
       this.furniturePanel.add(this.add.text(169,218,
         hostedToday?'Already hosted a seminar today.':'$'+this.saveData.money+
-        ' available. Seminars do not use class slots.',{
+        ' available. One guest seminar per day.',{
           fontFamily:UI_FONT,fontSize:'10px',color:'#d2ded1'
         }));
     }
