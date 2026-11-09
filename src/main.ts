@@ -773,8 +773,26 @@ class GymScene extends Phaser.Scene {
   }
   private useNearbyStation():boolean {
     const {deskApproach,boardApproach}=gymServiceLayout(this.gymLevel());
-    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,deskApproach.x,deskApproach.y)<43){this.openGymUpgrades();return true;}
-    if(Phaser.Math.Distance.Between(this.player.x,this.player.y,boardApproach.x,boardApproach.y)<43){this.openTrainingBoard();return true;}
+    const fixtures=serviceFixtureLayout(this.gymLevel());
+    // Keyboard interaction follows the same physical objects as pointer taps.
+    // Prefer the nearest utility, rather than accidentally opening Manage
+    // when the mop or cooler is alongside reception.
+    const nearby=(['water','stock','mop'] as HubService[])
+      .map(type=>({type,dist:distance(this.player,fixtures[type].approach)}))
+      .sort((a,b)=>a.dist-b.dist)[0];
+    const deskDist=distance(this.player,deskApproach);
+    const boardDist=distance(this.player,boardApproach);
+    if(nearby&&nearby.dist<28&&nearby.dist<=Math.min(deskDist,boardDist)+5){
+      this.openService(nearby.type);return true;
+    }
+    if(deskDist<43){
+      if(availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
+        this.saveData.phoneCallsAnswered??0)>0)this.openPhone();
+      else this.openGymUpgrades();
+      return true;
+    }
+    if(boardDist<43){this.openTrainingBoard();return true;}
+    if(nearby&&nearby.dist<30){this.openService(nearby.type);return true;}
     return false;
   }
   private menuShell(title:string,subtitle:string,back?:()=>void,p=this.furniturePanel):void {
