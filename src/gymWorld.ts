@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import {normalizeGymLevel,trainingBounds} from './gymProgression';
+import {normalizeGymLevel,trainingBounds,gymServiceLayout} from './gymProgression';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
 // Room dimensions, board, and reception stay fixed; each expansion opens more mat
@@ -17,9 +17,102 @@ const THEMES=[
    mat:0x193d50,tile:0x265669,edge:0xe0b875,accent:0xffdf95,ink:0x142e3c},
 ] as const;
 
+// Exact full-sized original hub, deliberately unlocked at Level 3.
+function bakeClassicRoom(g:Phaser.GameObjects.Graphics):void {
+  const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>
+    g.fillStyle(color,alpha).fillRect(x,y,w,h);
+  const brick=0x7b4c40, trim=0x3c3537, wood=0xc39160, pale=0xedce91;
+  rect(0x233436,0,0,480,330);
+  rect(brick,0,23,480,54);
+  for(let y=24;y<75;y+=8){
+    rect(0x4b3b3a,0,y,480,1,0.45);
+    for(let x=(y%16)*2-16;x<480;x+=24){
+      rect(0xac6d55,x+1,y+1,23,5,((x+y)%3===0)?0.37:0.19);
+      rect(0x4b3b3a,x,y,1,8,0.45);
+    }
+  }
+  rect(trim,0,72,480,7);
+  rect(0xa87855,0,72,480,2);
+  rect(0xa87550,0,79,480,145);
+  for(let row=0;row<18;row++){
+    const y=79+row*8;
+    for(let col=-1;col<12;col++){
+      const x=col*43+(row%3)*14;
+      const tint=[0xb47d52,0xbf8b5d,0xc89864,0xc08b5b][Math.abs(col*7+row*3)%4];
+      rect(tint,x+1,y,42,7);
+      rect(0xe7b981,x+3,y,37,1,0.42);
+      rect(0x845b43,x+5+Math.abs(col*row)%11,y+4,12,1,0.24);
+      rect(0xe8b988,x+25,y+2,10,1,0.26);
+    }
+  }
+  rect(0x533f3b,0,222,480,4);
+  rect(0xd5a573,0,221,480,1);
+
+  rect(0x2d3f43,25,76,300,141);
+  rect(0xb5604e,28,76,294,138);
+  rect(0x335b60,33,80,284,131);
+  for(let y=81;y<211;y+=26)for(let x=34;x<317;x+=31){
+    const w=Math.min(30,316-x);
+    rect((x+y)%2===0?0x598780:0x507e79,x,y,w,25);
+    rect(0x8ca99a,x+1,y+1,w-1,1,0.42);
+    rect(0x285960,x+1,y+24,w-1,1,0.5);
+    for(let i=0;i<4;i++) rect(0x9cb7a2,x+3+(i*7)%Math.max(1,w-4),y+4+(i*11+x)%17,1,1,0.24);
+  }
+  rect(0x72988a,37,84,276,2);
+  rect(0x72988a,37,206,276,2);
+  rect(0x72988a,37,86,2,120);
+  rect(0x72988a,311,86,2,120);
+  for(const x of [43,303])for(const y of [91,198]){
+    rect(0xa7bda4,x,y,6,1);
+    rect(0xa7bda4,x+2,y-2,1,5);
+  }
+  // A faded floor mark under the sparring area.
+  g.lineStyle(2,0xc5c7a2,0.19).strokeCircle(175,145,25);
+  g.lineStyle(1,0xc5c7a2,0.19).strokeCircle(175,145,21);
+  rect(0xc5c7a2,161,141,28,9,0.15);
+
+  const window=(x:number)=>{
+    rect(trim,x,31,79,40);
+    rect(wood,x+2,33,75,35);
+    rect(0x668e98,x+5,36,69,29);
+    rect(0x9bbab2,x+5,37,69,11);
+    rect(0xe5c28a,x+8,41,15,2);
+    for(let i=0;i<7;i++){
+      const h=5+(i*11)%12;
+      rect(0x577780,x+6+i*9,65-h,8,h);
+      rect(0xe4b77f,x+9+i*9,65-h+3,2,2,0.62);
+    }
+    rect(pale,x+37,36,3,29);
+    rect(pale,x+5,49,69,2);
+    rect(0xb57c57,x-2,67,83,4);
+    rect(pale,x-2,67,83,1);
+    g.fillStyle(0xffd89c,0.10).fillPoints([
+      {x:x+4,y:71},{x:x+72,y:71},{x:x+107,y:138},{x:x+37,y:138}
+    ],true);
+    g.fillStyle(0xffe4ac,0.10).fillPoints([
+      {x:x+19,y:71},{x:x+26,y:71},{x:x+62,y:138},{x:x+56,y:138}
+    ],true);
+  };
+  window(44);
+  window(224);
+  rect(trim,135,32,77,34);
+  rect(0xa45a48,138,35,71,28);
+  rect(pale,143,38,61,2);
+  rect(pale,143,58,61,2);
+  rect(trim,331,27,5,195);
+  rect(0xad7b55,331,28,2,193);
+
+}
+
 function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
   const level=normalizeGymLevel(requestedLevel),theme=THEMES[level-1];
   const g=scene.add.graphics();
+  if(level===3){
+    bakeClassicRoom(g);
+    g.generateTexture('gym-room-'+level,480,330);
+    g.destroy();
+    return;
+  }
   const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>
     g.fillStyle(color,alpha).fillRect(x,y,w,h);
   const line=(color:number,x1:number,y1:number,x2:number,y2:number,alpha=1,width=1)=>{
@@ -74,26 +167,32 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
   if(level===1){
     // Residential garage: concrete, a corrugated roll-up door, pegboard,
     // unpainted columns, exposed strip light, and a short home-training mat.
-    rect(0x343f42,23,26,301,48);
-    rect(0x9fa8a0,27,29,293,42);
+    // Compact single-car bay, not the full-sized original roll-up.
+    rect(0x303c3d,43,25,249,49);
+    rect(0x9fa8a0,59,29,223,42);
     for(let y=29;y<71;y+=8){
-      rect(0x778781,29,y,288,2);
-      rect(0xf6f0df,31,y+3,284,1,0.31);
-      rect(0x57655f,31,y+7,284,1,0.28);
+      rect(0x778781,61,y,218,2);
+      rect(0xf6f0df,64,y+3,213,1,0.31);
+      rect(0x57655f,64,y+7,213,1,0.28);
     }
-    for(const x of [27,316])rect(0x35484b,x,27,4,46);
-    rect(0x425659,168,29,4,41);
-    rect(0x2e4246,116,25,121,5);
-    rect(0xffefd2,140,27,73,2,0.92);
-    rect(0xffffff,139,30,75,5,0.06);
-    rect(0x37484a,0,82,22,98);
+    for(const x of [57,280])rect(0x35484b,x,27,4,46);
+    rect(0x425659,169,29,4,41);
+    rect(0x2e4246,105,25,111,5);
+    rect(0xffefd2,127,27,68,2,0.92);
+    rect(0xffffff,127,30,68,5,0.06);
+    rect(0x26383d,0,79,44,145);
+    rect(0x6c7772,39,79,7,143);
+    rect(0x37484a,45,92,19,86);
     for(let y=90;y<177;y+=14){
-      rect(0x9a866d,3,y,17,3);
-      rect(0x677269,5,y-4,8,4);
+      rect(0x9a866d,48,y,14,3);
+      rect(0x677269,49,y-4,8,4);
     }
-    rect(0x5c6059,308,81,18,64);
-    for(let y=85;y<141;y+=7)for(let x=311;x<325;x+=5)
+    rect(0x5c6059,303,90,18,64);
+    for(let y=94;y<150;y+=7)for(let x=306;x<320;x+=5)
       rect(0xe5c18c,x,y,1,1,0.34);
+    rect(0x3a4e51,0,209,45,15);
+    rect(0xc4ad86,0,211,40,2,0.42);
+    rect(0x25353a,463,80,17,144);
     // Hairline concrete cracks outside the mat.
     line(0x495351,24,190,37,183,0.48);
     line(0x495351,37,183,43,191,0.48);
@@ -255,6 +354,43 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
     }
     rect(theme.accent,cx-21,cy-2,42,4,0.27);
     rect(theme.accent,cx-2,cy-15,4,30,0.19);
+  }
+  // The top tiers are new facilities, not the garage recolored.
+  const display=(x:number,y:number,w:number,h:number,gold:boolean)=>{
+    rect(0x0e202a,x-3,y-3,w+6,h+6);
+    rect(gold?0xcfa96b:0x83b4b6,x-2,y-2,w+4,h+4);
+    rect(0x142d39,x,y,w,h);
+    rect(gold?0x243e53:0x315660,x+2,y+2,w-4,h-4);
+    rect(gold?0xf0c882:0x94d4c2,x+5,y+5,w-10,2);
+    rect(0xf5dfb4,x+5,y+10,Math.floor(w*0.36),2);
+    for(let i=0;i<4;i++)
+      rect(i%2?0x96b7b0:0xd7b56c,x+5+i*Math.floor((w-12)/4),y+h-12,
+        Math.max(5,Math.floor((w-20)/4)),2,0.87);
+    rect(gold?0xd4ae6b:0x83c6b8,x+5,y+h-6,w-10,1);
+  };
+  if(level===4){
+    display(233,30,83,34,false);
+  }else if(level===5){
+    display(39,29,81,36,true);
+    display(233,29,84,36,true);
+    // Premium flagship lounge: marble aisle, warm lighting, water bar and greenery.
+    rect(0x234653,332,119,145,104);
+    for(let y=125;y<224;y+=16)for(let x=333;x<478;x+=22){
+      rect((x+y)%3?0x5c7b7e:0x698487,x,y,21,15,0.78);
+      rect(0xdce0c8,x+1,y+1,19,1,0.16);
+    }
+    rect(0xd5ae74,333,121,144,2,0.72);
+    rect(0xe4d7bc,339,139,22,18,0.3);
+    rect(0x284b4b,343,141,14,14);
+    rect(0x8db4a5,348,134,4,19);
+    for(let y=140;y<157;y+=4){
+      rect(0x79a778,342,y,7,3);
+      rect(0xb9cf9f,353,y,8,3);
+    }
+    rect(0xdbcba7,339,161,22,3,0.72);
+    rect(0x283c45,335,204,28,10);
+    for(let i=0;i<3;i++)rect(0x6eaaab,339+i*8,202,5,7);
+    rect(0xe7cf9e,335,200,28,3,0.74);
   }
   // Wall spotlights point toward the mats without fake physical obstacles.
   for(const x of [b.left+21,b.right-22]){
