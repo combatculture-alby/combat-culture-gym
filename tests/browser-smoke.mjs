@@ -104,6 +104,37 @@ try{
   }
   assert.equal(themePixels.size,5,'Every gym level needs a distinct floor palette');
 
+  await openScenario('speech-bubble-lifetime',sampleSave(),async page=>{
+    const initial=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const student=scene.activeStudents()[0];
+      scene.showSpeech(student,'Testing a short chat');
+      const index=scene.students.indexOf(student);
+      return {until:scene.speechUntil[index]-scene.time.now,
+        visible:scene.speechBubbles[index].visible,index};
+    });
+    assert.equal(initial.visible,true,'Chat must appear immediately');
+    assert.ok(initial.until>900&&initial.until<1700,'Default bubbles should be brief');
+    await page.waitForTimeout(1900);
+    const dismissed=await page.evaluate(index=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.speechBubbles[index].visible;
+    },initial.index);
+    assert.equal(dismissed,false,'Chat must automatically disappear when expired');
+    await page.evaluate(index=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const student=scene.students[index];
+      scene.showSpeech(student,'Paused chat',700);
+      scene.openGymUpgrades();
+    },initial.index);
+    await page.waitForTimeout(1050);
+    const pausedVisible=await page.evaluate(index=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.speechBubbles[index].visible;
+    },initial.index);
+    assert.equal(pausedVisible,false,'Chat must expire while menus are open');
+  });
+
   await openScenario('level-1-garage',sampleSave(),async page=>{
     const state=await sceneState(page);
     assert.equal(state.level,1);
