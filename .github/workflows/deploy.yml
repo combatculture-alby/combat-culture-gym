@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p dist/test
           cp -R test-source/dist/. dist/test/
-      # Refresh unmerged garage preview with visible seminar guests, trash cleanup, and place-or-store purchases.
+      # Publish verified garage hub with in-room phone, supplies, mopping and equipment maintenance.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
