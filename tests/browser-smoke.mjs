@@ -115,6 +115,38 @@ try{
     assert.equal((await sceneState(page)).level,2,'Expanded level did not persist');
   });
 
+  await openScenario('class-timetable',sampleSave({money:1000}),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openClassSchedule());
+    await clickGame(page,130,178); // Assign HIIT to morning slot.
+    assert.deepEqual((await sceneState(page)).classPlan,[3,1]);
+    await clickGame(page,300,195); // Teach session one.
+    assert.equal((await sceneState(page)).classesToday,1);
+    await clickGame(page,135,146); // Assign Grappling to afternoon slot.
+    assert.deepEqual((await sceneState(page)).classPlan,[3,2]);
+    await clickGame(page,300,195); // Teach session two.
+    assert.equal((await sceneState(page)).classesToday,2);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
+    const state=await sceneState(page);
+    assert.deepEqual(state.classPlan,[3,2],'Schedule should persist to the next day');
+    assert.equal(state.classesToday,0,'New day should reset remaining class slots');
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.deepEqual((await sceneState(page)).classPlan,[3,2],'Schedule should persist after reload');
+  });
+
+  await openScenario('level-1-equipment-bounds',sampleSave(),async page=>{
+    const valid=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return {edge:scene.validPlacement(48,120,8,8),
+        inner:scene.validPlacement(80,132,8,8),
+        outside:scene.validPlacement(310,132,8,8)};
+    });
+    assert.equal(valid.edge,false,'Garage must reject equipment outside its smaller mat');
+    assert.equal(valid.inner,true,'Garage must permit clear usable equipment placements');
+    assert.equal(valid.outside,false);
+  });
+
   await openScenario('level-5-attendance',sampleSave({gymLevel:5,enrolledStudents:24,
     friendships:Array(24).fill(0),skills:Array(24).fill(0),money:99999,day:2}),async page=>{
     const state=await sceneState(page);
@@ -128,7 +160,7 @@ try{
     assert.equal((await sceneState(page)).rosterVisible,true);
   });
 
-  console.log('Browser smoke passed: garage, menu, recruitment/save, expansion/save, 24-student roster.');
+  console.log('Browser smoke passed: garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster.');
 }catch(error){
   console.error(error);
   process.exitCode=1;
