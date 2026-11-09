@@ -173,6 +173,7 @@ try{
         scene.furniturePanel.list.some(o=>o.text?.includes('YOUR GYM PLAN'));
     });
     assert.equal(plan,true,'A standalone daily plan must be accessible');
+    await page.screenshot({path:output+'/hub-daily-plan.png'});
     await clickGame(page,154,180); // Teach next class, actual pointer button.
     await clickGame(page,308,195); // Teach session one.
     let state=await page.evaluate(()=>{
@@ -267,6 +268,29 @@ try{
     await clickGame(page,300,217);
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.gymLevel===2);
     assert.equal((await sceneState(page)).level,2,'Expansion should work without launching a minigame');
+  });
+
+  await openScenario('safe-new-game-reset',sampleSave({
+    gymLevel:3,enrolledStudents:8,day:6,money:333,reputation:65,
+    friendships:Array(8).fill(1),skills:Array(8).fill(3)
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').confirmNewGym());
+    await clickGame(page,150,201); // Cancel: no save mutations.
+    let state=await sceneState(page);
+    assert.equal(state.level,3);
+    assert.equal(state.day,6);
+    assert.equal(state.money,333);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').confirmNewGym());
+    await clickGame(page,313,201); // Deliberate destructive confirmation.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1);
+    state=await sceneState(page);
+    assert.equal(state.level,1);
+    assert.equal(state.day,1);
+    assert.equal(state.money,100);
+    assert.equal(state.enrolled,4);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.equal((await sceneState(page)).level,1,'Reset must survive reload');
   });
 
   await openScenario('hub-equipment-placement-save',sampleSave({
