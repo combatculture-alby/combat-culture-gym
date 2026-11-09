@@ -1,6 +1,9 @@
 /// <reference types="vite/client" />
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
+import {normalizeGymPhase,normalizeArrivalCount,outstandingTrash,
+  ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS,
+  canTeachInPhase,canCloseInPhase,canAdvanceDay,type GymPhase} from './dayCycle';
 import {serviceFixtureLayout,type HubService} from './hubServiceLayout';
 import {paintHubFixture} from './hubServiceSprites';
 import {
@@ -39,7 +42,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -66,7 +69,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0 };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -81,6 +84,8 @@ function loadSave(): Save {
     const s = data as Partial<Save>;
     const level=normalizeGymLevel(s.gymLevel);
     const enrolled=enrolledCount(s.enrolledStudents,level);
+    const phase=normalizeGymPhase(s.gymPhase,true);
+    const attendance=attendingIndices(enrolled,level,s.day??1).length;
     if (s.version !== 1 || !Number.isInteger(s.day) || (s.day ?? 0) < 1 ||
       !Number.isFinite(s.money) || !Number.isFinite(s.reputation) || typeof s.completed !== 'boolean' ||
       !Array.isArray(s.friendships) || !Array.isArray(s.skills) ||
@@ -88,6 +93,7 @@ function loadSave(): Save {
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
     return {...s, gymLevel:level,enrolledStudents:enrolled,classPlan:normalizeClassPlan(s.classPlan),
+      gymPhase:phase,arrivedCount:normalizeArrivalCount(s.arrivedCount,phase,attendance),
       coachAppearance:normalizeUnlockedAppearance(s.coachAppearance,s.wardrobeOwned),
       wardrobeOwned:normalizeCloset(s.wardrobeOwned),
       decorStored:Array.from({length:3},(_,i)=>s.decorStored?.[i]===true),
@@ -202,9 +208,19 @@ class GymScene extends Phaser.Scene {
   private message!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
   private students:Student[]=[];
-  private activeStudents():Student[] {
-    return attendingIndices(this.students.length,this.gymLevel(),this.saveData.day).map(i=>this.students[i]);
+  private dayPhase():GymPhase {return this.saveData.gymPhase??'open';}
+  private todaysStudents():Student[] {
+    return attendingIndices(this.students.length,this.gymLevel(),this.saveData.day)
+      .map(i=>this.students[i]);
   }
+  private activeStudents():Student[] {
+    if(this.dayPhase()==='opening')return [];
+    return this.todaysStudents().slice(0,this.saveData.arrivedCount??this.todaysStudents().length);
+  }
+  private arrivalsClock=0;
+  private phaseAction!:Phaser.GameObjects.Container;
+  private phaseActionText!:Phaser.GameObjects.Text;
+  private phaseStatus!:Phaser.GameObjects.Text;
   private rosterPage=0;
   private goalsPage=0;
   private wardrobePage=0;
@@ -241,6 +257,7 @@ class GymScene extends Phaser.Scene {
     this.speechTimers=[];
     this.buildPage=0;
     this.selectedSlot=Math.min(this.saveData.classesToday||0,1);
+    this.arrivalsClock=0;
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
     this.worldFixtures=[];
     this.gatheringNodes=[];
@@ -258,7 +275,7 @@ class GymScene extends Phaser.Scene {
     this.modeLabel=this.add.text(12,11,PLAYTEST&&import.meta.env.VITE_GARAGE_PREVIEW!=='1'?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
     this.coach=new GymCharacter(this,170,150,this.saveData.coachAppearance||DEFAULT_COACH);
     this.player=this.coach.body;
-    const attending=this.activeStudents();
+    const attending=this.todaysStudents();
     this.students.forEach((student,i)=>{
       Object.assign(student,{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
       const floorIndex=attending.indexOf(student);
@@ -266,6 +283,7 @@ class GymScene extends Phaser.Scene {
       Object.assign(student,STUDENT_HOMES[floorIndex]);
       student.actor=new GymCharacter(this,student.x,student.y,1+(i%4));
       student.routine=this.idleRoutine(student,1+i);
+      student.actor.body.setVisible(this.activeStudents().includes(student));
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
       this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
       this.speechUntil[i]=0;
@@ -279,6 +297,11 @@ class GymScene extends Phaser.Scene {
     this.timer=this.add.text(16,208,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#f5e5c4',backgroundColor:'#25434b',padding:{x:4,y:2}}).setDepth(17);
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(240,322,'Explore the gym. Tap the desk phone, cooler, supply closet or mop.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
+    this.phaseStatus=this.add.text(225,235,'',{fontFamily:UI_FONT,fontSize:'10px',
+      fontStyle:'bold',color:'#f4d49a'}).setOrigin(.5).setDepth(31);
+    this.phaseAction=this.addButton(360,229,106,24,'OPEN GYM',()=>this.advanceGymPhase(),true);
+    this.phaseAction.setDepth(32);
+    this.phaseActionText=this.phaseAction.list.find(o=>o instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text;
     this.hubControls=[
       this.addButton(12,278,111,36,'TRAIN',()=>this.openTrainingBoard(),true),
       this.addButton(127,278,111,36,'MANAGE',()=>this.openGymUpgrades()),
@@ -304,7 +327,7 @@ class GymScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-C',() => {if(!this.running&&!this.furniturePanel.visible)this.openClassSchedule();});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
     this.input.keyboard!.on('keydown-G',()=>{if(!this.furniturePanel.visible)this.openArcade('Memory');});
-    this.input.keyboard!.on('keydown-N',() => {if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())this.nextDay();});
+    this.input.keyboard!.on('keydown-N',() => {if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())this.advanceGymPhase();});
     this.input.keyboard!.on('keydown-B',() => {if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())this.openGymUpgrades();});
     this.input.keyboard!.on('keydown-V',() => this.toggleRoster());
     this.input.keyboard!.on('keydown-M',()=>this.toggleBuildMode());
@@ -971,10 +994,10 @@ class GymScene extends Phaser.Scene {
     const button=(label:string,x:number,y:number,fn:()=>void,disabled=false)=>
       this.panelButton(this.furniturePanel,label,x,y,149,24,fn,disabled,0x39735f);
     // Keep the second row above menuShell's Back button (y=218).
-    button('TEACH NEXT CLASS',84,158,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
+    button(this.dayPhase()==='opening'?'SET CLASS PLAN':'TEACH NEXT CLASS',84,158,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
     button('CLEAN THE GYM',245,158,()=>this.collectNextSupply(),collected>=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH));
     button('EXPAND GYM',84,188,()=>this.openExpansion(),!next);
-    button('NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.nextDay();});
+    button(this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();},this.dayPhase()==='closing'&&(this.saveData.arrivedCount??0)>0);
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void,primary=false):Phaser.GameObjects.Container {
     const bg=this.add.rectangle(0,0,w,h,primary?0x426c62:0x294f52).setOrigin(0).setStrokeStyle(1,primary?0xe2c285:0x77958c).setInteractive({useHandCursor:true});
@@ -1000,10 +1023,12 @@ class GymScene extends Phaser.Scene {
   private placingGear=-1;
   private gymLevel():number {return normalizeGymLevel(this.saveData.gymLevel);}
   private refresh():void {
-    this.status.setText('LV '+this.gymLevel()+'  DAY '+this.saveData.day+'   $'+this.saveData.money+'   REP '+this.saveData.reputation);
+    this.status.setText('LV '+this.gymLevel()+'  DAY '+this.saveData.day+
+      '   $'+this.saveData.money+'   REP '+this.saveData.reputation);
+    this.updatePhaseDisplay();
     this.drawEquipment();
     this.drawGatheringNodes();
-    const visibleTrash=(this.saveData.trashSpawnedToday||INITIAL_DAILY_TRASH)-
+    const visibleTrash=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)-
       (this.saveData.gatheredToday?.length||0);
     this.dailyStatus.setText('CLASS '+(this.saveData.classesToday||0)+
       '/2  HELP '+(this.saveData.coachedToday?.length||0)+
@@ -1236,7 +1261,7 @@ class GymScene extends Phaser.Scene {
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
       ['MATERIALS / CRAFT',()=>this.openMaterials()],
       ['EXPAND GYM',()=>this.openExpansion()],
-      ['NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.nextDay();}]
+      [this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
     this.panelButton(this.furniturePanel,'EDIT COACH / WARDROBE',84,216,149,25,
@@ -1621,7 +1646,7 @@ class GymScene extends Phaser.Scene {
       {fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:152}}));
     this.furniturePanel.add(this.add.text(239,160,'+$'+earnings+'   +'+CLASS_REPUTATION+' REP   GEAR '+matchingGear,
       {fontFamily:UI_FONT,fontSize:'9px',color:'#aee0b0'}));
-    const ready=finished<2&&slot===finished;
+    const ready=finished<2&&slot===finished&&canTeachInPhase(this.dayPhase(),this.activeStudents().length);
     const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':'TEACH SESSION '+(slot+1);
     this.panelButton(this.furniturePanel,label,238,180,157,30,()=>{
       if(ready)this.startClass(programIndex);
@@ -2125,6 +2150,7 @@ class GymScene extends Phaser.Scene {
   }
   private startClass(index:number):void {
     if(this.running||this.isPlacing()||(this.saveData.classesToday||0)>=2||
+      !canTeachInPhase(this.dayPhase(),this.activeStudents().length)||
       this.selectedSlot!==(this.saveData.classesToday||0))return;
     const planned=(this.saveData.classPlan??[0,1])[this.selectedSlot];
     if(index!==planned||!CLASS_PROGRAMS[index])return;
@@ -2562,6 +2588,7 @@ class GymScene extends Phaser.Scene {
   }
   update(_time:number,delta:number):void {
     const dt=Math.min(delta,50)/1000;
+    this.updateArrivals(dt);
     this.updateStudentLife(dt);
     this.updatePlacementPreview();
     if(this.cleaningAt){
