@@ -369,6 +369,124 @@ try{
     assert.equal(state.seminarActive,false);
   });
 
+  await openScenario('opening-prep-gradual-arrivals-and-closing',sampleSave({
+    gymPhase:'opening',arrivedCount:0,day:2,money:600,
+    waterLevel:8,towelLevel:12,paperLevel:14,matCleanliness:22,
+    gearCondition:[15,100,100,100,100,100,100,100],
+    trashSpawnedToday:7,gatheredToday:[0,1],
+    supplies:[0,1,1,1],pendingSupplies:[2,0,0,0]
+  }),async page=>{
+    const start=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),attending:s.todaysStudents().length,
+        present:s.activeStudents().length,actors:s.todaysStudents().map(t=>t.actor.body.visible),
+        water:s.saveData.waterLevel,trash:s.saveData.trashSpawnedToday};
+    });
+    assert.equal(start.phase,'opening');
+    assert.equal(start.present,0);
+    assert.ok(start.attending>0);
+    assert.ok(start.actors.every(x=>!x),'No students should be visible during opening prep');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.startClass(0); // Cannot teach before opening.
+    });
+    assert.equal((await sceneState(page)).classesToday,0);
+    await page.screenshot({path:output+'/opening-prep-empty-gym.png'});
+    // Prep phase does not magically restore water or spawn callers.
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.phoneClock=s.phoneRingAt;s.trashClock=14;
+      s.update(0,100);
+    });
+    let prep=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {calls:s.saveData.phoneCallsSpawned||0,trash:s.saveData.trashSpawnedToday,
+        water:s.saveData.waterLevel};
+    });
+    assert.deepEqual(prep,{calls:0,trash:7,water:8});
+    // Physically press OPEN GYM.
+    await clickGame(page,413,241);
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').dayPhase()==='open');
+    let opened=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),present:s.activeStudents().length};
+    });
+    assert.deepEqual(opened,{phase:'open',present:0});
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.advanceGymPhase();
+    });
+    assert.equal((await sceneState(page)).activeNames.length,0,
+      'Cannot close without teaching any classes');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.arrivalsClock=4;s.updateArrivals(0.02);
+    });
+    let arrived=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {present:s.activeStudents().length,
+        visible:s.activeStudents().every(t=>t.actor.body.visible),
+        hidden:s.todaysStudents().slice(1).every(t=>!t.actor.body.visible)};
+    });
+    assert.deepEqual(arrived,{present:1,visible:true,hidden:true});
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.arrivalsClock=4;s.updateArrivals(0.02);
+    });
+    assert.equal((await sceneState(page)).activeNames.length,2,
+      'Student arrivals must be staggered');
+    await page.screenshot({path:output+'/gym-opening-two-students.png'});
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.simulateClass(0);
+    });
+    assert.equal((await sceneState(page)).classesToday,1);
+    await clickGame(page,413,241); // Close Gym.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').dayPhase()==='closing');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.arrivalsClock=3;s.updateArrivals(0.05);
+    });
+    assert.equal((await sceneState(page)).activeNames.length,1);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.arrivalsClock=3;s.updateArrivals(0.05);
+    });
+    assert.equal((await sceneState(page)).activeNames.length,0);
+    await page.screenshot({path:output+'/closing-empty-gym.png'});
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const closed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),arrived:s.saveData.arrivedCount,
+        water:s.saveData.waterLevel,mat:s.saveData.matCleanliness,
+        paper:s.saveData.paperLevel};
+    });
+    assert.equal(closed.phase,'closing');
+    assert.equal(closed.arrived,0);
+    assert.equal(closed.water,8,'Empty water remains empty at closing');
+    await clickGame(page,413,241); // Next Day, no hard reset of neglected services.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===3);
+    const tomorrow=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym'),d=s.saveData;
+      return {phase:s.dayPhase(),present:s.activeStudents().length,
+        water:d.waterLevel,paper:d.paperLevel,stock:d.supplies[0],
+        deliveries:d.pendingSupplies[0],
+        trash:d.trashSpawnedToday,cleaned:d.gatheredToday.length,
+        condition:d.gearCondition[0],mat:d.matCleanliness};
+    });
+    assert.equal(tomorrow.phase,'opening');
+    assert.equal(tomorrow.present,0);
+    assert.equal(tomorrow.water,8,'No free water refill overnight');
+    assert.equal(tomorrow.paper,14,'Unrestocked toilet paper persists');
+    assert.equal(tomorrow.stock,2,'Only ordered supplies arrive the next day');
+    assert.equal(tomorrow.deliveries,0);
+    assert.equal(tomorrow.trash,9,'Class mess and uncleared litter carry forward');
+    assert.equal(tomorrow.cleaned,0);
+    assert.ok(tomorrow.condition<=15,'Broken equipment stays broken overnight');
+    assert.ok(tomorrow.mat<100,'Unmopped mat remains dirty');
+  });
+
   // The full daily loop must work without opening a single arcade scene.
   await openScenario('hub-only-training-and-save',sampleSave({
     money:100,reputation:0,classesTaught:0,materials:[0,0,0],
