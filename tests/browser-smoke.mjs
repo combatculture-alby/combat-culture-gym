@@ -71,6 +71,39 @@ try{
   await waitForServer();
   browser=await chromium.launch({headless:true,args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader']});
 
+  // Separate screenshots for every tier. Read pixels from the baked
+  // texture rather than trusting that a differently named texture exists.
+  const themePixels=new Set();
+  for(const [level,capacity] of [[1,4],[2,6],[3,10],[4,16],[5,24]]){
+    await openScenario('layout-level-'+level,sampleSave({
+      gymLevel:level,enrolledStudents:capacity,
+      friendships:Array(capacity).fill(0),skills:Array(capacity).fill(0),money:1000
+    }),async page=>{
+      const state=await sceneState(page);
+      assert.equal(state.level,level);
+      assert.equal(state.enrolled,capacity);
+      assert.equal(state.activeNames.length,Math.min(capacity,level+3));
+      assert.equal(state.room,true);
+      const theme=await page.evaluate(()=>{
+        const game=window.__combatGym;
+        const source=game.textures.get('gym-room-'+game.scene.getScene('Gym').gymLevel()).getSourceImage();
+        const context=source.getContext('2d');
+        return [...context.getImageData(115,125,1,1).data];
+      });
+      assert.equal(theme[3],255,'Baked gym artwork should be opaque');
+      themePixels.add(theme.slice(0,3).join(','));
+      if(level===5){
+        const valid=await page.evaluate(()=>{
+          const scene=window.__combatGym.scene.getScene('Gym');
+          return scene.validPlacement(310,140,8,8);
+        });
+        assert.equal(valid,true,'Academy should unlock its wider training mat');
+      }
+      await page.waitForTimeout(750);
+    });
+  }
+  assert.equal(themePixels.size,5,'Every gym level needs a distinct floor palette');
+
   await openScenario('level-1-garage',sampleSave(),async page=>{
     const state=await sceneState(page);
     assert.equal(state.level,1);
@@ -160,7 +193,7 @@ try{
     assert.equal((await sceneState(page)).rosterVisible,true);
   });
 
-  console.log('Browser smoke passed: garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster.');
+  console.log('Browser smoke passed: five distinct levels, garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster.');
 }catch(error){
   console.error(error);
   process.exitCode=1;
