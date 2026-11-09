@@ -170,6 +170,7 @@ class GymScene extends Phaser.Scene {
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
     this.worldFixtures=[];
     this.gatheringNodes=[];
+    this.gatheringPositions=dailySupplyPositions(this.gymLevel());
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
     }));
@@ -377,7 +378,35 @@ class GymScene extends Phaser.Scene {
       this.menuAction(label,84+(i%2)*161,106+Math.floor(i/2)*35,149,()=>this.openArcade(mode),done||drills>=2,
         done?'Completed today':drills>=2?'Daily limit reached':summary);
     });
-    this.furniturePanel.add(this.add.text(84,218,drills+' / 2 drills completed today',{fontFamily:UI_FONT,fontSize:'10px',color:'#c5ded4'}));
+    this.panelButton(this.furniturePanel,'DAILY GYM PLAN  /  NO MINIGAMES NEEDED',
+      84,211,310,28,()=>this.openDailyHubPlan(),false,0x39735f);
+  }
+  private openDailyHubPlan():void {
+    const level=this.gymLevel(),next=GYM_LEVELS[level];
+    const collected=this.saveData.gatheredToday?.length||0;
+    const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
+    const classes=this.saveData.classesTaught||0;
+    this.menuShell('YOUR GYM PLAN','CLASSES + SUPPLIES + GEAR + STUDENTS. NO ARCADE REQUIRED.',
+      ()=>this.openTrainingBoard());
+    const lines=[
+      'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Supplies '+collected+'/12',
+      'Students '+this.students.length+'/'+studentCapacity(level)+
+        '   Cash $'+this.saveData.money+'   REP '+this.saveData.reputation,
+      next?'Next: '+next.name+'   Expansion $'+next.cost:'Flagship academy unlocked. Keep building!',
+      next?'Requires REP '+next.reputation+' / '+this.saveData.reputation+
+        '   Classes '+classes+'/'+next.classesTaught+
+        '   Gear '+owned+'/'+next.gearOwned:
+        'All gym tiers complete. Continue training and recruiting.'
+    ];
+    lines.forEach((line,i)=>this.furniturePanel.add(this.add.text(83,73+i*20,line,{
+      fontFamily:UI_FONT,fontSize:'10px',color:i===2?'#f5d49b':'#e3e9d9'
+    })));
+    const button=(label:string,x:number,y:number,fn:()=>void,disabled=false)=>
+      this.panelButton(this.furniturePanel,label,x,y,149,29,fn,disabled,0x39735f);
+    button('TEACH NEXT CLASS',84,166,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
+    button('FIND SUPPLIES',245,166,()=>this.collectNextSupply(),collected>=12);
+    button('EXPAND GYM',84,201,()=>this.openExpansion(),!next);
+    button('NEXT DAY',245,201,()=>{this.furniturePanel.setVisible(false);this.nextDay();});
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void,primary=false):Phaser.GameObjects.Container {
     const bg=this.add.rectangle(0,0,w,h,primary?0x426c62:0x294f52).setOrigin(0).setStrokeStyle(1,primary?0xe2c285:0x77958c).setInteractive({useHandCursor:true});
@@ -406,7 +435,7 @@ class GymScene extends Phaser.Scene {
     this.status.setText('LV '+this.gymLevel()+'  DAY '+this.saveData.day+'   $'+this.saveData.money+'   REP '+this.saveData.reputation);
     this.drawEquipment();
     this.drawGatheringNodes();
-    this.dailyStatus.setText('CLASSES '+(this.saveData.classesToday||0)+'/2    DRILLS '+this.drillsToday()+'/2');
+    this.dailyStatus.setText('CLASSES '+(this.saveData.classesToday||0)+'/2  SUPPLIES '+(this.saveData.gatheredToday?.length||0)+'/12');
   }
   private drawEquipment():void {
     this.footprints=this.solidFootprints();
@@ -696,11 +725,11 @@ class GymScene extends Phaser.Scene {
         this.say('Crafted '+recipe.name+' and earned $'+recipe.reward+'.');
       },!canCraft,0x39735f,cost);
     });
-    this.furniturePanel.add(this.add.text(166,220,'Materials also pay for equipment and furniture.',{fontFamily:UI_FONT,fontSize:'9px',color:'#b7cec8'}));
+    this.panelButton(this.furniturePanel,collected===12?'ALL SUPPLIES COLLECTED':'FIND NEXT SUPPLY PILE',84,207,310,28,()=>this.collectNextSupply(),collected===12,0x39735f);
     this.furniturePanel.setVisible(true);
   }
   // Deterministic daily material locations. No real-time timers or mandatory cleanup.
-  private gatheringPositions:Point[]=Array.from({length:12},(_,i)=>({x:49+(i%6)*46,y:i<6?92:183}));
+  private gatheringPositions:Point[]=[];
   private resourceKind(index:number):number {return (index+this.saveData.day)%3;}
   private resourceYield(index:number):number {return (index+this.saveData.day)%5===0?2:1;}
   private drawGatheringNodes():void {
@@ -725,13 +754,33 @@ class GymScene extends Phaser.Scene {
       this.gatheringNodes.push(node);
     });
   }
+  private collectNextSupply():void {
+    this.furniturePanel.setVisible(false);
+    const remaining=this.gatheringPositions.filter((_,i)=>!this.saveData.gatheredToday?.includes(i));
+    if(!remaining.length){this.say('All supplies collected today. Start a new day.');return;}
+    remaining.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+    this.collectNodeAt(remaining[0].x,remaining[0].y);
+  }
   private collectNodeAt(x:number,y:number):boolean {
     const i=this.gatheringPositions.findIndex((p,index)=>!this.saveData.gatheredToday?.includes(index)&&Phaser.Math.Distance.Between(p.x,p.y,x,y)<13);
     if(i<0)return false;
     if(distance(this.player,this.gatheringPositions[i])>55){
-      this.pickupTarget=this.gatheringPositions[i];
-      this.route=this.playerRoute(this.pickupTarget);
-      this.say(this.route.length?'Walking to the materials.':'The path to the materials is blocked.');
+      this.clearIntent();
+      const pile=this.gatheringPositions[i];
+      // Route toward a reachable point near the pile, even if it sits
+      // behind a training fixture. Never set an impossible pickup target.
+      const approaches=[pile,...[0,Math.PI/2,Math.PI,Math.PI*1.5,Math.PI/4,Math.PI*3/4,Math.PI*5/4,Math.PI*7/4]
+        .map(a=>({x:pile.x+Math.round(Math.cos(a)*28),y:pile.y+Math.round(Math.sin(a)*28)}))]
+        .filter(p=>this.canStand(p.x,p.y)&&distance(pile,p)<50);
+      approaches.sort((a,b)=>distance(a,this.player)-distance(b,this.player));
+      for(const approach of approaches){
+        const route=this.playerRoute(approach,true);
+        if(route.length){
+          this.pickupTarget=pile;this.route=route;
+          this.say('Walking to the supplies.');return true;
+        }
+      }
+      this.say('No clear route to that pile. Move the blocking equipment.');
       return true;
     }
     if(!this.saveData.materials)this.saveData.materials=[0,0,0];
