@@ -180,7 +180,7 @@ class GymScene extends Phaser.Scene {
     drawGym(this,this.gymLevel());
     this.classOverlay=this.add.graphics().setDepth(2);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
-    this.modeLabel=this.add.text(12,11,PLAYTEST?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
+    this.modeLabel=this.add.text(12,11,PLAYTEST&&import.meta.env.VITE_GARAGE_PREVIEW!=='1'?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
     this.coach=new GymCharacter(this,170,150,this.saveData.coachAppearance||DEFAULT_COACH);
     this.player=this.coach.body;
     const attending=this.activeStudents();
