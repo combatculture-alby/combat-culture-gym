@@ -429,12 +429,25 @@ class GymScene extends Phaser.Scene {
         fontFamily:UI_FONT,fontSize:'9px',color:'#fff0d0',
         backgroundColor:'#244349',padding:{x:4,y:2}
       }).setOrigin(.5,1).setDepth(23).setVisible(false);
-      const ring=type==='phone'?this.add.text(prop.x,prop.y-19,'RING!',{
+      const ringX=prop.x-(this.gymLevel()<=2?25:0);
+      const ring=type==='phone'?this.add.text(ringX,prop.y-19,'RING!',{
         fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',
         color:'#ffe1a0',backgroundColor:'#6d4336',padding:{x:3,y:2}
       }).setOrigin(.5,1).setDepth(24).setVisible(false):undefined;
-      if(ring)this.tweens.add({targets:ring,alpha:{from:0.6,to:1},
-        y:prop.y-22,duration:430,yoyo:true,repeat:-1});
+      if(ring){
+        // The animated incoming-call bubble is an additional touch target.
+        // Keep it offset from the Level 1/2 supply shelf.
+        ring.setInteractive({useHandCursor:true});
+        ring.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+            event:Phaser.Types.Input.EventData)=>{
+          event.stopPropagation();
+          if(this.furniturePanel.visible||this.rosterPanel.visible||
+            this.running||this.isPlacing()||this.buildMode)return;
+          this.useService('phone');
+        });
+        this.tweens.add({targets:ring,alpha:{from:0.6,to:1},
+          y:prop.y-22,duration:430,yoyo:true,repeat:-1});
+      }
       hit.on('pointerover',()=>{if(!this.furniturePanel.visible&&!this.rosterPanel.visible)
         hint.setVisible(true);});
       hit.on('pointerout',()=>hint.setVisible(false));
