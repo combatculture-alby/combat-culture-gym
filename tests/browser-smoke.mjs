@@ -191,9 +191,50 @@ try{
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').rosterPage=5);
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').showRosterPage());
     assert.equal((await sceneState(page)).rosterVisible,true);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').rosterPanel.setVisible(false));
+    await page.waitForTimeout(3000);
+    const positions=await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.activeStudents().map(student=>({
+        name:student.name,x:student.x,y:student.y,
+        hasActor:!!student.actor,hasRoutine:!!student.routine
+      }));
+    });
+    assert.equal(positions.length,8);
+    for(const student of positions){
+      assert.ok(student.hasActor&&student.hasRoutine,'Attending students must have active sprites and routines');
+      assert.ok(Number.isFinite(student.x)&&Number.isFinite(student.y),'No NPC may have invalid coordinates');
+      assert.ok(student.x>=15&&student.x<=465&&student.y>=75&&student.y<=215,'NPCs must stay in the room');
+    }
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===3);
+    assert.equal((await sceneState(page)).activeNames[0],'Ash','The daily shift must rotate NPC attendance');
   });
 
-  console.log('Browser smoke passed: five distinct levels, garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster.');
+  // Real mobile touch input, not a mouse click masquerading as a tap.
+  const mobile=await browser.newContext({
+    viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
+  });
+  try{
+    const page=await mobile.newPage();
+    const errors=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    await page.addInitScript(({key,value})=>localStorage.setItem(key,JSON.stringify(value)),{
+      key:saveKey,value:sampleSave()
+    });
+    await page.goto(url,{waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const canvas=page.locator('#game canvas');
+    const bounds=await canvas.boundingBox();
+    assert.ok(bounds&&bounds.width>=300&&bounds.height>=190,'Game must fit phone screen');
+    await page.touchscreen.tap(bounds.x+180/480*bounds.width,bounds.y+296/330*bounds.height);
+    assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').furniturePanel.visible),
+      true,'MANAGE should respond to a real phone tap');
+    assert.deepEqual(errors,[],'Mobile view should not emit JS errors');
+    await page.screenshot({path:output+'/mobile-garage.png',fullPage:true});
+  }finally{await mobile.close();}
+
+  console.log('Browser smoke passed: five distinct levels, garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster, rotating crowded NPCs, and mobile touch.');
 }catch(error){
   console.error(error);
   process.exitCode=1;
