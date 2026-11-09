@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import { drawGym } from './gymWorld';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -9,7 +10,7 @@ const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'; fixture?:Phaser.GameObjects.Graphics };
 type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
 type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
-const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183}];
+const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183},{x:164,y:111},{x:220,y:185},{x:164,y:188},{x:78,y:151}];
 const GEAR_BOUNDS=[{rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},{rx:14,ry:11},{rx:14,ry:10},{rx:13,ry:13},{rx:16,ry:12}];
 const NEAR=42;
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -17,7 +18,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const GEAR_MATERIALS=[[2,0,3],[1,1,4],[3,1,0],[0,0,2],[5,3,0],[4,1,0],[6,4,0],[7,3,0]];
@@ -29,16 +30,16 @@ const spendMaterials=(stock:number[]|undefined,cost:number[]):number[]=>cost.map
 const CORE_STATS=['Striking','Speed','Strength','Conditioning'] as const;
 const CLASS_PROGRAMS=[{name:'Boxing',stats:[0,1]},{name:'Muay Thai',stats:[0,2]},{name:'Grappling',stats:[2,3]},{name:'HIIT',stats:[1,3]}];
 const statThreshold=(value:number):number=>value<20?30:value<40?55:value<60?90:value<80?140:220;
-const initialStats=()=>Array.from({length:4},()=>[10,10,10,10]);
-const initialXP=()=>Array.from({length:4},()=>[0,0,0,0]);
-const initialGoals=()=>[[20,0],[25,2],[20,3],[25,1]];
+const initialStats=()=>STUDENT_NAMES.map(()=>[10,10,10,10]);
+const initialXP=()=>STUDENT_NAMES.map(()=>[0,0,0,0]);
+const initialGoals=()=>STUDENT_NAMES.map((_,i)=>[[20,0],[25,2],[20,3],[25,1]][i%4].slice());
 const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
 const SAVE_KEY = PLAYTEST
   ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
 const blocks = [{x:388,y:184,w:82,h:36},{x:345,y:109,w:111,h:13}];
 const walkable = (x: number, y: number) => x >= 15 && x <= 465 && y >= 75 && y <= 215 &&
   !blocks.some(b => x + 9 > b.x && x - 9 < b.x + b.w && y + 8 > b.y && y - 8 < b.y + b.h);
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [] };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4 };
 function newSave():Save {
   const save=JSON.parse(JSON.stringify(defaults)) as Save;
   if(PLAYTEST){
@@ -58,13 +59,17 @@ function loadSave(): Save {
     const data: unknown = JSON.parse(raw);
     if (!data || typeof data !== 'object') throw Error('invalid');
     const s = data as Partial<Save>;
+    const level=normalizeGymLevel(s.gymLevel);
+    const enrolled=enrolledCount(s.enrolledStudents,level);
     if (s.version !== 1 || !Number.isInteger(s.day) || (s.day ?? 0) < 1 ||
       !Number.isFinite(s.money) || !Number.isFinite(s.reputation) || typeof s.completed !== 'boolean' ||
       !Array.isArray(s.friendships) || !Array.isArray(s.skills) ||
-      s.friendships.length !== 4 || s.skills.length !== 4 ||
+      s.friendships.length < 4 || s.skills.length < 4 ||
       !s.friendships.every(n => Number.isInteger(n) && n >= 0) ||
       !s.skills.every(n => Number.isInteger(n) && n >= 0)) throw Error('invalid');
-    return {...s, equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:4},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:4},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:4},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
+    return {...s, gymLevel:level,enrolledStudents:enrolled,
+      friendships:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.friendships?.[i])||0))),
+      skills:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.skills?.[i])||0))), equipment: Math.max(0,Math.min(3,Math.floor(Number(s.equipment)||0))), classesTaught: Math.max(0,Math.floor(Number(s.classesTaught)||0)), classType: Math.max(0,Math.min(2,Math.floor(Number(s.classType)||0))), lastTalkDays: Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.lastTalkDays?.[i])||0))), decorLevel: Math.max(0,Math.min(3,Math.floor(Number(s.decorLevel)||0))), furniture: Array.isArray(s.furniture) ? s.furniture.filter((v:unknown)=>{ const f=v as Partial<Furniture>; return !!f && Number.isInteger(f.kind) && f.kind!>=0 && f.kind!<FURNITURE.length && Number.isFinite(f.x) && Number.isFinite(f.y) && Number.isInteger(f.rotation) && typeof f.stored==='boolean'; }).slice(0,40).map((v:Furniture)=>({...v,x:Math.max(38,Math.min(309,v.x)),y:Math.max(70,Math.min(204,v.y)),rotation:((v.rotation%4)+4)%4})) : [], decorPositions: Array.from({length:3},(_,i)=>{ const fallback=defaults.decorPositions![i]; const p=s.decorPositions?.[i]; return p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x>=45 && p.x<=308 && p.y>=45 && p.y<=204 ? {x:Math.round(p.x),y:Math.round(p.y)} : {...fallback}; }), lifetimeEarnings: Math.max(0,Math.floor(Number(s.lifetimeEarnings)||0)), classesToday:Math.max(0,Math.min(2,Math.floor(Number(s.classesToday)||0))), ownedGear:Array.from({length:8},(_,i)=>s.ownedGear?.[i]===true||(s.ownedGear===undefined&&i===0&&(s.equipment||0)>=1)), materials:Array.from({length:3},(_,i)=>Math.max(0,Math.floor(Number(s.materials?.[i])||0))), gatheredToday:Array.isArray(s.gatheredToday)?s.gatheredToday.filter(v=>Number.isInteger(v)&&v>=0&&v<12):[], studentGoals:Array.from({length:enrolled},(_,i)=>{const g=s.studentGoals?.[i]||initialGoals()[i];return [Math.max(10,Math.min(100,Math.floor(Number(g[0])||20))),Math.max(0,Math.min(3,Math.floor(Number(g[1])||0)))];}), completedGoals:Array.from({length:enrolled},(_,i)=>Math.max(0,Math.floor(Number(s.completedGoals?.[i])||0))), gearStored:Array.from({length:8},(_,i)=>s.gearStored?.[i]===true), gearPositions:Array.from({length:8},(_,i)=>({x:Math.max(38,Math.min(309,Number(s.gearPositions?.[i]?.x)||65+(i%4)*57)),y:Math.max(75,Math.min(204,Number(s.gearPositions?.[i]?.y)||(i<4?80:180)))})), studentStats:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.min(100,Math.floor(Number(s.studentStats?.[i]?.[j])||10))))), studentXP:Array.from({length:enrolled},(_,i)=>Array.from({length:4},(_,j)=>Math.max(0,Math.floor(Number(s.studentXP?.[i]?.[j])||0))))} as Save;
   } catch { return newSave(); }
 }
 
@@ -118,12 +123,15 @@ class GymScene extends Phaser.Scene {
   private status!: Phaser.GameObjects.Text;
   private message!: Phaser.GameObjects.Text;
   private timer!: Phaser.GameObjects.Text;
-  private students: Student[] = ['Frank','Radish','Marshall','Pudge'].map((name,i)=>({
-    ...STUDENT_HOMES[i],name,friendship:0,skill:0,chatCooldown:12+i*5
-  }));
+  private students:Student[]=[];
+  private activeStudents():Student[] {
+    return this.students.slice(0,activeStudentCount(this.students.length,this.gymLevel()));
+  }
+  private rosterPage=0;
+  private goalsPage=0;
   private speechBubbles:Phaser.GameObjects.Text[]=[];
   private speechLines=['...','blah blah','psst!','haha!','nice!','you got this','one more!'];
-  private speechUntil:number[]=[0,0,0,0];
+  private speechUntil:number[]=[];
   private showSpeech(student:Student,line:string,duration=2400):void {
     const i=this.students.indexOf(student);
     if(i<0||!this.speechBubbles[i])return;
@@ -132,7 +140,7 @@ class GymScene extends Phaser.Scene {
     this.speechUntil[i]=this.time.now+duration;
   }
   constructor() { super('Gym'); }
-  create(data?:{trainingBoard?:boolean}): void {
+  create(data?:{trainingBoard?:boolean;notice?:string}): void {
     this.saveData=loadSave();
     this.clearIntent();
     this.targetRefresh=0;
@@ -141,15 +149,19 @@ class GymScene extends Phaser.Scene {
     this.placingGear=this.placingDecor=this.selectedFurniture=-1;
     this.worldFixtures=[];
     this.gatheringNodes=[];
-    drawGym(this);
+    this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
+      ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
+    }));
+    drawGym(this,this.gymLevel());
     this.classOverlay=this.add.graphics().setDepth(2);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
     this.modeLabel=this.add.text(12,11,PLAYTEST?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
     this.coach=new GymCharacter(this,170,150,0);
     this.player=this.coach.body;
     this.students.forEach((student,i)=>{
-      Object.assign(student,STUDENT_HOMES[i],{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
-      student.actor=new GymCharacter(this,student.x,student.y,i+1);
+      Object.assign(student,STUDENT_HOMES[i%STUDENT_HOMES.length],{friendship:this.saveData.friendships[i],skill:this.saveData.skills[i],chatCooldown:12+i*5});
+      if(i>=activeStudentCount(this.students.length,this.gymLevel()))return;
+      student.actor=new GymCharacter(this,student.x,student.y,1+(i%4));
       student.routine=this.idleRoutine(student,1+i);
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
       this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
@@ -180,6 +192,7 @@ class GymScene extends Phaser.Scene {
     this.updateFurnitureActions();
     this.refresh();
     this.recoverActors();
+    if(data?.notice)this.say(data.notice);
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as typeof this.wasd;
     this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
@@ -226,7 +239,7 @@ class GymScene extends Phaser.Scene {
       }
       if(p.worldY >= 225) return;
       if(this.useStationAt(p.worldX,p.worldY))return;
-      const student=[...this.students].sort((a,b)=>b.y-a.y).find(s=>
+      const student=[...this.activeStudents()].sort((a,b)=>b.y-a.y).find(s=>
         Math.abs(s.x-p.worldX)<15&&p.worldY>=s.y-33&&p.worldY<=s.y+8);
       if(student){
         if(distance(this.player,student)<NEAR)this.interact(student);
@@ -248,7 +261,7 @@ class GymScene extends Phaser.Scene {
     this.pickupTarget=null;
   }
   private playerRoute(goal:Point,exact=false):Point[] {
-    return this.navigation.route(this.player,goal,(x,y)=>this.students.every(s=>!closeFeet(s,{x,y})),exact);
+    return this.navigation.route(this.player,goal,(x,y)=>this.activeStudents().every(s=>!closeFeet(s,{x,y})),exact);
   }
   private followStudent():void {
     const student=this.targetStudent;
@@ -357,7 +370,7 @@ class GymScene extends Phaser.Scene {
   private dailyStatus!:Phaser.GameObjects.Text;
   private gatheringNodes:Phaser.GameObjects.Container[]=[];
   private placingGear=-1;
-  private gymLevel():number {return Math.max(1,Math.min(5,Math.floor(this.saveData.gymLevel||1)));}
+  private gymLevel():number {return normalizeGymLevel(this.saveData.gymLevel);}
   private refresh():void {
     this.status.setText('LV '+this.gymLevel()+'  DAY '+this.saveData.day+'   $'+this.saveData.money+'   REP '+this.saveData.reputation);
     this.drawEquipment();
@@ -1361,7 +1374,7 @@ class GymScene extends Phaser.Scene {
     const ratio=length?step/length:0;
     const from={x:this.player.x,y:this.player.y};
     const nx=from.x+heading.x*ratio,ny=from.y+heading.y*ratio;
-    const open=(x:number,y:number)=>this.canStand(x,y)&&this.students.every(s=>!closeFeet(s,{x,y}));
+    const open=(x:number,y:number)=>this.canStand(x,y)&&this.activeStudents().every(s=>!closeFeet(s,{x,y}));
     let next={x:nx,y:ny};
     if(!clearSegment(from,next,open)){
       next=from;
