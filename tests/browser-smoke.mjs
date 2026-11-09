@@ -443,6 +443,10 @@ try{
     assert.equal((await sceneState(page)).classesToday,1);
     await clickGame(page,413,241); // Close Gym.
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').dayPhase()==='closing');
+    assert.equal(await page.evaluate(()=>{
+      const g=window.__combatGym.scene.getScene('Gym');
+      return g.serviceHotspots.find(p=>p.type==='phone')?.ring?.visible;
+    }),false,'The desk phone must stop flashing outside open hours');
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       s.arrivalsClock=3;s.updateArrivals(0.05);
@@ -723,6 +727,10 @@ try{
     assert.equal(state.day,1);
     assert.equal(state.money,100);
     assert.equal(state.enrolled,4);
+    assert.deepEqual(await page.evaluate(()=>{
+      const g=window.__combatGym.scene.getScene('Gym');
+      return {phase:g.dayPhase(),students:g.activeStudents().length};
+    }),{phase:'opening',students:0},'A restarted gym begins before students arrive');
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     assert.equal((await sceneState(page)).level,1,'Reset must survive reload');
