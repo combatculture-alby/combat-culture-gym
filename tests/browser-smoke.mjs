@@ -237,6 +237,93 @@ try{
     assert.ok(high.rep-low.rep>low.rep,'Coaching must improve reputation');
   });
 
+  await openScenario('seminar-availability-and-purchase',sampleSave({
+    money:1000,reputation:0,seminarLastDay:0,studentXP:Array.from({length:4},()=>[0,0,0,0])
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openTrainingBoard());
+    const tiles=await page.evaluate(()=>window.__combatGym.scene.getScene('Gym')
+      .furniturePanel.list.map(o=>o.text||''));
+    assert.ok(tiles.includes('GUEST SEMINARS'),'Seminar replaces the separate Class Rush minigame slot');
+    await clickGame(page,304,192); // Training Board → Guest Seminars.
+    const offerings=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {title:s.furniturePanel.list.find(o=>o.text==='GUEST SEMINARS')?.text,
+        labels:s.furniturePanel.list.map(o=>o.text||'')};
+    });
+    assert.equal(offerings.title,'GUEST SEMINARS');
+    for(const name of ['Mina Torres','Ajarn Niran','Coach Ellis','Coach Vale'])
+      assert.ok(offerings.labels.some(t=>t.includes(name)),'Missing coach '+name);
+    assert.ok(offerings.labels.some(t=>t.includes('Next visit')),
+      'Unavailable coaches must show future availability');
+    await clickGame(page,178,85); // Available guest coach Mina.
+    await clickGame(page,266,225); // Confirm seminar and pay fee.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Seminar').sys.isActive());
+    const booked=await page.evaluate(()=>{
+      const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
+      return {money:s.money,pending:s.seminarPending,rep:s.reputation};
+    });
+    assert.equal(booked.money,760);
+    assert.deepEqual(booked.pending,{coachId:0,day:1});
+    assert.equal(booked.rep,0);
+    await page.screenshot({path:output+'/seminar-quiz.png'});
+    for(const correctChoice of [1,0,2]){
+      await clickGame(page,310,170+correctChoice*36);
+      await clickGame(page,310,241); // Next lesson / complete seminar.
+    }
+    const completed=await page.evaluate(()=>{
+      const s=JSON.parse(localStorage.getItem('combat-culture-gym-living-preview-v1'));
+      return {money:s.money,rep:s.reputation,pending:s.seminarPending,
+        last:s.seminarLastDay,xp:s.studentXP[0][0],stats:s.studentStats[0][0]};
+    });
+    assert.equal(completed.money,760);
+    assert.equal(completed.rep,4);
+    assert.equal(completed.pending,undefined);
+    assert.equal(completed.last,1);
+    assert.ok(completed.xp>0||completed.stats>10,'Students must receive specialized XP');
+    await page.screenshot({path:output+'/seminar-complete.png'});
+    await clickGame(page,309,260); // Return to gym, no second payout.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.seminarLastDay),1);
+  });
+
+  await openScenario('seminar-paid-resume',sampleSave({
+    money:100,seminarPending:{coachId:0,day:1}
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openSeminars());
+    const resume=await page.evaluate(()=>window.__combatGym.scene.getScene('Gym')
+      .furniturePanel.list.some(o=>o.text==='RESUME PAID SEMINAR'));
+    assert.equal(resume,true);
+    await clickGame(page,285,228);
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Seminar').sys.isActive());
+    await clickGame(page,427,35); // Exit without completing the seminar.
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').sys.isActive());
+    const pending=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym').saveData;
+      return {money:s.money,pending:s.seminarPending};
+    });
+    assert.equal(pending.money,100);
+    assert.deepEqual(pending.pending,{coachId:0,day:1},
+      'Leaving a seminar should preserve a paid booking for later');
+  });
+
+  await openScenario('seminar-not-free',sampleSave({
+    day:1,money:100
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openSeminars());
+    await clickGame(page,180,86); // Affordable? No: must not book.
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {cash:s.saveData.money,pending:s.saveData.seminarPending,
+        seminarActive:window.__combatGym.scene.getScene('Seminar').sys.isActive()};
+    });
+    assert.equal(state.cash,100);
+    assert.equal(state.pending,undefined);
+    assert.equal(state.seminarActive,false);
+  });
+
   // The full daily loop must work without opening a single arcade scene.
   await openScenario('hub-only-training-and-save',sampleSave({
     money:100,reputation:0,classesTaught:0,materials:[0,0,0],
