@@ -22,7 +22,7 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
       approach:{...deskApproach}
     },
     water:{
-      x:coolerX,y:157,
+      x:coolerX,y:169,
       hitWidth:32,hitHeight:57,
       approach:{x:coolerX+27,y:174}
     },
