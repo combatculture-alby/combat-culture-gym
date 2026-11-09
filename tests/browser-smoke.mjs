@@ -133,6 +133,24 @@ try{
       return scene.speechBubbles[index].visible;
     },initial.index);
     assert.equal(pausedVisible,false,'Chat must expire while menus are open');
+    // Force an actual NPC walking route and verify the bubble does not
+    // travel around the gym with the character.
+    await page.evaluate(index=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      scene.furniturePanel.setVisible(false);
+      const student=scene.students[index];
+      scene.showSpeech(student,'I should leave now',3500);
+      const routine=scene.idleRoutine(student,3,'walk');
+      routine.route=[{x:student.x+10,y:student.y}];
+      routine.goal={x:student.x+10,y:student.y};
+      student.routine=routine;
+    },initial.index);
+    await page.waitForTimeout(120);
+    const walkingBubble=await page.evaluate(index=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      return scene.speechBubbles[index].visible;
+    },initial.index);
+    assert.equal(walkingBubble,false,'A walking NPC must immediately lose their speech bubble');
   });
 
   await openScenario('level-1-garage',sampleSave(),async page=>{
