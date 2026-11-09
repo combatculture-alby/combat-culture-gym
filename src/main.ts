@@ -1175,14 +1175,8 @@ class GymScene extends Phaser.Scene {
     for(const student of this.students){
       Object.assign(student,this.navigation.recover(student));
       student.actor?.place(student.x,student.y);
-      const bubble=this.speechBubbles[i];
-      if(bubble){
-        bubble.setPosition(student.x,student.y-48);
-        if(this.time.now>this.speechUntil[i]||this.running||this.furniturePanel.visible||this.rosterPanel.visible)bubble.setVisible(false);
-        if(routine.pose==='talk'&&!routine.route.length&&this.time.now>this.speechUntil[i]+1000&&Math.random()<dt*0.8){
-          this.showSpeech(student,this.speechLines[Math.floor(Math.random()*this.speechLines.length)],1800);
-        }
-      }
+      const bubble=this.speechBubbles[this.students.indexOf(student)];
+      bubble?.setPosition(student.x,student.y-48);
       student.indicator?.setPosition(student.x,student.y-38);
     }
   }
