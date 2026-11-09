@@ -253,8 +253,15 @@ try{
     assert.equal(offerings.title,'GUEST SEMINARS');
     for(const name of ['Mina Torres','Ajarn Niran','Coach Ellis','Coach Vale'])
       assert.ok(offerings.labels.some(t=>t.includes(name)),'Missing coach '+name);
-    assert.ok(offerings.labels.some(t=>t.includes('Next visit')),
-      'Unavailable coaches must show future availability');
+    assert.ok(offerings.labels.some(t=>t.includes('VISITS IN')),
+      'Unavailable coaches must show the next visit day');
+    assert.ok(offerings.labels.some(t=>t.includes('[HERE] Mina Torres')),
+      'Today\'s featured guest must be clearly marked');
+    assert.ok(offerings.labels.some(t=>t.includes('[AWAY] Coach Ellis')),
+      'Unavailable guests must be visibly marked away');
+    assert.ok(offerings.labels.some(t=>t.startsWith('TODAY: Mina Torres')),
+      'An at-a-glance today banner should name the visiting guest');
+    await page.screenshot({path:output+'/seminars-availability.png'});
     await clickGame(page,178,85); // Available guest coach Mina.
     await clickGame(page,266,225); // Confirm seminar and pay fee.
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Seminar').sys.isActive());
@@ -585,6 +592,179 @@ try{
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     assert.equal((await sceneState(page)).level,1,'Reset must survive reload');
+  });
+
+  await openScenario('trash-accumulates-and-cleans',sampleSave({
+    materials:[0,0,0],gatheredToday:[],trashSpawnedToday:2
+  }),async page=>{
+    const initial=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {spawned:s.saveData.trashSpawnedToday,visible:s.gatheringNodes.length};
+    });
+    assert.deepEqual(initial,{spawned:2,visible:2},
+      'A new day starts with a small amount of litter');
+    const cleanup=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym'),point=s.gatheringPositions[0];
+      // Unspawned future locations are not collectible.
+      const future=s.gatheringPositions[6];
+      s.coach.place(future.x,future.y);
+      const blocked=s.collectNodeAt(future.x,future.y);
+      s.coach.place(point.x,point.y);
+      const cleaned=s.collectNodeAt(point.x,point.y);
+      const repeat=s.collectNodeAt(point.x,point.y);
+      return {blocked,cleaned,repeat,spawned:s.saveData.trashSpawnedToday,
+        gathered:s.saveData.gatheredToday.length,
+        materials:s.saveData.materials.reduce((a,b)=>a+b,0),
+        visible:s.gatheringNodes.length};
+    });
+    assert.equal(cleanup.blocked,false,'Cannot clean trash that has not appeared');
+    assert.equal(cleanup.cleaned,true);
+    assert.equal(cleanup.repeat,false,'No double farming the same mess');
+    assert.equal(cleanup.gathered,1);
+    assert.ok(cleanup.materials>0);
+    assert.equal(cleanup.visible,1,'Cleaning physically removes the litter');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.trashClock=35;
+      s.update(0,16);
+    });
+    const timed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {spawned:s.saveData.trashSpawnedToday,visible:s.gatheringNodes.length};
+    });
+    assert.equal(timed.spawned,3,'Trash should accumulate during gym activity');
+    assert.equal(timed.visible,2);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').simulateClass(0));
+    let after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {spawned:s.saveData.trashSpawnedToday,visible:s.gatheringNodes.length,
+        classes:s.saveData.classesToday};
+    });
+    assert.deepEqual(after,{spawned:5,visible:4,classes:1},
+      'Classes should leave extra trash to clean');
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.trashSpawnedToday),5,
+    'Accumulated trash must persist after reload');
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
+    after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {spawned:s.saveData.trashSpawnedToday,cleaned:s.saveData.gatheredToday.length};
+    });
+    assert.deepEqual(after,{spawned:2,cleaned:0},'New day resets daily litter and cleanup');
+  });
+
+  await openScenario('gear-purchase-place-or-store',sampleSave({
+    money:500,materials:[20,20,20],gearStored:Array(8).fill(false),
+    ownedGear:Array(8).fill(false)
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openGearShop());
+    await clickGame(page,130,80); // Heavy bag, $65.
+    let prompt=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {title:s.furniturePanel.list.find(o=>o.text==='ITEM PURCHASED')?.text,
+        hasPlace:s.furniturePanel.list.some(o=>o.text==='PLACE NOW'),
+        hasStore:s.furniturePanel.list.some(o=>o.text==='STORE FOR LATER'),
+        cash:s.saveData.money,stored:s.saveData.gearStored?.[0],
+        bonus:s.matchingClassGear([0])};
+    });
+    assert.deepEqual(prompt,{title:'ITEM PURCHASED',hasPlace:true,hasStore:true,
+      cash:435,stored:true,bonus:0});
+    await page.screenshot({path:output+'/new-item-place-store-prompt.png'});
+    await clickGame(page,157,194); // Place Now.
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.placeGear(120,150);
+    });
+    let gear=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {stored:s.saveData.gearStored?.[0],bonus:s.matchingClassGear([0]),
+        pos:s.saveData.gearPositions?.[0]};
+    });
+    assert.equal(gear.stored,false);
+    assert.equal(gear.bonus,1,'Placed heavy bag activates class training bonus');
+    assert.deepEqual(gear.pos,{x:120,y:150});
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openGearShop());
+    await clickGame(page,300,80); // Thai Pads $90.
+    await clickGame(page,317,194); // Store For Later.
+    const stored=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {stored:s.saveData.gearStored?.[1],cash:s.saveData.money,
+        active:s.matchingClassGear([0]),
+        shop:s.furniturePanel.list.some(o=>typeof o.text==='string'&&o.text.includes('TRAINING EQUIPMENT'))};
+    });
+    assert.equal(stored.stored,true);
+    assert.equal(stored.cash,345);
+    assert.equal(stored.active,1,'Stored Thai Pads do not add another training bonus');
+    assert.equal(stored.shop,true,'Store choice should return to the shop');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.beginGearPlacement(0);
+      s.storeSelection();
+    });
+    gear=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {stored:s.saveData.gearStored[0],bonus:s.matchingClassGear([0])};
+    });
+    assert.deepEqual(gear,{stored:true,bonus:0},
+      'Moving active gear back to storage removes its bonus immediately');
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.deepEqual(await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return [s.saveData.gearStored[0],s.saveData.gearStored[1],s.matchingClassGear([0])];
+    }),[true,true,0],'Stored-state and inactive bonuses persist across reload');
+  });
+
+  await openScenario('furniture-and-decor-purchase-choice',sampleSave({
+    money:600,reputation:20,materials:[20,20,20],furniture:[],decorLevel:0
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openFurniture('shop'));
+    await clickGame(page,137,83); // Floor lamp.
+    let state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {prompt:s.furniturePanel.list.some(o=>o.text==='ITEM PURCHASED'),
+        count:s.saveData.furniture.length,stored:s.saveData.furniture[0].stored};
+    });
+    assert.deepEqual(state,{prompt:true,count:1,stored:true});
+    await clickGame(page,153,194); // Place lamp immediately.
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.placeFurniture(120,150);
+    });
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.furniture[0].stored),false);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openFurniture('shop'));
+    await clickGame(page,145,110); // Bench.
+    await clickGame(page,310,194); // Store.
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.furniture[1].stored),true);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openUpgradePurchase('decor'));
+    await clickGame(page,191,183); // Buy gym banner.
+    state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {prompt:s.furniturePanel.list.some(o=>o.text==='ITEM PURCHASED'),
+        decor:s.saveData.decorLevel,stored:s.saveData.decorStored[0]};
+    });
+    assert.deepEqual(state,{prompt:true,decor:1,stored:true});
+    await clickGame(page,312,197); // Store banner.
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.beginDecorPlacement(0);
+      s.coach.place(415,171);
+      s.placeDecor(156,150);
+    });
+    const placed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {stored:s.saveData.decorStored[0],pos:s.saveData.decorPositions[0]};
+    });
+    assert.deepEqual(placed,{stored:false,pos:{x:156,y:150}});
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    assert.equal(await page.evaluate(()=>
+      window.__combatGym.scene.getScene('Gym').saveData.decorStored[0]),false);
   });
 
   await openScenario('hub-equipment-placement-save',sampleSave({
