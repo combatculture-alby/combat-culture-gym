@@ -75,7 +75,8 @@ test('better participation produces larger specialist XP and reputation',()=>{
   assert.equal(seminarComplete(great,0,3),null,'Award must be one-time');
   assert.equal(seminarBook(great,0),false,'Only one seminar each day');
   great.day=2;
-  assert.equal(seminarBook(great,1),true,'Can book a different available guest on another day only with sufficient funds' );
+  great.money+=100; // Earn additional class income before buying a second seminar.
+  assert.equal(seminarBook(great,1),true,'Can book a different guest on another day after earning the fee');
 });
 test('academy seminars only affect actual attending students',()=>{
   const s=save({gymLevel:5,enrolledStudents:24,money:1000,
