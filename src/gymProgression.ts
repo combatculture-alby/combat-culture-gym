@@ -35,3 +35,11 @@ export function canExpandGym(level:number,money:number,reputation:number,classes
   const next=GYM_LEVELS[normalizeGymLevel(level)];
   return money>=next.cost&&reputation>=next.reputation&&classesTaught>=next.classesTaught&&gearOwned>=next.gearOwned;
 }
+
+export function attendingIndices(enrolled:number,level:number,day:number):number[] {
+  const total=Math.max(0,Math.min(STUDENT_NAMES.length,Math.floor(enrolled)));
+  if(!total)return [];
+  const attending=activeStudentCount(total,level);
+  const start=(Math.max(1,Math.floor(day))-1)*attending%total;
+  return Array.from({length:attending},(_,i)=>(start+i)%total);
+}
