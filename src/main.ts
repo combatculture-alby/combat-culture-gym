@@ -271,7 +271,7 @@ class GymScene extends Phaser.Scene {
     this.add.rectangle(0,226,480,104,0x152b30).setOrigin(0).setDepth(29);
     this.add.rectangle(12,248,456,28,0x203b42).setOrigin(0).setStrokeStyle(1,0x45635f).setDepth(29);
     this.message=this.add.text(21,250,'Welcome! Teach classes to earn cash and reputation, then grow your gym.',{fontFamily:UI_FONT,fontSize:'11px',color:'#fff1d5',wordWrap:{width:437}}).setDepth(30);
-    this.timer=this.add.text(12,211,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#29383b'});
+    this.timer=this.add.text(16,208,'',{fontFamily:UI_FONT,fontSize:'10px',color:'#f5e5c4',backgroundColor:'#25434b',padding:{x:4,y:2}}).setDepth(17);
     this.feedback=this.add.text(165,197,'',{fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#fff5dc',backgroundColor:'#294f52',padding:{x:4,y:2}}).setOrigin(0.5).setDepth(10).setVisible(false);
     this.add.text(240,322,'Walk around. Tap students, equipment, PHONE / WATER / STOCK / MOP.',{fontFamily:UI_FONT,fontSize:'10px',color:'#b9cebf'}).setOrigin(.5).setDepth(30);
     this.hubControls=[
@@ -595,8 +595,8 @@ class GymScene extends Phaser.Scene {
       mark.fillStyle(0xf5f1cf).fillCircle(spot.x,spot.y,2);
       this.mopMarks.push(mark);
     });
-    this.timer.setText('MOP THE MAT  '+done.length+' / '+MOP_SPOTS+
-      '  |  WALK OVER EACH BLUE SPOT');
+    this.timer.setText('MOP '+done.length+'/'+MOP_SPOTS+
+      '   WALK OVER BLUE MARKERS');
   }
   private openMopStation():void {
     const mat=this.saveData.matCleanliness??70;
