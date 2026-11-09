@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -p dist/test
           cp -R test-source/dist/. dist/test/
-      # Refresh the standalone gym hub preview: classes, reputation, supplies and save reset.
+      # Refresh verified standalone hub with playable daily plan and unobstructed menu controls.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
