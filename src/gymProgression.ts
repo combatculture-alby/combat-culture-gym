@@ -36,6 +36,26 @@ export function canExpandGym(level:number,money:number,reputation:number,classes
   return money>=next.cost&&reputation>=next.reputation&&classesTaught>=next.classesTaught&&gearOwned>=next.gearOwned;
 }
 
+/** Hub-only class rewards. No arcade results are needed to earn money or rep.
+ * Members and placed relevant gear improve revenue as the school expands. */
+export const CLASS_REPUTATION=2;
+export function classEarnings(level:number,enrolled:number,matchingPlacedGear=0,facilityUpgrades=0):number {
+  const members=Math.max(4,Math.min(24,Math.floor(enrolled)));
+  const gear=Math.max(0,Math.min(8,Math.floor(matchingPlacedGear)));
+  const facilities=Math.max(0,Math.min(3,Math.floor(facilityUpgrades)));
+  return 16+members*7+normalizeGymLevel(level)*9+gear*5+facilities*4;
+}
+
+/** Twelve piles spread across the actual gym at each level.
+ * Stable pile indexes make daily pickup progress backwards compatible. */
+export function dailySupplyPositions(level:number):{x:number;y:number}[]{
+  const bounds=trainingBounds(level),span=bounds.right-bounds.left;
+  return Array.from({length:12},(_,i)=>({
+    x:Math.round(bounds.left+15+(i%6)*(span-30)/5),
+    y:i<6?bounds.top+12:bounds.bottom-12,
+  }));
+}
+
 export function attendingIndices(enrolled:number,level:number,day:number):number[] {
   const total=Math.max(0,Math.min(STUDENT_NAMES.length,Math.floor(enrolled)));
   if(!total)return [];
