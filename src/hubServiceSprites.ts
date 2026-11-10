@@ -14,30 +14,29 @@ export function paintHubFixture(
   const outline=0x26373e,metal=tier>=4?0x9cbabb:0x667b7d;
   if(type==='phone'){
     // Actual phone sitting on the reception counter; not a wall sign.
-    px(0x182a30,-14,8,29,4,.24);
+    // Desk-sized phone. The larger invisible touch area remains unchanged.
+    px(0x182a30,-10,5,21,3,.24);
     if(tier<=2){
-      px(outline,-13,-3,27,13);
-      px(tier===1?0x535853:0x54747c,-11,-1,23,9);
-      px(0x202a30,-12,-8,25,6);
-      px(0x8b9993,-10,-7,21,2);
-      px(0xd8ccb2,-8,2,4,3);px(0xd8ccb2,-1,2,4,3);
-      px(0xd8ccb2,6,2,4,3);
+      px(outline,-10,-2,21,9);
+      px(tier===1?0x535853:0x54747c,-8,0,17,5);
+      px(0x202a30,-9,-6,19,4);
+      px(0x8b9993,-7,-5,15,1);
+      for(const x of [-5,0,5])px(0xd8ccb2,x,2,3,2);
     }else{
-      px(outline,-14,-5,29,16);
-      px(tier===5?0x243b46:0x536c71,-12,-3,25,12);
-      px(0x122b35,-5,-2,14,7);
-      px(urgent?0xffd078:0x70aab1,-3,0,10,2);
-      px(tier===5?0xd7b479:0xc1bdb2,-12,-10,25,5);
-      px(outline,-10,-8,21,2);
-      for(let n=0;n<3;n++)px(0xb6c6bd,-10+n*4,5,3,2);
+      px(outline,-10,-4,21,11);
+      px(tier===5?0x243b46:0x536c71,-8,-2,17,7);
+      px(0x122b35,-3,-1,11,4);
+      px(urgent?0xffd078:0x70aab1,-1,0,7,2);
+      px(tier===5?0xd7b479:0xc1bdb2,-9,-8,19,4);
+      px(outline,-7,-7,15,1);
+      for(let n=0;n<3;n++)px(0xb6c6bd,-6+n*4,4,2,1);
     }
-    // Handset, cable, and LED are legible even at normal zoom.
-    px(outline,-14,-10,6,5);px(outline,8,-10,6,5);
-    px(urgent?0xe4a64b:0x70a6aa,11,2,3,3);
+    px(outline,-10,-9,4,4);px(outline,7,-9,4,4);
+    px(urgent?0xe4a64b:0x70a6aa,8,1,2,2);
     if(urgent){
-      g.lineStyle(2,0xf8c774,.9);
-      g.lineBetween(-17,-11,-20,-16);g.lineBetween(16,-11,19,-16);
-      g.lineBetween(-18,-3,-22,-3);g.lineBetween(17,-3,21,-3);
+      g.lineStyle(1,0xf8c774,.9);
+      g.lineBetween(-12,-10,-15,-13);g.lineBetween(13,-10,16,-13);
+      g.lineBetween(-12,-2,-16,-2);g.lineBetween(13,-2,17,-2);
     }
     return;
   }
