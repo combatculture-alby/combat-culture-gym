@@ -1235,10 +1235,12 @@ class GymScene extends Phaser.Scene {
         g.fillStyle(0x8c989d).fillRect(x+6,y-1,4,12);
         g.fillStyle(0x222c31).fillRect(x-12,y+8,24,3);
       }else if(i===5){ // Kettlebells
-        for(const dx of [-7,7]){
-          g.lineStyle(3,0x394c4c).strokeRect(x+dx-4,y-12,8,7);
-          g.fillStyle(0x617d76).fillRoundedRect(x+dx-7,y-6,14,14,4);
-          g.fillStyle(0xa7b4a4).fillRect(x+dx-4,y-4,4,3);
+        for(const dx of [-6,6]){
+          // Two hand-sized kettlebells, not oversized floor barrels.
+          g.lineStyle(2,0x293c3d).strokeRect(x+dx-3,y-8,6,5);
+          g.fillStyle(0x263d41).fillRoundedRect(x+dx-5,y-4,10,10,3);
+          g.fillStyle(0x66867d).fillRect(x+dx-3,y-2,3,3);
+          g.fillStyle(0x172b32).fillRect(x+dx-4,y+5,8,2);
         }
       }else if(i===6){ // Treadmill
         g.fillStyle(0x3b4c53).fillRect(x-12,y-6,24,15);
