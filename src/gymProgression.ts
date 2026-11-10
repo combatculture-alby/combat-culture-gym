@@ -80,8 +80,8 @@ export const GYM_TRAINING_BOUNDS=[
   {left:70,right:278,top:103,bottom:190}, // compact garage
   {left:55,right:294,top:93,bottom:200},  // neighborhood
   {left:33,right:317,top:80,bottom:211},  // original Combat Culture gym
-  {left:29,right:323,top:79,bottom:214},  // enlarged professional facility
-  {left:25,right:329,top:78,bottom:215},  // flagship academy
+  {left:19,right:324,top:77,bottom:218},  // pro: full-width mat, more room for ring setup
+  {left:12,right:326,top:76,bottom:221},  // academy: largest playable mat within reception wall
 ] as const;
 
 export function trainingBounds(level:number) {
