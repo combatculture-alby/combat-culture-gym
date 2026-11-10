@@ -14,7 +14,7 @@ export type RoomDefinition={
 export const ROOMS:readonly RoomDefinition[]=[
   {id:'main',name:'Main Gym',unlocksAt:1,
    entry:{x:170,y:150},bounds:{left:44,right:450,top:84,bottom:213},
-   exits:{outdoor:{x:44,y:153},upstairs:{x:348,y:106},downstairs:{x:348,y:205}}},
+   exits:{outdoor:{x:44,y:153},upstairs:{x:325,y:132},downstairs:{x:343,y:181}}},
   {id:'outdoor',name:'Outdoor Training',unlocksAt:3,
    entry:{x:422,y:153},bounds:{left:26,right:453,top:78,bottom:222},
    exits:{main:{x:443,y:153}}},
