@@ -1076,7 +1076,7 @@ class GymScene extends Phaser.Scene {
     this.refreshServiceHotspots();
     this.updateIndicators();
   }
-  private addFixtureInteraction(x:number,y:number,w:number,h:number,name:string,description:string):void {
+  private addFixtureInteraction(x:number,y:number,w:number,h:number,name:string,description:string,onUse?:()=>void):void {
     const hit=this.add.zone(x,y,w,h).setDepth(19).setInteractive({useHandCursor:true});
     const label=this.add.text(x,y-h/2-5,name.toUpperCase(),{
       fontFamily:UI_FONT,fontSize:'9px',color:'#fff0d0',
@@ -1091,7 +1091,7 @@ class GymScene extends Phaser.Scene {
       event:Phaser.Types.Input.EventData)=>{
       event.stopPropagation();label.setVisible(false);
       if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;
-      this.say(name+': '+description);
+      if(onUse)onUse();else this.say(name+': '+description);
     });
     this.worldFixtures.push(hit,label);
   }
@@ -1262,7 +1262,7 @@ class GymScene extends Phaser.Scene {
       if(this.placingGear===i)this.decor.lineStyle(2,0xffe08a).strokeRect(x-12,y-11,24,22);
       this.addFixtureInteraction(x,y,Math.max(28,GEAR_BOUNDS[i].rx*2+6),
         Math.max(32,GEAR_BOUNDS[i].ry*2+12),GEAR_ITEMS[i].name,
-        'Training equipment. Use Build / Arrange to move it, or maintain it when needed.');
+        'Training equipment. Use Build / Arrange to move it, or maintain it when needed.',()=>this.openGearStation(i));
     });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
