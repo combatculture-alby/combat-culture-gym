@@ -1518,7 +1518,7 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       s.updateIndicators();
       return {requests:s.requestStudentIds(),present:s.activeStudents().map(t=>s.students.indexOf(t)),
-        visible:s.students.map((t,i)=>t.indicator.visible?i:-1).filter(i=>i>=0)};
+        visible:s.students.map((t,i)=>t.indicator?.visible?i:-1).filter(i=>i>=0)};
     });
     assert.equal(before.requests.length,2);
     assert.ok(before.requests.every(i=>!before.visible.includes(i)||before.present.includes(i)));
@@ -1529,7 +1529,7 @@ try{
     const after=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {requests:s.requestStudentIds(),present:s.activeStudents().map(t=>s.students.indexOf(t)),
-        visible:s.students.map((t,i)=>t.indicator.visible?i:-1).filter(i=>i>=0)};
+        visible:s.students.map((t,i)=>t.indicator?.visible?i:-1).filter(i=>i>=0)};
     });
     assert.deepEqual(after.requests,before.requests,
       'Daily coaching assignments cannot change as students arrive');
