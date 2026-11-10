@@ -1509,6 +1509,34 @@ try{
       "Next day attending group arrives after opening");
   });
 
+  // Coaching assignments must not jump between students during staggered arrivals.
+  await openScenario('stable-coaching-requests-during-arrivals',sampleSave({
+    gymLevel:2,enrolledStudents:6,friendships:Array(6).fill(0),
+    skills:Array(6).fill(0),day:2,gymPhase:'open',arrivedCount:1
+  }),async page=>{
+    const before=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.updateIndicators();
+      return {requests:s.requestStudentIds(),present:s.activeStudents().map(t=>s.students.indexOf(t)),
+        visible:s.students.map((t,i)=>t.indicator.visible?i:-1).filter(i=>i>=0)};
+    });
+    assert.equal(before.requests.length,2);
+    assert.ok(before.requests.every(i=>!before.visible.includes(i)||before.present.includes(i)));
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.arrivalsClock=4;s.updateArrivals(0.01);s.updateIndicators();
+    });
+    const after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {requests:s.requestStudentIds(),present:s.activeStudents().map(t=>s.students.indexOf(t)),
+        visible:s.students.map((t,i)=>t.indicator.visible?i:-1).filter(i=>i>=0)};
+    });
+    assert.deepEqual(after.requests,before.requests,
+      'Daily coaching assignments cannot change as students arrive');
+    assert.ok(after.visible.every(i=>after.present.includes(i)),
+      'Only physically present students may show coaching prompts');
+  });
+
   // Full multi-day hub regression: unfinished services, delayed supplies and
   // rotating attendance must remain consistent across class days and reloads.
   await openScenario('three-day-hub-continuity',sampleSave({
