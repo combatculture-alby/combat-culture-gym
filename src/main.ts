@@ -387,11 +387,15 @@ class GymScene extends Phaser.Scene {
       if(this.selectedFurniture>=0) {this.placeFurniture(p.worldX,p.worldY);return;}
       if(this.placingDecor>=0) { this.placeDecor(p.worldX,p.worldY); return; }
       if(this.buildMode&&p.worldX<330&&p.worldY<220){
-        const fi=(this.saveData.furniture||[]).findIndex(item=>!item.stored&&Math.abs(item.x-p.worldX)<25&&Math.abs(item.y-p.worldY)<22);
+        const fi=(this.saveData.furniture||[]).findIndex((item,i)=>!item.stored&&
+          itemRoom(this.saveData.roomState?.furnitureRooms,i,this.gymLevel())==='main'&&
+          Math.abs(item.x-p.worldX)<25&&Math.abs(item.y-p.worldY)<22);
         if(fi>=0){this.selectFurniture(fi);return;}
         const gi=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
           const pos=this.saveData.gearPositions?.[i];
-          return owned&&!this.saveData.gearStored?.[i]&&pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
+          return owned&&!this.saveData.gearStored?.[i]&&
+            itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'&&
+            pos&&Math.abs(pos.x-p.worldX)<15&&Math.abs(pos.y-p.worldY)<15;
         });
         if(gi>=0){this.beginGearPlacement(gi);return;}
         this.say('Click an item to move, or press M for inventory.');return;
@@ -1284,7 +1288,7 @@ class GymScene extends Phaser.Scene {
     });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
-    if(decor>=1&&!this.saveData.decorStored?.[0]) {
+    if(decor>=1&&!this.saveData.decorStored?.[0]&&itemRoom(this.saveData.roomState?.decorRooms,0,this.gymLevel())==='main') {
       const p=pos[0];
       layer(p.y);
       this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
@@ -1292,7 +1296,7 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
       this.addFixtureInteraction(p.x,p.y,54,25,'Gym Banner','Your gym colors on display.');
     }
-    if(decor>=2&&!this.saveData.decorStored?.[1]) {
+    if(decor>=2&&!this.saveData.decorStored?.[1]&&itemRoom(this.saveData.roomState?.decorRooms,1,this.gymLevel())==='main') {
       const p=pos[1];
       layer(p.y);
       this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
@@ -1300,7 +1304,7 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
       this.addFixtureInteraction(p.x,p.y,52,25,'Training Poster','Inspiration for the next training session.');
     }
-    if(decor>=3&&!this.saveData.decorStored?.[2]) {
+    if(decor>=3&&!this.saveData.decorStored?.[2]&&itemRoom(this.saveData.roomState?.decorRooms,2,this.gymLevel())==='main') {
       const p=pos[2];
       layer(p.y);
       this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
@@ -2003,16 +2007,19 @@ class GymScene extends Phaser.Scene {
       // Unified paginated build inventory: furniture, gear and decorations.
       const entries:{name:string;status:string;select:()=>void;sell?:()=>void}[]=[];
       (this.saveData.furniture||[]).forEach((item,i)=>entries.push({
-        name:FURNITURE[item.kind].name,status:item.stored?'STORED':'PLACED',
+        name:FURNITURE[item.kind].name,status:item.stored?'STORED':
+          itemRoom(this.saveData.roomState?.furnitureRooms,i,this.gymLevel()).toUpperCase(),
         select:()=>this.selectFurniture(i),sell:()=>this.sellFurniture(i)
       }));
       (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-        if(owned)entries.push({name:GEAR_ITEMS[i].name,status:this.saveData.gearStored?.[i]?'STORED':'PLACED',select:()=>this.beginGearPlacement(i)});
+        if(owned)entries.push({name:GEAR_ITEMS[i].name,status:this.saveData.gearStored?.[i]?'STORED':
+          itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel()).toUpperCase(),select:()=>this.beginGearPlacement(i)});
       });
       for(let i=0;i<(this.saveData.decorLevel||0);i++){
         const idx=i;
         entries.push({name:['Gym Banner','Training Poster','Indoor Plant'][i],
-          status:this.saveData.decorStored?.[i]?'STORED':'PLACED',
+          status:this.saveData.decorStored?.[i]?'STORED':
+            itemRoom(this.saveData.roomState?.decorRooms,i,this.gymLevel()).toUpperCase(),
           select:()=>this.beginDecorPlacement(idx)});
       }
       const pageSize=5,pages=Math.max(1,Math.ceil(entries.length/pageSize));
@@ -2145,6 +2152,8 @@ class GymScene extends Phaser.Scene {
     const positions=this.saveData.decorPositions??defaults.decorPositions!.map(p=>({...p}));
     positions[this.placingDecor]={x,y};
     this.saveData.decorPositions=positions;
+    this.saveData.roomState??=defaultRoomState();
+    this.saveData.roomState.decorRooms[this.placingDecor]='main';
     this.saveData.decorStored??=[false,false,false];
     this.saveData.decorStored[this.placingDecor]=false;
     this.cancelPlacement();this.persist();this.refresh();
@@ -2637,7 +2646,8 @@ class GymScene extends Phaser.Scene {
         solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
       }
     });
-    if(!excludePlant&&(this.saveData.decorLevel||0)>=3&&!this.saveData.decorStored?.[2])
+    if(!excludePlant&&(this.saveData.decorLevel||0)>=3&&!this.saveData.decorStored?.[2]&&
+      itemRoom(this.saveData.roomState?.decorRooms,2,this.gymLevel())==='main')
       solids.push({...this.saveData.decorPositions![2],rx:11,ry:12});
     if((this.saveData.equipment||0)>=1)solids.push({x:308,y:82,rx:9,ry:13});
     if((this.saveData.equipment||0)>=2)solids.push({x:310,y:150,rx:15,ry:9});
