@@ -8,10 +8,12 @@ export function normalizeArrivalCount(value:unknown,phase:GymPhase,attendance:nu
   if(phase==='opening')return 0;
   if(typeof value!=='number'||!Number.isInteger(value))
     return phase==='open'?attendance:0;
-  return Math.max(0,Math.min(attendance,value));
+  return Math.max(0,Math.min(Math.max(0,Math.floor(attendance)||0),value));
 }
 export function outstandingTrash(spawned:number,cleaned:number):number {
-  return Math.max(0,Math.min(12,Math.floor(spawned)-Math.floor(cleaned)));
+  const total=Number.isFinite(spawned)?Math.max(0,Math.floor(spawned)):0;
+  const removed=Number.isFinite(cleaned)?Math.max(0,Math.floor(cleaned)):0;
+  return Math.max(0,Math.min(12,total-removed));
 }
 export function canTeachInPhase(phase:GymPhase,arrived:number):boolean {
   return phase==='open'&&arrived>0;
