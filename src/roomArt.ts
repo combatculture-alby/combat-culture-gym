@@ -63,7 +63,7 @@ export function paintRoomFixture(g:Phaser.GameObjects.Graphics,item:RoomFixture)
     }
   }else if(item.kind==='furniture'){
     const side=item.rotation%2===1;
-    switch(item.index){
+    switch(item.typeId??item.index){
       case 0: // compact floor lamp, not a giant service prop
         rect(edge,-2,-26,4,28);rect(gold,-6,-4,12,4);
         rect(0xe9c68e,-9,-34,18,10);rect(0xf5d79c,-7,-32,14,6);break;
@@ -90,11 +90,11 @@ export function paintRoomFixture(g:Phaser.GameObjects.Graphics,item:RoomFixture)
         rect(edge,-9,0,18,4);break;
       default: rect(body,-10,-20,20,19);
     }
-  }else if(item.index===2){
+  }else if((item.typeId??item.index)===2){
     rect(wood,-8,-11,16,12);rect(0x466a50,-6,-16,12,8);
     for(const x of [-8,0,7]){g.fillStyle(0x6b9670).fillCircle(x,-19,6);}
   }else{
-    rect(edge,-24,-28,48,23);rect(item.index===0?red:0xc6ae82,-22,-26,44,19);
+    rect(edge,-24,-28,48,23);rect((item.typeId??item.index)===0?red:0xc6ae82,-22,-26,44,19);
     rect(gold,-18,-20,36,3);rect(gold,-14,-12,28,2);
   }
 }
