@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeGymPhase,normalizeArrivalCount,outstandingTrash,
   canTeachInPhase,canCloseInPhase,canAdvanceDay,
-  ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS,overnightSupplies,canCompleteDay
+  ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS,overnightSupplies,canCompleteDay,availableCoachingRequests,classAttendanceForPreview
 } from '../src/dayCycle.ts';
 
 test('new gym opens empty; old saves remain in an open gym',()=>{
@@ -62,4 +62,21 @@ test('the day cannot advance before class or while a student remains',()=>{
   assert.equal(canCompleteDay('closing',1,1),false);
   assert.equal(canCompleteDay('closing',0,0),false);
   assert.equal(canCompleteDay('closing',0,1),true);
+});
+
+
+test('coaching requests remain assigned but only show for arrived students',()=>{
+  const assigned=[2,4],done=[];
+  assert.deepEqual(availableCoachingRequests(assigned,[],done),[]);
+  assert.deepEqual(availableCoachingRequests(assigned,[0,2],done),[2]);
+  assert.deepEqual(availableCoachingRequests(assigned,[0,2,4],done),[2,4]);
+  assert.deepEqual(availableCoachingRequests(assigned,[0,2,4],[2]),[4]);
+  assert.deepEqual(assigned,[2,4]);
+});
+test('class payout preview never counts students who have not arrived',()=>{
+  assert.equal(classAttendanceForPreview('opening',4,6),0);
+  assert.equal(classAttendanceForPreview('closing',4,6),0);
+  assert.equal(classAttendanceForPreview('open',2,6),2);
+  assert.equal(classAttendanceForPreview('open',10,6),6);
+  assert.equal(classAttendanceForPreview('open',NaN,6),0);
 });
