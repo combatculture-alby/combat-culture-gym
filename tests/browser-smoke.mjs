@@ -1805,12 +1805,13 @@ try{
       await clickGame(page,room.door.x,room.door.y);
       const clicked=await page.evaluate(()=>{
         const game=window.__combatGym;
-        const secondary=game.scene.getScene('GymRoom');
         const main=game.scene.getScene('Gym');
-        return {activeSecondary:secondary.sys.isActive(),destination:secondary.current,
-          activeMain:main.sys.isActive(),panel:main.furniturePanel?.visible};
+        return {activeMain:main.sys.isActive(),exitIntent:main.roomExitTarget,
+          waypoints:main.route.length};
       });
-      console.log('Room door click',room.id,JSON.stringify(clicked));
+      assert.equal(clicked.activeMain,true,'Door clicks must not teleport the coach');
+      assert.equal(clicked.exitIntent,room.id,'Door click should initiate a walk');
+      assert.ok(clicked.waypoints>=1,'Door click should compute a real walking path');
       await page.waitForFunction(id=>{
         const game=window.__combatGym;
         const scene=game?.scene.getScene('GymRoom');
@@ -1827,8 +1828,16 @@ try{
       assert.ok(check.player>=36&&check.player<=42,
         'Character must retain one consistent 40px sprite scale');
       await page.screenshot({path:output+'/room-'+room.id+'-before-building.png'});
-      await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').goTo('main'));
-      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+      const returnDoor=room.id==='outdoor'?{x:368,y:146}:room.id==='upstairs'?{x:120,y:148}:{x:111,y:149};
+      await clickGame(page,returnDoor.x,returnDoor.y);
+      const leaving=await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('GymRoom');
+        return {active:s.sys.isActive(),intent:s.pendingExit,waypoints:s.path.length};
+      });
+      assert.equal(leaving.active,true,'Exiting a room must walk first, not warp');
+      assert.equal(leaving.intent,'main');
+      assert.ok(leaving.waypoints>0);
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive(),null,{timeout:15000});
       const landing=await page.evaluate(()=>{
         const gym=window.__combatGym.scene.getScene('Gym');
         return gym.canStand(gym.player.x,gym.player.y);
