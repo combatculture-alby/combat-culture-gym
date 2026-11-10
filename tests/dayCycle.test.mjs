@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeGymPhase,normalizeArrivalCount,outstandingTrash,
   canTeachInPhase,canCloseInPhase,canAdvanceDay,
-  ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS
+  ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS,overnightSupplies,canCompleteDay
 } from '../src/dayCycle.ts';
 
 test('new gym opens empty; old saves remain in an open gym',()=>{
@@ -46,4 +46,20 @@ test('corrupted or partial day-cycle saves cannot create phantom attendance or t
   assert.equal(outstandingTrash(4,-10),4);
   assert.equal(normalizeArrivalCount(3,'open',-5),0);
   assert.equal(normalizeArrivalCount(3,'closing',0),0);
+});
+
+
+test('overnight deliveries are capped and never mutate existing stock',()=>{
+  const stock=[1,3,98,0],pending=[3,0,8,5];
+  assert.deepEqual(overnightSupplies(stock,pending),[4,3,99,5]);
+  assert.deepEqual(stock,[1,3,98,0]);
+  assert.deepEqual(pending,[3,0,8,5]);
+  assert.deepEqual(overnightSupplies([NaN,-1,Infinity,2],[3,4,5,-7]),[3,4,5,2]);
+});
+test('the day cannot advance before class or while a student remains',()=>{
+  assert.equal(canCompleteDay('opening',0,1),false);
+  assert.equal(canCompleteDay('open',0,1),false);
+  assert.equal(canCompleteDay('closing',1,1),false);
+  assert.equal(canCompleteDay('closing',0,0),false);
+  assert.equal(canCompleteDay('closing',0,1),true);
 });
