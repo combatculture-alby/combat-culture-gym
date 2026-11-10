@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {unlockedRooms,roomTransition,normalizeRoom} from '../src/gymRooms.ts';
 import {normalizeRoomState,itemRoom,defaultRoomState,moveItemToRoom} from '../src/roomState.ts';
-import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor} from '../src/roomItems.ts';
+import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor,roomWalkBounds} from '../src/roomItems.ts';
+import {GymNavigation} from '../src/navigation.ts';
 
 test('only the new rooms unlock at levels three, four and five',()=>{
   assert.deepEqual([1,2,3,4,5].map(level=>unlockedRooms(level).map(r=>r.id)),[
@@ -70,5 +71,20 @@ test('every additional room is smaller than the main floor and has usable entry 
     assert.ok(canWalkInRoom({x:(f.left+f.right)/2,y:(f.top+f.bottom)/2},[],room));
     assert.equal(canWalkInRoom({x:20,y:160},[],room),false);
     assert.equal(canFitRoomItem({kind:'gear',index:0,x:400,y:150,rotation:0},[],room),false);
+    const walk=roomWalkBounds(room);
+    assert.ok(walk.left<f.left&&walk.right>f.right,'side corridors are physical floor');
+    assert.ok(canWalkInRoom({x:45,y:184},[],room),'left side lane is accessible');
+    assert.ok(canWalkInRoom({x:427,y:184},[],room),'right side lane is accessible');
+    assert.ok(canWalkInRoom({x:235,y:214},[],room),'front aisle is accessible');
+    for(const x of [45,427]){
+      assert.equal(canFitRoomItem({kind:'gear',index:0,x,y:184,rotation:0},[],room),false,
+        'outside mat is walk-only, never valid equipment placement');
+    }
+    const navigation=new GymNavigation((x,y)=>canWalkInRoom({x,y},[],room));
+    navigation.rebuild();
+    assert.ok(navigation.route({x:240,y:175},{x:45,y:184}).length>0,
+      'character must be able to path from mat to left corridor');
+    assert.ok(navigation.route({x:240,y:175},{x:427,y:184}).length>0,
+      'character must be able to path from mat to right corridor');
   }
 });
