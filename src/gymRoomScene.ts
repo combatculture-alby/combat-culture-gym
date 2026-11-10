@@ -262,8 +262,12 @@ export class GymRoomScene extends Phaser.Scene {
     };
     this.roomState.currentRoom=destination;
     if(destination==='main'){
-      const target=ROOMS[0].exits[this.current];
-      if(target)this.roomState.playerPositions.main={x:target.x+(this.current==='outdoor'?29:-18),y:target.y};
+      // Each return point is inside the unchanged Level 2-sized main mat,
+      // never in the wall, reception fixtures or a locked service corridor.
+      const approaches:Record<'outdoor'|'upstairs'|'downstairs',Point>={
+        outdoor:{x:86,y:153},upstairs:{x:273,y:144},downstairs:{x:85,y:191}
+      };
+      this.roomState.playerPositions.main=approaches[this.current];
     }
     this.writeSave();
     if(destination==='main')this.scene.start('Gym');
