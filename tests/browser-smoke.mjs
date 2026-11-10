@@ -723,10 +723,10 @@ try{
     await clickGame(page,313,201); // Deliberate destructive confirmation.
     // Wait for the scene restart; if a frame swallowed the pointer, retry once.
     try {
-      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,{timeout:3000});
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,null,{timeout:3000});
     } catch {
       await clickGame(page,313,201);
-      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,{timeout:10000});
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,null,{timeout:10000});
     }
     state=await sceneState(page);
     assert.equal(state.level,1);
