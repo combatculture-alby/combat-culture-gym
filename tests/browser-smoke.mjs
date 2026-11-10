@@ -1712,7 +1712,7 @@ try{
     assert.equal(initial.room,'outdoor');
     assert.equal(initial.level,5);
     assert.ok(initial.npcs>0,'Outdoor room must show assigned students');
-    assert.ok(initial.coachTexture.startsWith('gym-coach-')||
+    assert.ok(initial.coachTexture.startsWith('coach-custom-')||
       initial.coachTexture.startsWith('gym-character-'));
     assert.deepEqual(initial.litter,[0,1,2]);
     await page.evaluate(()=>{
