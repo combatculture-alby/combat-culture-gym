@@ -7,7 +7,7 @@ import {recharge,GEAR_WIPE_RESTORE,GEAR_REPAIR_RESTORE,CLEAN_GEAR_THRESHOLD,GEAR
 import {GymNavigation,type Point} from './navigation';
 import {ROOMS,normalizeRoom,roomTransition,studentRoom,unlockedRooms,type RoomId} from './gymRooms';
 import {normalizeRoomState,itemRoom,type RoomState} from './roomState';
-import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor,type RoomFixture} from './roomItems';
+import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor,roomWalkBounds,type RoomFixture} from './roomItems';
 import {makeRoomFixture} from './roomArt';
 import {makeRoomGateway} from './roomGateways';
 import {paintCompactRoom} from './compactRoomArt';
@@ -100,7 +100,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.input.on('pointerdown',(pointer:Phaser.Input.Pointer,targets:Phaser.GameObjects.GameObject[])=>{
       if(targets.length||this.inventoryPanel)return;
       this.pendingExit=null;
-      if(pointer.worldY<94||pointer.worldY>220)return;
+      if(pointer.worldY<110||pointer.worldY>221)return;
       if(this.movingItem){this.placeAt(pointer.worldX,pointer.worldY);return;}
       this.walkTo({x:pointer.worldX,y:pointer.worldY});
     });
@@ -136,7 +136,7 @@ export class GymRoomScene extends Phaser.Scene {
     return {x:f.right-25,y:f.bottom-11};
   }
   private randomRoomPoint():Point {
-    const f=roomFloor(this.current);
+    const f=roomWalkBounds(this.current);
     return {x:f.left+22+Math.random()*(f.right-f.left-44),
       y:f.top+17+Math.random()*(f.bottom-f.top-34)};
   }
@@ -261,10 +261,10 @@ export class GymRoomScene extends Phaser.Scene {
   private requestExit(destination:RoomId):void {
     const transition=roomTransition(this.current,destination,this.level);
     if(!transition||this.inventoryPanel||this.movingItem)return;
-    const f=roomFloor(this.current);
+    const f=roomWalkBounds(this.current);
     const exit=transition.exit;
     const approach=this.navigation.recover({
-      x:Phaser.Math.Clamp(exit.x+(exit.x<(f.left+f.right)/2?27:-27),f.left+15,f.right-15),
+      x:Phaser.Math.Clamp(exit.x+(exit.x<(f.left+f.right)/2?23:-23),f.left+15,f.right-15),
       y:Phaser.Math.Clamp(exit.y,f.top+12,f.bottom-12)
     });
     if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,approach.x,approach.y)<14){
