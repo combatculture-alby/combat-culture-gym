@@ -26,6 +26,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
+import {defaultRoomState,normalizeRoomState,type RoomState} from './roomState';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
@@ -42,7 +43,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number; dayStartMoney?:number; dayStartRep?:number };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number; dayStartMoney?:number; dayStartRep?:number; roomState?:RoomState };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -69,7 +70,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0,dayStartMoney:100,dayStartRep:0 };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0,dayStartMoney:100,dayStartRep:0,roomState:defaultRoomState() };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -251,6 +252,7 @@ class GymScene extends Phaser.Scene {
   constructor() { super('Gym'); }
   create(data?:{trainingBoard?:boolean;notice?:string}): void {
     this.saveData=loadSave();
+    this.saveData.roomState=normalizeRoomState(this.saveData.roomState,this.gymLevel());
     this.clearIntent();
     this.targetRefresh=0;
     this.buildMode=false;
@@ -1054,6 +1056,7 @@ class GymScene extends Phaser.Scene {
     this.buildMode=false;
   }
   private persist():void {
+    this.saveData.roomState=normalizeRoomState(this.saveData.roomState,this.gymLevel());
     this.saveData.friendships=this.students.map(s=>s.friendship);
     this.saveData.skills=this.students.map(s=>s.skill);
     try { localStorage.setItem(SAVE_KEY,JSON.stringify(this.saveData)); } catch { this.say('Storage unavailable. Progress will not persist.'); }
