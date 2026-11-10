@@ -29,7 +29,7 @@ type ExtraSave={
   gearCondition?:number[];gearCleanliness?:number[];gearWipedToday?:number[];gearServicedToday?:number[];
   [key:string]:unknown;
 };
-type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text;indicator:Phaser.GameObjects.Text;pose:'stretch'|'bag'|'lift'|'rest'|'shadow'|'drink'};
+type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text;indicator:Phaser.GameObjects.Text;hit:Phaser.GameObjects.Zone;pose:'stretch'|'bag'|'lift'|'rest'|'shadow'|'drink'};
 function taskPoints(room:RoomId,kind:'trash'|'mop'):Point[] {
   const f=roomFloor(room),w=f.right-f.left,h=f.bottom-f.top;
   const relative=kind==='trash'
@@ -586,9 +586,17 @@ export class GymRoomScene extends Phaser.Scene {
       const indicator=this.add.text(spawn.x,spawn.y-40,'?',{fontFamily:'Arial',fontSize:'12px',
         color:'#f9e9c9',backgroundColor:'#5d6650',padding:{x:3,y:1}})
         .setOrigin(.5).setDepth(35).setVisible(this.canCoach(id));
-      const npc:RoomStudent={id,actor,goal:{...spawn},pause:seed*.7+1,chat,indicator,pose:'shadow'};
-      actor.body.setSize(28,40).setInteractive(new Phaser.Geom.Rectangle(-14,-39,28,40),Phaser.Geom.Rectangle.Contains);
-      actor.body.on('pointerdown',()=>this.talkTo(npc));
+      // Containers can lose pointer hit tests when children use foot-origin
+      // coordinates. A dedicated transparent zone follows the NPC each frame.
+      const hit=this.add.zone(spawn.x,spawn.y-20,38,44).setDepth(25)
+        .setInteractive({useHandCursor:true});
+      const npc:RoomStudent={id,actor,goal:{...spawn},pause:seed*.7+1,
+        chat,indicator,hit,pose:'shadow'};
+      hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+        event:Phaser.Types.Input.EventData)=>{
+        event.stopPropagation();
+        if(!this.inventoryPanel&&!this.movingItem)this.talkTo(npc);
+      });
       this.students.push(npc);
     }
   }
@@ -784,6 +792,7 @@ export class GymRoomScene extends Phaser.Scene {
         }
       }
       npc.chat.setPosition(npc.actor.body.x,npc.actor.body.y-43);
+      npc.hit.setPosition(npc.actor.body.x,npc.actor.body.y-20);
       npc.indicator.setPosition(npc.actor.body.x,npc.actor.body.y-39)
         .setVisible(this.canCoach(npc.id));
     }
