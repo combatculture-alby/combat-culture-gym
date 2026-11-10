@@ -1,9 +1,9 @@
 export const GYM_LEVELS = [
   {name:'Garage Gym',capacity:4,active:4,cost:0,reputation:0,classesTaught:0,gearOwned:0},
   {name:'Neighborhood Gym',capacity:6,active:5,cost:400,reputation:12,classesTaught:8,gearOwned:2},
-  {name:'Fight Gym',capacity:10,active:6,cost:1100,reputation:35,classesTaught:22,gearOwned:4},
-  {name:'Pro Facility',capacity:16,active:7,cost:2600,reputation:75,classesTaught:48,gearOwned:6},
-  {name:'Combat Academy',capacity:24,active:8,cost:6000,reputation:140,classesTaught:90,gearOwned:8},
+  {name:'Fight Gym',capacity:8,active:6,cost:1100,reputation:35,classesTaught:22,gearOwned:4},
+  {name:'Pro Facility',capacity:10,active:7,cost:2600,reputation:75,classesTaught:48,gearOwned:6},
+  {name:'Combat Academy',capacity:12,active:8,cost:6000,reputation:140,classesTaught:90,gearOwned:8},
 ] as const;
 
 export const STUDENT_NAMES=[
@@ -40,7 +40,7 @@ export function canExpandGym(level:number,money:number,reputation:number,classes
  * Members and placed relevant gear improve revenue as the school expands. */
 export const CLASS_REPUTATION=2;
 export function classEarnings(level:number,enrolled:number,matchingPlacedGear=0,facilityUpgrades=0):number {
-  const members=Math.max(4,Math.min(24,Math.floor(enrolled)));
+  const members=Math.max(4,Math.min(12,Math.floor(enrolled)));
   const gear=Math.max(0,Math.min(8,Math.floor(matchingPlacedGear)));
   const facilities=Math.max(0,Math.min(3,Math.floor(facilityUpgrades)));
   return 16+members*7+normalizeGymLevel(level)*9+gear*5+facilities*4;
