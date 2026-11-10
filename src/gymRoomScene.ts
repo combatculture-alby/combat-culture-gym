@@ -554,7 +554,9 @@ export class GymRoomScene extends Phaser.Scene {
       const assignment=this.roomState.studentRooms[id]||studentRoom(id,this.level);
       if(assignment!==this.current)continue;
       const seed=this.students.length;
-      const point={x:130+(seed%3)*88,y:145+Math.floor(seed/3)*36};
+      const f=roomFloor(this.current);
+      const point={x:f.left+(seed%3+1)*(f.right-f.left)/4,
+        y:f.top+(Math.floor(seed/3)+1)*(f.bottom-f.top)/3};
       const spawn=this.navigation.recover(point);
       const actor=new GymCharacter(this,spawn.x,spawn.y,1+(id%4));
       const chat=this.add.text(spawn.x,spawn.y-43,'',{fontFamily:'Arial',fontSize:'9px',color:'#233d42',
@@ -571,9 +573,11 @@ export class GymRoomScene extends Phaser.Scene {
   private talkTo(npc:RoomStudent):void {
     if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,
       npc.actor.body.x,npc.actor.body.y)>48){
+      this.pendingStudent=npc.id;
       this.walkTo({x:npc.actor.body.x,y:npc.actor.body.y});
-      this.notice('Walk closer to '+STUDENT_NAMES[npc.id]+' to help or talk.');return;
+      this.notice('Walking over to '+STUDENT_NAMES[npc.id]+'.');return;
     }
+    this.pendingStudent=null;
     if(this.canCoach(npc.id)){this.openCoaching(npc);return;}
     const lines=['Ready for training!','Working on my technique.','Nice gym, coach.','One more round!'];
     npc.chat.setText(STUDENT_NAMES[npc.id]+': '+lines[(npc.id+(this.save.day||1))%lines.length])
@@ -660,7 +664,8 @@ export class GymRoomScene extends Phaser.Scene {
       return p&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<28;
     });
     if(nearest!==undefined){this.cleanTrash(nearest);return;}
-    if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,411,185)<40){
+    const station=this.mopStation();
+    if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,station.x,station.y)<36){
       this.beginMop();return;
     }
     for(const npc of this.students){
@@ -712,6 +717,13 @@ export class GymRoomScene extends Phaser.Scene {
       }
     }
     if(this.inventoryPanel||this.movingItem)return;
+    if(this.pendingStudent!==null){
+      const target=this.students.find(npc=>npc.id===this.pendingStudent);
+      if(target&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,
+        target.actor.body.x,target.actor.body.y)<46){
+        this.path=[];this.pendingStudent=null;this.talkTo(target);
+      }else if(!target||!this.path.length){this.pendingStudent=null;}
+    }
     for(const npc of this.students){
       if(npc.pause>0){npc.pause-=dt;npc.actor.animate(npc.pose,dt);}
       else{
@@ -733,7 +745,7 @@ export class GymRoomScene extends Phaser.Scene {
           }else npc.pose='shadow';
           if(Math.hypot(npc.goal.x-body.x,npc.goal.y-body.y)<3){
             for(let tryNo=0;tryNo<8;tryNo++){
-              const goal={x:80+Math.random()*320,y:124+Math.random()*70};
+              const goal=this.randomRoomPoint();
               if(this.canStand(goal.x,goal.y)){npc.goal=goal;npc.pose='shadow';break;}
             }
           }
