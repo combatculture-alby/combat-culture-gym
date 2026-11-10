@@ -150,16 +150,16 @@ export function paintCompactRoom(scene:Phaser.Scene,room:RoomId):void {
     rect(0xadc6b2,20,136,45,3);
     rect(0x263e40,24,140,38,4,.3);
     // Built-in outdoor seating/planter on the right wall.
-    rect(0x3a6059,410,108,47,19);
-    rect(0xc3b69a,413,109,41,5);
-    rect(0x52795f,415,96,37,14);
-    for(const [x,y] of [[419,95],[431,90],[446,96]]){
-      g.fillStyle(0x6f9b75).fillEllipse(x,y,19,15);
+    rect(0x3a6059,382,108,39,19);
+    rect(0xc3b69a,385,109,33,5);
+    rect(0x52795f,387,96,29,14);
+    for(const [x,y] of [[389,95],[402,90],[414,96]]){
+      g.fillStyle(0x6f9b75).fillEllipse(x,y,18,14);
       g.fillStyle(0x95b68e).fillEllipse(x-2,y-2,8,6);
     }
-    rect(0x3a5854,414,127,40,11);
-    rect(0xaeb7a3,417,129,34,2);
-    rect(0x2d4744,417,138,34,4,.5);
+    rect(0x3a5854,385,127,34,11);
+    rect(0xaeb7a3,388,129,28,2);
+    rect(0x2d4744,388,138,28,4,.5);
     // Outdoor drainage, expansion joints and boundary kerb.
     for(let x=32;x<459;x+=66){
       rect(0x49685f,x,214,31,2,.4);
