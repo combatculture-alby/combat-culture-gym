@@ -15,6 +15,12 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
   const {desk,deskApproach,room}=gymServiceLayout(level);
   const mat=trainingBounds(level);
   const coolerX=mat.right+21;
+  // The stock closet must sit above the desk, not in its footprint.
+  // Leave enough clearance for the tallest 55px cabinet and its hit target.
+  const stockY=Math.min(145,desk.y-40);
+  const stockX=Math.min(room.right-20,desk.x-23);
+  // The mop lives below the cooler, away from the reception desk.
+  const mopX=coolerX+26;
   return {
     phone:{
       x:desk.x+Math.min(15,Math.floor(desk.w*.27)),y:desk.y+3,
@@ -27,14 +33,14 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
       approach:{x:coolerX+27,y:174}
     },
     stock:{
-      x:room.right-16,y:147,
+      x:stockX,y:stockY,
       hitWidth:35,hitHeight:53,
-      approach:{x:room.right-49,y:165}
+      approach:{x:stockX-25,y:stockY+9}
     },
     mop:{
-      x:coolerX+36,y:205,
+      x:mopX,y:205,
       hitWidth:31,hitHeight:38,
-      approach:{x:coolerX+44,y:193}
+      approach:{x:mopX+14,y:193}
     }
   };
 }
