@@ -57,7 +57,7 @@ export function dailySupplyPositions(level:number):{x:number;y:number}[]{
 }
 
 export function attendingIndices(enrolled:number,level:number,day:number):number[] {
-  const total=Math.max(0,Math.min(STUDENT_NAMES.length,Math.floor(enrolled)));
+  const total=Number.isFinite(enrolled)?Math.max(0,Math.min(studentCapacity(level),STUDENT_NAMES.length,Math.floor(enrolled))):0;
   if(!total)return [];
   const attending=activeStudentCount(total,level);
   const start=(Math.max(1,Math.floor(day))-1)*attending%total;
