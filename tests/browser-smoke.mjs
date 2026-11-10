@@ -1840,6 +1840,91 @@ try{
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
   });
 
+  await openScenario('compact-room-feedback-regressions',sampleSave({
+    gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
+    skills:Array(12).fill(0),day:4,gymPhase:'open',arrivedCount:8,
+    supplies:[2,2,2,3],materials:[0,0,0],ownedGear:[true],
+    gearStored:[true],gearPositions:[{x:180,y:148}]
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').visitRoom('outdoor'));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')?.sys.isActive());
+    const initial=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {mopping:s.mopActive,marks:s.mopMarks.length,
+        inside:s.canStand(240,165),outside:s.canStand(430,165),
+        students:s.students.length};
+    });
+    assert.equal(initial.mopping,false,'Mopping should not start on room entry');
+    assert.equal(initial.marks,0,'Mop target circles must remain hidden by default');
+    assert.equal(initial.inside,true);
+    assert.equal(initial.outside,false,'Compact secondary rooms have real boundaries');
+    assert.ok(initial.students>=1,'At least one NPC appears in the outside gym');
+
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      s.coach.place(250,178);
+      s.moveItem({kind:'gear',index:0,x:180,y:148,rotation:0});
+      s.placeAt(180,147);
+    });
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')
+      ?.displayItems?.some(i=>i.kind==='gear'&&i.index===0));
+    const afterPlace=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {x:s.coach.body.x,y:s.coach.body.y,room:s.roomState.gearRooms[0]};
+    });
+    assert.deepEqual(afterPlace,{x:250,y:178,room:'outdoor'},
+      'Placing equipment must not teleport the player to the room entrance');
+
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      s.cleanTrash(0);
+    });
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')
+      ?.roomState?.trashByRoom?.outdoor?.length===2);
+    const afterPickup=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {x:s.coach.body.x,y:s.coach.body.y,marks:s.mopMarks.length};
+    });
+    assert.deepEqual(afterPickup,{x:250,y:178,marks:0},
+      'Picking up litter must preserve player position and keep mop activity off');
+
+    await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').beginMop());
+    const during=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {mopping:s.mopActive,marks:s.mopMarks.length};
+    });
+    assert.deepEqual(during,{mopping:true,marks:3},
+      'Mop markers appear only after intentionally activating the mop');
+
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      s.targetMop=null;s.path=[];
+      const npc=s.students[0];
+      s.coach.place(npc.actor.body.x+9,npc.actor.body.y);
+      npc.actor.body.emit('pointerdown');
+    });
+    const talked=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {bubble:s.students[0]?.chat.visible,panel:!!s.inventoryPanel};
+    });
+    assert.ok(talked.bubble||talked.panel,
+      'Clicking a nearby student outside must open conversation or coaching');
+
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      s.closeInventory();
+      const npc=s.students[0];
+      npc.pause=999;
+      s.coach.place(npc.actor.body.x+90,npc.actor.body.y);
+      npc.actor.body.emit('pointerdown');
+    });
+    await page.waitForFunction(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return s.pendingStudent===null&&
+        (s.students[0]?.chat.visible||!!s.inventoryPanel);
+    },null,{timeout:10000});
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
