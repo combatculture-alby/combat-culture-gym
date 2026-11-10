@@ -55,6 +55,7 @@ export class GymRoomScene extends Phaser.Scene {
   private cleanNodes:Phaser.GameObjects.Container[]=[];
   private displayItems:RoomFixture[]=[];
   private inventoryPanel:Phaser.GameObjects.Container|null=null;
+  private inventoryPage=0;
   constructor(){super('GymRoom');}
 
   create(data?:{room?:RoomId}):void {
@@ -263,7 +264,7 @@ export class GymRoomScene extends Phaser.Scene {
     });
     return items;
   }
-  private openInventory():void {
+  private openInventory(page=0):void {
     if(this.movingItem||this.inventoryPanel)return;
     this.path=[];
     const panel=this.add.container(0,0).setDepth(65);
@@ -273,7 +274,10 @@ export class GymRoomScene extends Phaser.Scene {
     panel.add(this.add.text(37,54,'BUILD / MOVE INVENTORY',{
       fontFamily:'Arial',fontSize:'13px',color:'#ffe1a0'
     }));
-    const options=this.inventoryOptions();
+    const all=this.inventoryOptions();
+    const pages=Math.max(1,Math.ceil(all.length/10));
+    this.inventoryPage=Math.max(0,Math.min(pages-1,page));
+    const options=all.slice(this.inventoryPage*10,(this.inventoryPage+1)*10);
     if(!options.length)panel.add(this.add.text(47,96,'No equipment purchased. Visit the main desk shop.',{
       fontFamily:'Arial',fontSize:'11px',color:'#f5e6cc'
     }));
@@ -290,9 +294,19 @@ export class GymRoomScene extends Phaser.Scene {
       option.on('pointerdown',()=>{this.closeInventory();this.moveItem(item);});
       panel.add(option);
     });
-    if(options.length>10)panel.add(this.add.text(41,215,'More gear is available on the next gym visit.',{
-      fontFamily:'Arial',fontSize:'9px',color:'#e5cca7'
-    }));
+    if(pages>1){
+      const nav=(x:number,label:string,next:number)=>{
+        const button=this.add.text(x,210,label,{fontFamily:'Arial',fontSize:'10px',
+          color:'#ffdfad',backgroundColor:'#41646c',padding:{x:7,y:3}})
+          .setInteractive({useHandCursor:true});
+        button.on('pointerdown',()=>{this.closeInventory();this.openInventory(next);});
+        panel.add(button);
+      };
+      if(this.inventoryPage>0)nav(43,'PREVIOUS',this.inventoryPage-1);
+      if(this.inventoryPage<pages-1)nav(346,'NEXT',this.inventoryPage+1);
+      panel.add(this.add.text(243,214,(this.inventoryPage+1)+' / '+pages,{
+        fontFamily:'Arial',fontSize:'10px',color:'#eed0a2'}).setOrigin(.5));
+    }
     const close=this.add.text(424,54,'CLOSE', {fontFamily:'Arial',fontSize:'10px',
       color:'#ffffff',backgroundColor:'#684e47',padding:{x:5,y:5}}).setOrigin(1,0)
       .setInteractive({useHandCursor:true});
