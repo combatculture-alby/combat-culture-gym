@@ -1579,6 +1579,29 @@ try{
     assert.equal((await sceneState(page)).classesToday,0,'Gym cannot close without teaching');
   });
 
+  await openScenario('release-candidate-phase-controls',sampleSave({
+    gymPhase:'open',arrivedCount:2,classesToday:0
+  }),async page=>{
+    const initial=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.updatePhaseDisplay();
+      return {action:s.phaseActionText.text,status:s.phaseStatus.text};
+    });
+    assert.equal(initial.action,'TEACH FIRST');
+    assert.match(initial.status,/2 PRESENT \/ 0\/2 CLASSES/);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.simulateClass(0,0.75,false);
+      s.updatePhaseDisplay();
+    });
+    const after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {action:s.phaseActionText.text,status:s.phaseStatus.text};
+    });
+    assert.equal(after.action,'CLOSE GYM');
+    assert.match(after.status,/2 PRESENT \/ 1\/2 CLASSES/);
+  });
+
   // Full multi-day hub regression: unfinished services, delayed supplies and
   // rotating attendance must remain consistent across class days and reloads.
   await openScenario('three-day-hub-continuity',sampleSave({
