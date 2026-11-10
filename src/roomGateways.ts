@@ -2,62 +2,69 @@ import Phaser from 'phaser';
 import type {RoomId} from './gymRooms';
 
 type GatewayOptions={returning?:boolean;depth?:number};
-/** Consistent physical exits: a framed garden door and navigable stair flights.
- * Art is in world coordinates and shares the 40px character sprite scale.
- */
+/** Wall-anchored pixel architecture. Door/stair width is ~2 coach sprites,
+ * and the clickable zone is independent of the rendered geometry. */
 export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number,
   onClick:()=>void,options:GatewayOptions={}):Phaser.GameObjects.Container {
-  const body=scene.add.container(x,y).setDepth(options.depth??25);
+  const body=scene.add.container(x,y).setDepth(options.depth??20);
   const g=scene.add.graphics();
-  const box=(c:number,x:number,y:number,w:number,h:number)=>g.fillStyle(c).fillRect(x,y,w,h);
-  const rail=(c:number,x1:number,y1:number,x2:number,y2:number,w=2)=>
+  const px=(c:number,x:number,y:number,w:number,h:number)=>g.fillStyle(c).fillRect(x,y,w,h);
+  const line=(c:number,x1:number,y1:number,x2:number,y2:number,w=2)=>
     g.lineStyle(w,c).lineBetween(x1,y1,x2,y2);
-  const edge=0x1d343c,trim=0xc1a478,light=0xb5d1c4;
-  g.fillStyle(0x101b23,.25).fillEllipse(0,2,45,12);
+  const dark=0x223940,wall=0x4d696b,stone=0x9c9481,wood=0xab8b61;
+  // Shared contact shadow / step at walkable floor height.
+  g.fillStyle(0x101f26,.3).fillEllipse(0,1,38,7);
   if(kind==='outdoor'){
-    // Framed exit with an unmistakable opening into the training yard.
-    box(edge,-21,-43,42,44);box(trim,-19,-42,38,40);
-    box(0x294e53,-16,-39,32,35);
-    box(0x9dced2,-13,-37,26,23);
-    box(0x81b48c,-13,-19,26,15);
-    box(0x5c8973,-12,-17,24,8);
-    for(let i=0;i<3;i++)box(0x3e685e,-11+i*9,-22,2,19);
-    box(0xd4c49e,-1,-40,2,37);
-    box(0x28494c,-18,-3,37,5);
-    box(0xaac5b4,-15,-2,31,2);
-    g.fillStyle(light).fillCircle(11,-11,2);
+    // Recessed glass gym door, attached wall jambs and a short paved step.
+    px(dark,-17,-43,34,44);
+    px(stone,-19,-44,4,46);px(stone,15,-44,4,46);
+    px(0xcbb68e,-18,-45,36,3);
+    px(0x2f5359,-13,-40,26,37);
+    px(0x92b8b5,-11,-38,22,22);
+    px(0x618e79,-11,-20,22,17);
+    for(const railX of [-7,0,7])px(0x395f53,railX,-17,2,13);
+    px(0xcbb68e,-1,-39,2,34);
+    px(0x233a41,-17,-4,34,4);px(0x9bada4,-14,-3,29,2);
+    px(0xe2cca2,8,-14,2,3);
   }else{
-    // The landing, visible individual treads and handrail form real stairs,
-    // not the colored navigation cards used by the early prototype.
-    box(edge,-24,-8,48,11);
-    for(let i=0;i<5;i++){
-      const h=5;
-      const y0=-34+i*6;
-      const width=26+i*4;
-      box(0x324950,-width/2,y0,width,h+3);
-      box(i%2?0x8b725b:0x9e8669,-width/2+2,y0+1,width-4,h);
-      box(0xd4ba89,-width/2+2,y0+1,width-4,2);
+    // Stairwell is rooted in a wall opening; the flight is small enough
+    // for 40px characters and visibly connects to the floor.
+    px(dark,-18,-42,36,42);
+    px(wall,-15,-39,30,34);
+    px(0x263e45,-12,-38,24,24);
+    // Rising vs descending tread lighting makes direction unmistakable.
+    for(let n=0;n<5;n++){
+      const width=20+n*3,yTop=-26+n*5;
+      px(0x30474d,-width/2,yTop,width,7);
+      px(kind==='upstairs'?0xb39b76:0x817968,-width/2+1,yTop+2,width-2,4);
+      px(kind==='upstairs'?0xd9bd8b:0xa7ad9b,-width/2+2,yTop+2,width-4,1);
     }
-    const left=kind==='upstairs';
-    rail(edge,left?-24:-24,-5,left?-13:-17,-35,4);
-    rail(trim,left?-24:-24,-6,left?-13:-17,-36,2);
-    rail(edge,24,-5,14,-35,4);rail(trim,24,-6,14,-36,2);
-    for(let i=0;i<3;i++)rail(0xd7c093,-19+i*3,-9-i*9,-18+i*3,-13-i*9,2);
-    box(edge,-24,-5,48,5);
-    if(kind==='downstairs'){
-      box(0x223940,-13,-31,25,5);
-      box(0x58666a,-11,-30,21,2);
+    line(stone,-19,-1,-13,-28,3);
+    line(stone,19,-1,13,-28,3);
+    px(0x2f4b50,-20,-3,40,4);
+    px(0x9caeaa,-17,-2,34,1);
+    // Above-door direction indicator is integrated in the lintel.
+    px(wood,-9,-42,18,7);
+    px(dark,-7,-40,14,3);
+    if(kind==='upstairs'){
+      px(0xe0cd9d,-1,-40,2,3);
+      px(0xe0cd9d,-3,-40,2,1);px(0xe0cd9d,1,-40,2,1);
+    }else{
+      px(0xe0cd9d,-1,-40,2,3);
+      px(0xe0cd9d,-3,-38,2,1);px(0xe0cd9d,1,-38,2,1);
     }
   }
   body.add(g);
-  const plaque=options.returning?'GYM':kind==='outdoor'?'YARD':kind==='upstairs'?'2F':'B1';
-  const label=scene.add.text(0,-46,plaque,{
-    fontFamily:'Arial',fontSize:'8px',fontStyle:'bold',color:'#f7e6c7',
-    backgroundColor:'#304b4c',padding:{x:3,y:1}
-  }).setOrigin(.5);
-  body.add(label);
-  // Entire architectural shape is a touch target, not a separate UI button.
-  const hit=scene.add.zone(0,-20,46,49).setInteractive({useHandCursor:true});
+  // No floating text plaques. Identification is revealed on hover/focus only.
+  const name=options.returning?'MAIN GYM':kind==='outdoor'?'YARD':kind==='upstairs'?'UPSTAIRS':'DOWNSTAIRS';
+  const caption=scene.add.text(0,-50,name,{
+    fontFamily:'Arial',fontSize:'8px',color:'#f8e9ce',
+    backgroundColor:'#28454a',padding:{x:3,y:2}
+  }).setOrigin(.5).setVisible(false);
+  body.add(caption);
+  const hit=scene.add.zone(0,-22,44,49).setInteractive({useHandCursor:true});
+  hit.on('pointerover',()=>caption.setVisible(true));
+  hit.on('pointerout',()=>caption.setVisible(false));
   hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
     event:Phaser.Types.Input.EventData)=>{event.stopPropagation();onClick();});
   body.add(hit);
