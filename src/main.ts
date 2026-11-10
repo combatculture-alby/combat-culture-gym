@@ -1459,11 +1459,10 @@ class GymScene extends Phaser.Scene {
     const rooms=unlockedRooms(this.gymLevel());
     rooms.forEach((room,i)=>this.menuAction(room.name.toUpperCase(),84+(i%2)*161,88+Math.floor(i/2)*45,149,()=>{
       if(room.id==='main'){this.furniturePanel.setVisible(false);return;}
-      this.saveData.roomState??=defaultRoomState();
-      this.saveData.roomState.playerPositions.main={x:this.player.x,y:this.player.y};
-      this.saveData.roomState.currentRoom=room.id as RoomId;
-      this.persist();
-      this.scene.start('GymRoom',{room:room.id as RoomId});
+      // The management menu uses the same physical entrance and pathfinder
+      // as clicking the world door. No instant scene jumps.
+      this.closePanel();
+      this.requestRoomExit(room.id as RoomId);
     }));
   }
   private devToolsEnabled():boolean {
