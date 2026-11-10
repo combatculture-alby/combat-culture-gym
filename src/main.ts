@@ -157,6 +157,7 @@ class GymScene extends Phaser.Scene {
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
   private route: Point[] = [];
+  private roomExitTarget:RoomId|null=null;
   private speed = 115;
   private saveData = loadSave();
   private running = false;
@@ -435,6 +436,7 @@ class GymScene extends Phaser.Scene {
     this.serviceTarget=null;
     this.gearTarget=-1;
     this.pickupTarget=null;
+    this.roomExitTarget=null;
   }
   private playerRoute(goal:Point,exact=false):Point[] {
     return this.navigation.route(this.player,goal,(x,y)=>this.activeStudents().every(s=>!closeFeet(s,{x,y})),exact);
@@ -1398,8 +1400,23 @@ class GymScene extends Phaser.Scene {
       const exit=unlockedRooms(this.gymLevel())[0].exits[room.id];
       if(!exit)continue;
       // Actual in-world door/stair destination, in addition to the menu.
-      makeRoomGateway(this,room.id,exit.x,exit.y,()=>this.visitRoom(room.id),{depth:27});
+      makeRoomGateway(this,room.id,exit.x,exit.y,()=>this.requestRoomExit(room.id),{depth:27});
     }
+  }
+  private requestRoomExit(room:RoomId):void {
+    if(this.running||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible||
+      !unlockedRooms(this.gymLevel()).some(r=>r.id===room))return;
+    const access:Record<RoomId,Point>={
+      main:{x:170,y:150},outdoor:{x:83,y:153},
+      upstairs:{x:290,y:155},downstairs:{x:85,y:192}
+    };
+    const nearest=this.navigation.recover(access[room]);
+    if(distance(this.player,nearest)<17){this.visitRoom(room);return;}
+    this.clearIntent();
+    this.route=this.playerRoute(nearest);
+    if(!this.route.length){this.say('No clear path to that entrance. Move equipment away.');return;}
+    this.roomExitTarget=room;
+    this.say('Walking to '+(room==='outdoor'?'the yard gate':room==='upstairs'?'the upstairs landing':'the downstairs stairwell')+'.');
   }
   private visitRoom(room:RoomId):void {
     if(room==='main'||this.running||this.isPlacing()||this.furniturePanel.visible||
@@ -1415,7 +1432,7 @@ class GymScene extends Phaser.Scene {
     if(this.running||this.buildMode)return false;
     for(const room of unlockedRooms(this.gymLevel()).filter(r=>r.id!=='main')){
       const point=unlockedRooms(this.gymLevel())[0].exits[room.id];
-      if(point&&distance(point,this.player)<42){this.visitRoom(room.id);return true;}
+      if(point&&distance(point,this.player)<42){this.requestRoomExit(room.id);return true;}
     }
     return false;
   }
@@ -2881,8 +2898,16 @@ class GymScene extends Phaser.Scene {
     this.coach.face(heading.x,heading.y);
     this.coach.place(next.x,next.y);
     this.coach.animate(distance(from,next)>0.01?'walk':'idle',dt);
+    if(this.roomExitTarget&&!manual&&!this.route.length){
+      const room=this.roomExitTarget;
+      this.roomExitTarget=null;this.visitRoom(room);return;
+    }
     if(!manual&&step===length){
       this.route.shift();
+      if(!this.route.length&&this.roomExitTarget){
+        const room=this.roomExitTarget;
+        this.roomExitTarget=null;this.visitRoom(room);return;
+      }
       if(!this.route.length&&this.serviceTarget){
         const type=this.serviceTarget;
         this.clearIntent();this.openService(type);
