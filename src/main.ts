@@ -1407,7 +1407,7 @@ class GymScene extends Phaser.Scene {
       const exit=unlockedRooms(this.gymLevel())[0].exits[room.id];
       if(!exit)continue;
       // Actual in-world door/stair destination, in addition to the menu.
-      makeRoomGateway(this,room.id,exit.x,exit.y,()=>this.requestRoomExit(room.id),{depth:27});
+      makeRoomGateway(this,room.id,exit.x,exit.y,()=>this.requestRoomExit(room.id),{depth:9.5});
     }
   }
   private requestRoomExit(room:RoomId):void {
