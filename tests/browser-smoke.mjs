@@ -1503,6 +1503,82 @@ try{
       "Next day attending group arrives after opening");
   });
 
+  // Full multi-day hub regression: unfinished services, delayed supplies and
+  // rotating attendance must remain consistent across class days and reloads.
+  await openScenario('three-day-hub-continuity',sampleSave({
+    gymLevel:3,enrolledStudents:8,friendships:Array(8).fill(0),
+    skills:Array(8).fill(0),money:900,supplies:[1,2,1,2],
+    pendingSupplies:[3,0,0,0],waterLevel:42,matCleanliness:55,
+    trashSpawnedToday:6,gatheredToday:[0,1],day:1
+  }),async page=>{
+    const initial=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {day:s.saveData.day,phase:s.dayPhase(),
+        attending:s.todaysStudents().map(t=>t.name),
+        water:s.saveData.waterLevel,trash:s.saveData.trashSpawnedToday};
+    });
+    assert.equal(initial.phase,'opening');
+    assert.equal(initial.attending.length,6);
+    assert.equal(initial.trash,6);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.advanceGymPhase();
+      for(let i=0;i<6;i++){s.arrivalsClock=4;s.updateArrivals(0.01);}
+      s.simulateClass(0,0.75,false);
+      s.advanceGymPhase();
+      for(let i=0;i<6;i++){s.arrivalsClock=3;s.updateArrivals(0.01);}
+    });
+    assert.equal((await sceneState(page)).activeNames.length,0);
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
+    const closed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),water:s.saveData.waterLevel,
+        mat:s.saveData.matCleanliness,money:s.saveData.money};
+    });
+    assert.equal(closed.phase,'closing');
+    assert.ok(closed.water<initial.water);
+    assert.ok(closed.mat<55);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').nextDay());
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===2);
+    const second=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),stock:s.saveData.supplies[0],
+        pending:s.saveData.pendingSupplies[0],trash:s.saveData.trashSpawnedToday,
+        cleaned:s.saveData.gatheredToday.length,water:s.saveData.waterLevel,
+        mat:s.saveData.matCleanliness,attending:s.todaysStudents().map(t=>t.name)};
+    });
+    assert.equal(second.phase,'opening');
+    assert.equal(second.stock,4);
+    assert.equal(second.pending,0);
+    assert.equal(second.trash,4);
+    assert.equal(second.cleaned,0);
+    assert.equal(second.water,closed.water);
+    assert.equal(second.mat,closed.mat);
+    assert.notDeepEqual(second.attending,initial.attending);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.advanceGymPhase();
+      for(let i=0;i<6;i++){s.arrivalsClock=4;s.updateArrivals(0.01);}
+      s.simulateClass(0,0.75,false);
+      s.advanceGymPhase();
+      for(let i=0;i<6;i++){s.arrivalsClock=3;s.updateArrivals(0.01);}
+      s.nextDay();
+    });
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===3);
+    const third=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {phase:s.dayPhase(),stock:s.saveData.supplies[0],
+        trash:s.saveData.trashSpawnedToday,water:s.saveData.waterLevel,
+        attending:s.todaysStudents().map(t=>t.name)};
+    });
+    assert.equal(third.phase,'opening');
+    assert.equal(third.stock,4);
+    assert.equal(third.trash,4);
+    assert.ok(third.water<=second.water);
+    assert.notDeepEqual(third.attending,second.attending);
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
