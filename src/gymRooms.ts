@@ -17,13 +17,13 @@ export const ROOMS:readonly RoomDefinition[]=[
    exits:{outdoor:{x:44,y:153},upstairs:{x:310,y:135},downstairs:{x:44,y:211}}},
   {id:'outdoor',name:'Outdoor Training',unlocksAt:3,
    entry:{x:272,y:170},bounds:{left:83,right:377,top:112,bottom:210},
-   exits:{main:{x:368,y:168}}},
+   exits:{main:{x:433,y:165}}},
   {id:'upstairs',name:'Upstairs',unlocksAt:4,
    entry:{x:255,y:174},bounds:{left:112,right:368,top:116,bottom:205},
-   exits:{main:{x:120,y:170}}},
+   exits:{main:{x:68,y:169}}},
   {id:'downstairs',name:'Downstairs',unlocksAt:5,
    entry:{x:252,y:169},bounds:{left:103,right:375,top:113,bottom:208},
-   exits:{main:{x:111,y:171}}},
+   exits:{main:{x:68,y:170}}},
 ];
 export function unlockedRooms(level:number):RoomDefinition[]{
   const safe=Math.max(1,Math.min(5,Math.floor(Number(level)||1)));
