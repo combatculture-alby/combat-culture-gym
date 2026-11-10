@@ -26,7 +26,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
-import {defaultRoomState,normalizeRoomState,type RoomState} from './roomState';
+import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
 import {unlockedRooms,type RoomId} from './gymRooms';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
@@ -1117,6 +1117,7 @@ class GymScene extends Phaser.Scene {
       this.worldFixtures.push(g);this.decor=g;
     };
     (this.saveData.furniture||[]).forEach((item,i)=>{
+      if(itemRoom(this.saveData.roomState?.furnitureRooms,i,this.gymLevel())!=='main')return;
       if(!item.stored)layer(item.y+this.furnitureSize(item).ry*0.6);
       if(item.stored) return;
       if(item.kind===1||item.kind===3||item.kind===4)this.stations.push({
@@ -1200,6 +1201,7 @@ class GymScene extends Phaser.Scene {
     }
     // New equipment purchases appear as compact floor fixtures.
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
+      if(itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())!=='main')return;
       if(!owned||this.saveData.gearStored?.[i])return;
       const pos=this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
@@ -1596,6 +1598,8 @@ class GymScene extends Phaser.Scene {
     if(!this.validPlacement(x,y,rx,ry,this.placingGear)){this.say('Choose a clear spot inside the mat.');return;}
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
     this.saveData.gearPositions[this.placingGear]={x,y};
+    this.saveData.roomState??=defaultRoomState();
+    this.saveData.roomState.gearRooms[this.placingGear]='main';
     const name=GEAR_ITEMS[this.placingGear].name;
     if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
     this.saveData.gearStored[this.placingGear]=false;
@@ -2035,6 +2039,8 @@ class GymScene extends Phaser.Scene {
     const size=this.furnitureSize(selected);
     if(!this.validPlacement(x,y,size.rx,size.ry,-1,this.selectedFurniture)){this.say('Choose a clear spot inside the mat.');return;}
     selected.x=x;selected.y=y;selected.stored=false;
+    this.saveData.roomState??=defaultRoomState();
+    this.saveData.roomState.furnitureRooms[this.selectedFurniture]='main';
     this.selectedFurniture=-1;this.keyboardPlacement=false;this.buildMode=false;this.updateFurnitureActions();
     this.persist();this.drawEquipment();this.say(FURNITURE[selected.kind].name+' placed!');
   }
@@ -2556,10 +2562,10 @@ class GymScene extends Phaser.Scene {
   private solidFootprints(excludeGear=-1,excludeFurniture=-1,excludePlant=false):Footprint[] {
     const solids:Footprint[]=[];
     (this.saveData.furniture||[]).forEach((item,i)=>{
-      if(!item.stored&&i!==excludeFurniture)solids.push({...item,...this.furnitureSize(item)});
+      if(!item.stored&&i!==excludeFurniture&&itemRoom(this.saveData.roomState?.furnitureRooms,i,this.gymLevel())==='main')solids.push({...item,...this.furnitureSize(item)});
     });
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-      if(owned&&!this.saveData.gearStored?.[i]&&i!==excludeGear){
+      if(owned&&!this.saveData.gearStored?.[i]&&i!==excludeGear&&itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'){
         solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
       }
     });
