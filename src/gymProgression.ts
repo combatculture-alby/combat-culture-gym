@@ -33,16 +33,17 @@ export function recruitmentCost(count:number):number {
 export function canExpandGym(level:number,money:number,reputation:number,classesTaught:number,gearOwned:number):boolean {
   if(normalizeGymLevel(level)>=GYM_LEVELS.length)return false;
   const next=GYM_LEVELS[normalizeGymLevel(level)];
-  return money>=next.cost&&reputation>=next.reputation&&classesTaught>=next.classesTaught&&gearOwned>=next.gearOwned;
+  return [money,reputation,classesTaught,gearOwned].every(Number.isFinite)&&
+    money>=next.cost&&reputation>=next.reputation&&classesTaught>=next.classesTaught&&gearOwned>=next.gearOwned;
 }
 
 /** Hub-only class rewards. No arcade results are needed to earn money or rep.
  * Members and placed relevant gear improve revenue as the school expands. */
 export const CLASS_REPUTATION=2;
 export function classEarnings(level:number,enrolled:number,matchingPlacedGear=0,facilityUpgrades=0):number {
-  const members=Math.max(4,Math.min(12,Math.floor(enrolled)));
-  const gear=Math.max(0,Math.min(8,Math.floor(matchingPlacedGear)));
-  const facilities=Math.max(0,Math.min(3,Math.floor(facilityUpgrades)));
+  const members=Number.isFinite(enrolled)?Math.max(4,Math.min(12,Math.floor(enrolled))):4;
+  const gear=Number.isFinite(matchingPlacedGear)?Math.max(0,Math.min(8,Math.floor(matchingPlacedGear))):0;
+  const facilities=Number.isFinite(facilityUpgrades)?Math.max(0,Math.min(3,Math.floor(facilityUpgrades))):0;
   return 16+members*7+normalizeGymLevel(level)*9+gear*5+facilities*4;
 }
 
@@ -60,7 +61,8 @@ export function attendingIndices(enrolled:number,level:number,day:number):number
   const total=Number.isFinite(enrolled)?Math.max(0,Math.min(studentCapacity(level),STUDENT_NAMES.length,Math.floor(enrolled))):0;
   if(!total)return [];
   const attending=activeStudentCount(total,level);
-  const start=(Math.max(1,Math.floor(day))-1)*attending%total;
+  const safeDay=Number.isFinite(day)?Math.max(1,Math.floor(day)):1;
+  const start=((safeDay-1)*attending)%total;
   return Array.from({length:attending},(_,i)=>(start+i)%total);
 }
 
