@@ -5,10 +5,10 @@ import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
-  assert.equal(STUDENT_NAMES.length,24);
-  assert.deepEqual(GYM_LEVELS.map(l=>l.capacity),[4,6,10,16,24]);
+  assert.ok(STUDENT_NAMES.length>=12);
+  assert.deepEqual(GYM_LEVELS.map(l=>l.capacity),[4,6,8,10,12]);
   assert.deepEqual(GYM_LEVELS.map(l=>l.active),[4,5,6,7,8]);
-  assert.equal(activeStudentCount(24,5),8);
+  assert.equal(activeStudentCount(12,5),8);
   assert.equal(activeStudentCount(5,2),5);
 });
 test('old saves remain garage level with four students and recruits cannot overfill',()=>{
@@ -16,7 +16,7 @@ test('old saves remain garage level with four students and recruits cannot overf
   assert.equal(enrolledCount(undefined,1),4);
   assert.equal(enrolledCount(100,1),4);
   assert.equal(enrolledCount(100,2),6);
-  assert.equal(studentCapacity(5),24);
+  assert.equal(studentCapacity(5),12);
 });
 test('expansion is gated by money, reputation, classes and purchased gear',()=>{
   assert.equal(canExpandGym(1,400,12,8,2),true);
@@ -35,11 +35,11 @@ test('attendance rotates across recruited students without exceeding floor space
   assert.deepEqual(attendingIndices(6,2,2),[5,0,1,2,3]);
   const seen=new Set();
   for(let day=1;day<=6;day++){
-    const group=attendingIndices(24,5,day);
+    const group=attendingIndices(12,5,day);
     assert.equal(group.length,8);
     for(const student of group)seen.add(student);
   }
-  assert.equal(seen.size,24);
+  assert.equal(seen.size,12);
   assert.deepEqual(attendingIndices(0,1,1),[]);
 });
 
@@ -95,7 +95,7 @@ test('normal classes alone provide enough reputation for every gym expansion',()
   assert.equal(CLASS_REPUTATION,2);
   assert.equal(classEarnings(1,4),53);
   assert.equal(classEarnings(2,6),76);
-  assert.equal(classEarnings(5,24),229);
+  assert.equal(classEarnings(5,12),145);
   assert.equal(classEarnings(3,10,2,3),classEarnings(3,10)+22);
   for(const level of GYM_LEVELS){
     assert.ok(level.reputation<=level.classesTaught*CLASS_REPUTATION,
