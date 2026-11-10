@@ -234,7 +234,7 @@ export class GymRoomScene extends Phaser.Scene {
       if(!exit||!unlockedRooms(this.level).some(r=>r.id===destination))continue;
       const target=destination as RoomId;
       makeRoomGateway(this,this.current,exit.x,exit.y,
-        ()=>this.requestExit(target),{returning:target==='main',depth:26});
+        ()=>this.requestExit(target),{returning:target==='main',depth:9.5});
     }
   }
   private addControls():void {
