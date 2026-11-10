@@ -32,20 +32,27 @@ export function normalizePercent(value:unknown,otherwise=100):number {
    Math.max(0,Math.min(100,Math.floor(value))):otherwise;
 }
 export function gearActive(owned:boolean,stored:boolean,condition:number,cleanliness:number):boolean {
- return !!owned&&!stored&&condition>=GEAR_WORKING_THRESHOLD&&
-   cleanliness>=CLEAN_GEAR_THRESHOLD;
+ return !!owned&&!stored&&Number.isFinite(condition)&&Number.isFinite(cleanliness)&&
+   condition>=GEAR_WORKING_THRESHOLD&&cleanliness>=CLEAN_GEAR_THRESHOLD;
 }
 export function maintenanceWear(current:number,loss:number):number{
- return Math.max(0,Math.min(100,current-Math.max(0,loss)));
+ const safeCurrent=normalizePercent(current,0);
+ const safeLoss=Number.isFinite(loss)?Math.max(0,loss):0;
+ return normalizePercent(safeCurrent-safeLoss,0);
 }
 export function recharge(current:number,amount:number):number {
- return Math.max(0,Math.min(100,current+Math.max(0,amount)));
+ const safeCurrent=normalizePercent(current,0);
+ const safeAmount=Number.isFinite(amount)?Math.max(0,amount):0;
+ return normalizePercent(safeCurrent+safeAmount,0);
 }
 export function discountRecruitment(base:number,phoneLeads:number):number{
- return Math.max(0,Math.round(base*(phoneLeads>0?0.75:1)));
+ const safeBase=Number.isFinite(base)?Math.max(0,base):0;
+ return Math.round(safeBase*(Number.isFinite(phoneLeads)&&phoneLeads>0?0.75:1));
 }
 export function availablePhoneCalls(spawned:number,answered:number):number {
- return Math.max(0,Math.min(PHONE_CALL_LIMIT,spawned)-answered);
+ const safeSpawned=Number.isFinite(spawned)?Math.max(0,Math.floor(spawned)):0;
+ const safeAnswered=Number.isFinite(answered)?Math.max(0,Math.floor(answered)):0;
+ return Math.max(0,Math.min(PHONE_CALL_LIMIT,safeSpawned)-safeAnswered);
 }
 export function canEarnMopReward(cleaned:number,claimed:boolean):boolean {
  return !claimed&&cleaned>=MOP_SPOTS;
