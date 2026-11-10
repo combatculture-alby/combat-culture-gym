@@ -5,7 +5,7 @@ import {attendingIndices,STUDENT_NAMES} from './gymProgression';
 import {GymNavigation,type Point} from './navigation';
 import {ROOMS,normalizeRoom,roomTransition,studentRoom,unlockedRooms,type RoomId} from './gymRooms';
 import {normalizeRoomState,itemRoom,type RoomState} from './roomState';
-import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,type RoomFixture} from './roomItems';
+import {canFitRoomItem,canWalkInRoom,footprint,itemLabel,type RoomFixture} from './roomItems';
 import {makeRoomFixture,paintRoomFixture} from './roomArt';
 
 const SAVE_KEY=import.meta.env.VITE_GARAGE_PREVIEW==='1'
@@ -91,12 +91,12 @@ export class GymRoomScene extends Phaser.Scene {
       }
     });
     this.drawFixtures();
+    this.navigation.rebuild();
     this.drawTrash();
     this.drawMop();
     this.drawStudents();
     this.addExits();
     this.addControls();
-    this.navigation.rebuild();
     this.updateStatus();
     this.notice('Walk up to equipment to inspect it, or open Inventory to build.');
   }
@@ -166,7 +166,7 @@ export class GymRoomScene extends Phaser.Scene {
     const result:RoomFixture[]=[];
     (this.save.furniture||[]).forEach((item,i)=>{
       if(!item.stored&&itemRoom(this.roomState.furnitureRooms,i,this.level)===this.current)
-        result.push({kind:'furniture',index:i,x:item.x,y:item.y,rotation:item.rotation});
+        result.push({kind:'furniture',index:i,typeId:item.kind,x:item.x,y:item.y,rotation:item.rotation});
     });
     (this.save.ownedGear||[]).forEach((owned,i)=>{
       if(!owned||this.save.gearStored?.[i]||
@@ -177,7 +177,7 @@ export class GymRoomScene extends Phaser.Scene {
     (this.save.decorPositions||[]).forEach((pos,i)=>{
       if(i>=(this.save.decorLevel||0)||this.save.decorStored?.[i]||
         itemRoom(this.roomState.decorRooms,i,this.level)!==this.current)return;
-      result.push({kind:'decor',index:i,x:pos.x,y:pos.y,rotation:0});
+      result.push({kind:'decor',index:i,typeId:i,x:pos.x,y:pos.y,rotation:0});
     });
     return result;
   }
@@ -235,8 +235,10 @@ export class GymRoomScene extends Phaser.Scene {
       x:this.coach.body.x,y:this.coach.body.y
     };
     this.roomState.currentRoom=destination;
-    if(destination==='main')this.roomState.playerPositions.main=
-      roomTransition(this.current,destination,this.level)!.entry;
+    if(destination==='main'){
+      const target=ROOMS[0].exits[this.current];
+      if(target)this.roomState.playerPositions.main={x:target.x+(this.current==='outdoor'?29:-18),y:target.y};
+    }
     this.writeSave();
     if(destination==='main')this.scene.start('Gym');
     else this.scene.restart({room:destination});
@@ -244,7 +246,7 @@ export class GymRoomScene extends Phaser.Scene {
   private inventoryOptions():RoomFixture[] {
     const items:RoomFixture[]=[];
     (this.save.furniture||[]).forEach((item,i)=>items.push({
-      kind:'furniture',index:i,x:item.x,y:item.y,rotation:item.rotation
+      kind:'furniture',index:i,typeId:item.kind,x:item.x,y:item.y,rotation:item.rotation
     }));
     (this.save.ownedGear||[]).forEach((owned,i)=>{
       if(!owned)return;
@@ -253,7 +255,7 @@ export class GymRoomScene extends Phaser.Scene {
     });
     (this.save.decorPositions||[]).forEach((p,i)=>{
       if(i>=(this.save.decorLevel||0))return;
-      items.push({kind:'decor',index:i,x:p.x,y:p.y,rotation:0});
+      items.push({kind:'decor',index:i,typeId:i,x:p.x,y:p.y,rotation:0});
     });
     return items;
   }
@@ -544,18 +546,18 @@ export class GymRoomScene extends Phaser.Scene {
       else{
         const body=npc.actor.body;
         const dist=Phaser.Math.Distance.Between(body.x,body.y,npc.goal.x,npc.goal.y);
-        if(dist<3){npc.pause=2+Math.random()*5;npc.goal={...body};npc.actor.animate('rest',dt);}
-        else{
+        if(dist<3){
+          npc.pause=2+Math.random()*4;
+          for(let tryNo=0;tryNo<8;tryNo++){
+            const goal={x:80+Math.random()*320,y:124+Math.random()*70};
+            if(this.canStand(goal.x,goal.y)){npc.goal=goal;break;}
+          }
+          npc.actor.animate('rest',dt);
+        }else{
           const step=Math.min(dist,27*dt),dx=npc.goal.x-body.x,dy=npc.goal.y-body.y;
           const nx=body.x+dx/dist*step,ny=body.y+dy/dist*step;
           if(this.canStand(nx,ny)){npc.actor.face(dx,dy);npc.actor.place(nx,ny);npc.actor.animate('walk',dt);}
           else npc.pause=.3;
-        }
-        if(npc.pause<=0&&dist<3){
-          for(let tryNo=0;tryNo<6;tryNo++){
-            const goal={x:80+Math.random()*320,y:122+Math.random()*77};
-            if(this.canStand(goal.x,goal.y)){npc.goal=goal;break;}
-          }
         }
       }
       npc.chat.setPosition(npc.actor.body.x,npc.actor.body.y-43);
