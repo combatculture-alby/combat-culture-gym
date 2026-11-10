@@ -83,11 +83,25 @@ export function paintCompactRoom(scene:Phaser.Scene,room:RoomId):void {
   block(0x20383d,left,f.bottom+6,right-left,5);
   block(p.rim,f.left-4,f.top-3,f.right-f.left+8,f.bottom-f.top+6);
   block(p.mat,f.left,f.top,f.right-f.left,f.bottom-f.top);
-  for(let y=f.top;y<f.bottom;y+=17){
-    for(let x=f.left;x<f.right;x+=21){
-      block((Math.floor(x/21)+Math.floor(y/17))%2?0x16373a:0xd3d7c0,
-        x+1,y+1,Math.min(19,f.right-x-2),1,.18);
+  // Readable interlocking training tiles, with visible edges and subtle wear.
+  // The 20px tile module matches the footprint of a 40px character.
+  let tileRow=0;
+  for(let y=f.top;y<f.bottom;y+=20,tileRow++){
+    for(let x=f.left-(tileRow%2)*10;x<f.right;x+=20){
+      const start=Math.max(f.left,x),width=Math.min(20,f.right-x)-(start-x);
+      if(width<=0)continue;
+      block((tileRow+Math.floor(x/20))%2===0?0xc4d2bf:0x244b4e,
+        start+1,y+1,Math.max(1,width-2),Math.min(18,f.bottom-y-2),.085);
+      block(p.shadow,start,y,Math.min(width,f.right-start),1,.28);
+      block(p.trim,start+1,y+1,Math.min(width-2,f.right-start-2),1,.11);
+      if((tileRow+Math.floor(x/20))%5===0)
+        block(0xd7d6bc,start+4,y+6,3,1,.13);
     }
+  }
+  // Four anchored corner bolts and a continuous border look intentional.
+  for(const x of [f.left+4,f.right-7])for(const y of [f.top+4,f.bottom-7]){
+    block(0x2b4e52,x,y,4,4);
+    block(0xc3d4c5,x+1,y+1,2,1);
   }
   for(const x of [left+4,right-10]){
     block(0x162d34,x,top,6,bottom-top);
@@ -184,6 +198,74 @@ export function paintCompactRoom(scene:Phaser.Scene,room:RoomId):void {
     for(let x=right-59;x<right-17;x+=8)block(0x839da0,x,top+23,5,9);
     line(0x9caa99,right-62,top+42,right-16,top+42,2);
     for(const x of [right-55,right-36,right-19])block(0xd5d4c1,x,top+43,12,5);
+  }
+  // Permanent environment art stays off the placeable mat: additional
+  // rooms remain flexible for the player instead of forcing a prescribed use.
+  if(room==='outdoor'){
+    // Yard side wall: brick coping, a coiled garden hose and utility hooks.
+    block(0x47645e,left+7,f.top-3,right-left-14,5);
+    for(let x=left+12;x<right-10;x+=25){
+      block(0x9aac92,x,f.top-3,17,1,.48);
+      block(0x476a61,x+18,f.top-1,1,3,.65);
+    }
+    for(const x of [left+10,right-19]){
+      block(0x394f4b,x,top+45,10,24);
+      block(0x86a491,x+2,top+48,6,17);
+    }
+    // Small, believable drainage and a row of leaves at the front boundary.
+    for(let x=f.left+14;x<f.right-15;x+=46){
+      block(0x365954,x,f.bottom+2,23,2);
+      for(let i=0;i<4;i++)block(0x91a887,x+i*5,f.bottom+3,2,1,.75);
+    }
+    // Perspective lines on the yard boundary lead toward the return gate.
+    line(0x9eaf9b,left+2,f.bottom+8,right-2,f.bottom+8,2);
+  }else if(room==='upstairs'){
+    // Distinct mezzanine structure: load-bearing timber, rail and loft shelf.
+    block(0x3c5961,left+7,f.bottom+8,right-left-14,4);
+    block(0xbba582,left+10,f.bottom+8,right-left-20,2);
+    for(let x=left+16;x<right-10;x+=33){
+      block(0x314c54,x,f.bottom+8,3,11);
+      block(0x9aac9e,x+1,f.bottom+9,1,9,.45);
+    }
+    // Real wall-mounted storage: three bags, hooks, a mirror and rail.
+    block(0x334b51,left+58,top+19,57,31);
+    block(0xb5b7a8,left+61,top+21,51,26);
+    block(0x9abfc0,left+64,top+24,45,20);
+    block(0xdbe2d2,left+86,top+24,2,20,.45);
+    block(0x8b765b,right-85,top+46,56,4);
+    for(const [i,x] of [right-80,right-61,right-42].entries()){
+      block(0x344d51,x,top+50,2,5);
+      block(i===0?0x986856:i===1?0x536a6d:0xc4a37a,x-5,top+54,12,13);
+      block(0xdbc6a7,x-2,top+54,6,2);
+    }
+    // Small central floor-facing access threshold, not a second floaty stair.
+    block(0x967c60,left+9,f.bottom+5,43,3);
+    block(0x4f6970,left+12,f.bottom+6,37,1);
+  }else{
+    // Basement utility architecture: thick girders, mounted lockers and
+    // ventilation. None of this consumes the player's training floor.
+    for(const x of [left+6,right-11]){
+      block(0x32454b,x,top+5,5,f.bottom-top+9);
+      for(let y=top+12;y<f.bottom;y+=25)block(0xb0a28a,x+1,y,3,2);
+    }
+    block(0x273e46,left+10,top+9,right-left-20,8);
+    for(let x=left+16;x<right-20;x+=13)block(0x819b9a,x,top+11,8,3);
+    // Two waist-high, wall-mounted locker banks with real door divisions.
+    for(const start of [left+13,right-77]){
+      block(0x263b41,start,top+48,63,28);
+      block(0x71888b,start+3,top+50,57,25);
+      for(let i=0;i<3;i++){
+        block(0x304e54,start+4+i*19,top+51,17,22);
+        block(0xaec6bf,start+6+i*19,top+54,13,1,.8);
+        block(0xaec6bf,start+6+i*19,top+57,13,1,.6);
+        block(0xc2ad86,start+17+i*19,top+62,2,4);
+      }
+    }
+    // Utility conduits curve down from the back wall.
+    line(0xa2aaa0,left+19,top+21,left+19,top+40,2);
+    line(0xa2aaa0,left+19,top+40,left+29,top+40,2);
+    line(0x506a6b,right-22,top+22,right-22,top+45,3);
+    block(0xc7b78d,left+9,f.bottom+7,right-left-18,2,.8);
   }
   // One realistic lighting treatment per zone, aligned to ceiling supports.
   for(const x of [left+(right-left)*.32,left+(right-left)*.69]){
