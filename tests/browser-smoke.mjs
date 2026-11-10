@@ -1829,6 +1829,11 @@ try{
       await page.screenshot({path:output+'/room-'+room.id+'-before-building.png'});
       await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').goTo('main'));
       await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+      const landing=await page.evaluate(()=>{
+        const gym=window.__combatGym.scene.getScene('Gym');
+        return gym.canStand(gym.player.x,gym.player.y);
+      });
+      assert.equal(landing,true,'Returning from '+room.id+' must use a walkable landing');
     }
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').visitRoom('downstairs'));
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')?.sys.isActive());
@@ -1896,13 +1901,14 @@ try{
     assert.deepEqual(during,{mopping:true,marks:3},
       'Mop markers appear only after intentionally activating the mop');
 
-    await page.evaluate(()=>{
+    const nearbyStudent=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('GymRoom');
       s.targetMop=null;s.path=[];
       const npc=s.students[0];
       s.coach.place(npc.actor.body.x+9,npc.actor.body.y);
-      npc.actor.body.emit('pointerdown');
+      return {x:npc.actor.body.x,y:npc.actor.body.y-17};
     });
+    await clickGame(page,nearbyStudent.x,nearbyStudent.y);
     const talked=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('GymRoom');
       return {bubble:s.students[0]?.chat.visible,panel:!!s.inventoryPanel};
@@ -1910,14 +1916,16 @@ try{
     assert.ok(talked.bubble||talked.panel,
       'Clicking a nearby student outside must open conversation or coaching');
 
-    await page.evaluate(()=>{
+    const distantStudent=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('GymRoom');
       s.closeInventory();
       const npc=s.students[0];
-      npc.pause=999;
-      s.coach.place(npc.actor.body.x+90,npc.actor.body.y);
-      npc.actor.body.emit('pointerdown');
+      npc.pause=999;npc.chat.setVisible(false);
+      const offset=npc.actor.body.x<240?88:-88;
+      s.coach.place(npc.actor.body.x+offset,npc.actor.body.y);
+      return {x:npc.actor.body.x,y:npc.actor.body.y-17};
     });
+    await clickGame(page,distantStudent.x,distantStudent.y);
     await page.waitForFunction(()=>{
       const s=window.__combatGym.scene.getScene('GymRoom');
       return s.pendingStudent===null&&
