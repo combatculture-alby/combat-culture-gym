@@ -28,7 +28,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
 import { drawGym } from './gymWorld';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
-import {unlockedRooms,type RoomId} from './gymRooms';
+import {unlockedRooms,studentRoom,type RoomId} from './gymRooms';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
@@ -275,11 +275,19 @@ class GymScene extends Phaser.Scene {
     this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
     }));
+    // Changing gym tier redistributes the same roster over unlocked rooms.
+    // Existing savings, attendance and class statistics are retained.
+    const rooms=this.saveData.roomState!;
+    if(rooms.assignmentLevel!==this.gymLevel()){
+      rooms.studentRooms=this.students.map((_,i)=>studentRoom(i,this.gymLevel()));
+      rooms.assignmentLevel=this.gymLevel();
+    }else this.students.forEach((_,i)=>{rooms.studentRooms[i]??=studentRoom(i,this.gymLevel());});
     drawGym(this,this.gymLevel());
     this.classOverlay=this.add.graphics().setDepth(2);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
     this.modeLabel=this.add.text(12,11,PLAYTEST&&import.meta.env.VITE_GARAGE_PREVIEW!=='1'?'PLAYTEST':'GYM HUB',{fontFamily:UI_FONT,fontSize:'11px',fontStyle:'bold',color:'#f6d598'}).setOrigin(0,.5).setDepth(30);
-    this.coach=new GymCharacter(this,170,150,this.saveData.coachAppearance||DEFAULT_COACH);
+    const entry=this.saveData.roomState?.playerPositions.main||{x:170,y:150};
+    this.coach=new GymCharacter(this,entry.x,entry.y,this.saveData.coachAppearance||DEFAULT_COACH);
     this.player=this.coach.body;
     const attending=this.todaysStudents();
     this.students.forEach((student,i)=>{
@@ -340,12 +348,13 @@ class GymScene extends Phaser.Scene {
     this.cancelControl=this.addButton(357,278,111,36,'CANCEL',()=>this.cancelPlacement());
     this.updateFurnitureActions();
     this.drawServiceHotspots();
+    this.drawRoomExits();
     this.refresh();
     this.recoverActors();
     if(data?.notice)this.say(data.notice);
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys('W,A,S,D') as Record<'W'|'A'|'S'|'D', Phaser.Input.Keyboard.Key>;
-    this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
+    this.input.keyboard!.on('keydown-E',() => {if(this.furniturePanel.visible){this.closePanel();return;}if(this.isPlacing()||this.rosterPanel.visible)return;if(this.useNearbyRoomExit())return;if(this.collectNearby())return;if(this.useNearbyStation())return;this.interact();});
     this.input.keyboard!.on('keydown-SPACE',(event:KeyboardEvent)=>{if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;event.preventDefault();if(!this.collectNearby())this.say('Move closer to a material pile to pick it up.');});
     this.input.keyboard!.on('keydown-C',() => {if(!this.running&&!this.furniturePanel.visible)this.openClassSchedule();});
     this.input.keyboard!.on('keydown-P',()=>{if(!this.furniturePanel.visible)this.openArcade('Rhythm');});
@@ -1370,6 +1379,53 @@ class GymScene extends Phaser.Scene {
     this.panelButton(this.furniturePanel,this.devToolsEnabled()?'DEV TOOLS':'EDIT COACH',245,216,149,25,
       ()=>this.devToolsEnabled()?this.openDevTools():this.openCoachWardrobe(),false,0x564844);
   }
+  private drawRoomExits():void {
+    for(const room of unlockedRooms(this.gymLevel()).filter(room=>room.id!=='main')){
+      const exit=unlockedRooms(this.gymLevel())[0].exits[room.id];
+      if(!exit)continue;
+      // Actual in-world door/stair destination, in addition to the menu.
+      const sign=this.add.container(exit.x,exit.y).setDepth(18);
+      const frame=this.add.graphics();
+      frame.fillStyle(0x25464c,.92).fillRoundedRect(-19,-34,38,28,3);
+      frame.lineStyle(2,0xd1ad72).strokeRoundedRect(-19,-34,38,28,3);
+      frame.fillStyle(0xaab6b0).fillRect(12,-22,3,3);
+      const label=this.add.text(0,-39,room.id==='outdoor'?'OUTSIDE':room.id==='upstairs'?'UP':'DOWN',{
+        fontFamily:UI_FONT,fontSize:'8px',fontStyle:'bold',color:'#ffdfab',
+        backgroundColor:'#294e52',padding:{x:3,y:2}
+      }).setOrigin(.5);
+      const hit=this.add.zone(0,-20,44,39).setInteractive({useHandCursor:true});
+      hit.on('pointerdown',()=>this.visitRoom(room.id));
+      sign.add([frame,label,hit]);
+    }
+  }
+  private visitRoom(room:RoomId):void {
+    if(room==='main'||this.running||this.isPlacing()||this.furniturePanel.visible||
+      this.rosterPanel.visible||!unlockedRooms(this.gymLevel()).some(r=>r.id===room))return;
+    this.clearIntent();
+    this.saveData.roomState??=defaultRoomState();
+    this.saveData.roomState.playerPositions.main={x:this.player.x,y:this.player.y};
+    this.saveData.roomState.currentRoom=room;
+    this.persist();
+    this.scene.start('GymRoom',{room});
+  }
+  private useNearbyRoomExit():boolean {
+    if(this.running||this.buildMode)return false;
+    for(const room of unlockedRooms(this.gymLevel()).filter(r=>r.id!=='main')){
+      const point=unlockedRooms(this.gymLevel())[0].exits[room.id];
+      if(point&&distance(point,this.player)<42){this.visitRoom(room.id);return true;}
+    }
+    return false;
+  }
+  private syncVisibleStudents():void {
+    for(const student of this.students){
+      const index=this.students.indexOf(student);
+      const present=this.activeStudents().includes(student);
+      const visible=present&&(this.running||this.saveData.roomState?.studentRooms[index]==='main');
+      student.actor?.body.setVisible(visible);
+      if(!visible){student.indicator?.setVisible(false);
+        this.speechBubbles[index]?.setVisible(false);}
+    }
+  }
   private openRoomTravel():void {
     if(this.running||this.isPlacing())return;
     this.menuShell('EXPLORE GYM','Choose an unlocked room. Main gym activities remain unchanged.',()=>this.openGymUpgrades());
@@ -2177,7 +2233,8 @@ class GymScene extends Phaser.Scene {
       const help=!this.running&&this.activeStudents().includes(s)&&requests.includes(i)&&
         !this.saveData.coachedToday?.includes(i)&&
         (this.saveData.coachedToday?.length||0)<DAILY_HELP_LIMIT;
-      s.indicator?.setVisible(active||help)
+      const onMain=this.running||this.saveData.roomState?.studentRooms[i]==='main';
+      s.indicator?.setVisible((active||help)&&onMain)
         .setText(active?'! '+this.tasks[i]:'?')
         .setBackgroundColor(active?'#a53d34':'#5d6650');
     });
@@ -2475,6 +2532,17 @@ class GymScene extends Phaser.Scene {
     this.phoneRingSoundClock=0;
     this.saveData.coachedToday=[];
     this.saveData.mopDoneToday=false;this.saveData.mopSpotsToday=[];
+    // Uncollected litter survives. The next day brings up to two new
+    // piles in each accessible additional room, never infinite duplicates.
+    const rooms=this.saveData.roomState??defaultRoomState();
+    for(const room of unlockedRooms(this.gymLevel()).filter(r=>r.id!=='main')){
+      const remaining=rooms.trashByRoom[room.id]||[];
+      let added=0;
+      for(let i=0;i<6&&added<2;i++)if(!remaining.includes(i)){remaining.push(i);added++;}
+      rooms.trashByRoom[room.id]=remaining;
+      rooms.moppedByRoom[room.id]=[];
+    }
+    this.saveData.roomState=rooms;
     this.mopActive=false;this.clearMopMarks();
     this.saveData.dailyShiftClaimed=false;
     this.saveData.gearDrillsToday=[];
@@ -2822,6 +2890,7 @@ class GymScene extends Phaser.Scene {
   update(_time:number,delta:number):void {
     const dt=Math.min(delta,50)/1000;
     this.updateArrivals(dt);
+    this.syncVisibleStudents();
     this.updateStudentLife(dt);
     this.updatePlacementPreview();
     if(this.cleaningAt){
