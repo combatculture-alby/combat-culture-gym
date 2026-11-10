@@ -1514,7 +1514,8 @@ try{
   await openScenario('three-day-hub-continuity',sampleSave({
     gymLevel:3,enrolledStudents:8,friendships:Array(8).fill(0),
     skills:Array(8).fill(0),money:900,supplies:[1,2,1,2],
-    pendingSupplies:[3,0,0,0],waterLevel:42,matCleanliness:55,
+    pendingSupplies:[3,0,0,0],gymPhase:'opening',arrivedCount:0,
+    waterLevel:42,matCleanliness:55,
     trashSpawnedToday:6,gatheredToday:[0,1],day:1
   }),async page=>{
     const initial=await page.evaluate(()=>{
