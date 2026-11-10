@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {dailyHelpStudents,dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
+import {dailyHelpStudents,DAILY_SHIFT_CASH,dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
@@ -146,5 +146,36 @@ test('daily coaching requests are stable for the full planned attendance roster'
       assert.deepEqual(requests,dailyHelpStudents(attending,day),
         'Student coaching targets must not change during arrivals');
     }
+  }
+});
+
+
+test('attendance respects level roster caps and handles invalid saved counts',()=>{
+  for(let level=1;level<=5;level++){
+    const cap=studentCapacity(level);
+    const floor=GYM_LEVELS[level-1].active;
+    for(const count of [cap,cap+1,24,100]){
+      for(let day=1;day<=12;day++){
+        const group=attendingIndices(count,level,day);
+        assert.equal(group.length,floor);
+        assert.ok(group.every(index=>index>=0&&index<cap));
+        assert.equal(new Set(group).size,group.length);
+      }
+    }
+  }
+  assert.deepEqual(attendingIndices(Number.NaN,3,1),[]);
+  assert.deepEqual(attendingIndices(Infinity,3,1),[]);
+  assert.deepEqual(attendingIndices(-1,3,1),[]);
+});
+
+test('every gym tier can fund expansion from class income without minigames',()=>{
+  for(let level=1;level<5;level++){
+    const next=GYM_LEVELS[level];
+    const base=classEarnings(level,GYM_LEVELS[level-1].active);
+    assert.ok(base>0);
+    const daysToAfford=Math.ceil(next.cost/(base+DAILY_SHIFT_CASH));
+    assert.ok(daysToAfford<=60,
+      'Expansion should not require more than 60 fully paid days before supplies or equipment');
+    assert.ok(next.classesTaught>GYM_LEVELS[level-1].classesTaught);
   }
 });
