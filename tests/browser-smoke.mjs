@@ -67,7 +67,7 @@ async function clickGame(page,x,y){
   await page.mouse.click(box.x+x/480*box.width,box.y+y/330*box.height);
   // Phaser consumes pointer events on its game tick. Two synthetic clicks in
   // the same 16ms frame can be dropped, unlike ordinary human input.
-  await page.waitForTimeout(90);
+  await page.waitForTimeout(130);
 }
 
 /** Exercise one real pointer help, then complete the other scheduled requests
@@ -527,6 +527,17 @@ try{
     assert.equal(state.activities?.Rush,undefined);
     await clickGame(page,159,204); // Class results → Class Schedule.
     await clickGame(page,308,195); // Start afternoon class.
+    if(!await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').running)){
+      const stage=await page.evaluate(()=>{
+        const scene=window.__combatGym.scene.getScene('Gym');
+        return {slot:scene.selectedSlot,classesToday:scene.saveData.classesToday,
+          phase:scene.saveData.gymPhase,students:scene.activeStudents().length,
+          panel:scene.furniturePanel.visible,
+          labels:scene.furniturePanel.list.filter(o=>o?.text).map(o=>o.text).slice(-14)};
+      });
+      console.log('Second-class retry after missing pointer',JSON.stringify(stage));
+      await clickGame(page,308,195);
+    }
     await finishScheduledClass(page);
     state=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
