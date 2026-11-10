@@ -99,17 +99,19 @@ export const GYM_SERVICE_LAYOUTS=[
    board:{x:381,y:75,w:66,h:39},desk:{x:415,y:192,w:47,h:24},
    boardApproach:{x:363,y:144},deskApproach:{x:397,y:200}},
   {room:{left:27,right:460,top:79,bottom:215},
-   board:{x:364,y:65,w:83,h:49},desk:{x:401,y:187,w:65,h:30},
-   boardApproach:{x:351,y:144},deskApproach:{x:385,y:200}},
-  {room:{left:15,right:465,top:75,bottom:215},
-   board:{x:344,y:50,w:112,h:65},desk:{x:388,y:181,w:82,h:39},
-   boardApproach:{x:348,y:145},deskApproach:{x:375,y:198}},
-  {room:{left:15,right:469,top:75,bottom:215},
-   board:{x:339,y:43,w:123,h:74},desk:{x:379,y:178,w:92,h:42},
-   boardApproach:{x:343,y:147},deskApproach:{x:368,y:198}},
-  {room:{left:11,right:474,top:74,bottom:216},
-   board:{x:334,y:32,w:132,h:84},desk:{x:372,y:176,w:101,h:44},
-   boardApproach:{x:341,y:146},deskApproach:{x:359,y:198}},
+   board:{x:377,y:65,w:83,h:49},desk:{x:395,y:185,w:65,h:30},
+   boardApproach:{x:351,y:144},deskApproach:{x:382,y:200}},
+  // The main room never expands again. These tiers upgrade the same
+  // reception corridor while unlocking outdoor/upstairs/downstairs.
+  {room:{left:27,right:460,top:79,bottom:215},
+   board:{x:347,y:50,w:112,h:65},desk:{x:378,y:181,w:82,h:39},
+   boardApproach:{x:335,y:145},deskApproach:{x:363,y:198}},
+  {room:{left:27,right:460,top:79,bottom:215},
+   board:{x:337,y:43,w:123,h:74},desk:{x:368,y:178,w:92,h:42},
+   boardApproach:{x:332,y:147},deskApproach:{x:357,y:198}},
+  {room:{left:27,right:460,top:79,bottom:215},
+   board:{x:328,y:32,w:132,h:84},desk:{x:359,y:176,w:101,h:44},
+   boardApproach:{x:327,y:146},deskApproach:{x:346,y:198}},
 ] as const;
 
 export function gymServiceLayout(level:number){
