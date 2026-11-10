@@ -128,8 +128,9 @@ export class GymRoomScene extends Phaser.Scene {
   }
   private trashPoints():Point[]{return taskPoints(this.current,'trash');}
   private mopPoints():Point[]{return taskPoints(this.current,'mop');}
-  private mopStation():Point[]{
-    return [{x:roomFloor(this.current).right-25,y:roomFloor(this.current).bottom-11}];
+  private mopStation():Point {
+    const f=roomFloor(this.current);
+    return {x:f.right-25,y:f.bottom-11};
   }
   private randomRoomPoint():Point {
     const f=roomFloor(this.current);
@@ -174,50 +175,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.scene.restart({room:this.current,mopping});
   }
   private drawEnvironment():void {
-    const c=this.current==='outdoor'
-      ?{wall:0x86b2a6,floor:0x829976,mat:0x527869,edge:0xa9bea3}
-      :this.current==='upstairs'
-        ?{wall:0x637782,floor:0xa38b70,mat:0x44737d,edge:0xb1c9c3}
-        :{wall:0x67656a,floor:0x857c70,mat:0x435b61,edge:0xb1aaa0};
-    const g=this.add.graphics();
-    const rect=(color:number,x:number,y:number,w:number,h:number)=>g.fillStyle(color).fillRect(x,y,w,h);
-    rect(0x172e33,0,0,480,330);
-    rect(c.wall,0,23,480,54);
-    rect(c.floor,0,77,480,149);
-    for(let y=79;y<=225;y+=19)rect(0x243c40,y%2?0:5,y,480,1);
-    if(this.current==='outdoor'){
-      rect(0x9fd0cc,0,25,480,49);
-      rect(0xd5e8d2,0,62,480,15);
-      for(let x=8;x<475;x+=35){
-        rect(0x345c53,x,45,4,30);rect(0x2c5148,x,50,28,3);
-        g.fillStyle(0x59846b).fillCircle(x+13,36,17);
-        g.fillStyle(0x78a080).fillCircle(x+6,37,9);
-      }
-      for(const x of [25,442]){
-        rect(0x3b5453,x,78,12,146);
-        for(let y=90;y<220;y+=12)rect(0x89b9aa,x+2,y,8,2);
-      }
-    }else if(this.current==='upstairs'){
-      for(const x of [60,208,355]){
-        rect(0x2d4d55,x,29,72,40);rect(0x9cc6c8,x+4,33,64,31);
-        rect(0xe2e5d3,x+34,33,2,31);
-      }
-      rect(0xd3bc8e,15,52,29,15);rect(0x2e575a,20,57,19,7);
-    }else{
-      for(let y=25;y<75;y+=11)for(let x=0;x<480;x+=39){
-        rect(0x45474c,x+(y%3)*7,y,36,2);
-      }
-      for(const x of [69,348]){rect(0x394c51,x,37,51,35);rect(0x6c8b8f,x+4,42,43,26);}
-      for(let x=22;x<=430;x+=82){rect(0x46545b,x,82,40,21);rect(0x6f8790,x+3,86,34,13);}
-    }
-    rect(0x263c41,24,86,431,132);
-    rect(c.edge,28,89,424,126);
-    rect(c.mat,31,92,418,120);
-    for(let y=93;y<212;y+=19)for(let x=32;x<450;x+=25){
-      rect((x+y)%3?c.mat:0x416a69,x,y,24,18);
-      rect(0xd5e1d0,x+2,y+2,20,1);
-    }
-    for(const x of [31,449])rect(c.edge,x,91,2,124);
+    paintCompactRoom(this,this.current);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
     this.status=this.add.text(12,11,'',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#f9e0ad'})
       .setOrigin(0,.5).setDepth(30);
@@ -263,12 +221,8 @@ export class GymRoomScene extends Phaser.Scene {
     for(const [destination,exit] of Object.entries(room.exits)){
       if(!exit||!unlockedRooms(this.level).some(r=>r.id===destination))continue;
       const target=destination as RoomId;
-      const marker=this.add.container(exit.x,exit.y).setDepth(20);
-      const plate=this.add.rectangle(0,0,65,25,0x294d52).setStrokeStyle(2,0xddbc8a);
-      const text=this.add.text(0,0,target==='main'?'MAIN GYM':target.toUpperCase(),
-        {fontFamily:'Arial',fontSize:'9px',color:'#f9e8cb'}).setOrigin(.5);
-      marker.add([plate,text]).setSize(65,25).setInteractive({useHandCursor:true});
-      marker.on('pointerdown',()=>this.goTo(target));
+      makeRoomGateway(this,this.current,exit.x,exit.y,
+        ()=>this.goTo(target),{returning:target==='main',depth:26});
     }
   }
   private addControls():void {
