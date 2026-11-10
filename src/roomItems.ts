@@ -25,7 +25,7 @@ export function roomWalkBounds(room:RoomId){
  */
 const fixedFurniture:Record<RoomId,readonly {left:number;right:number;top:number;bottom:number}[]>={
   main:[],
-  outdoor:[{left:19,right:64,top:113,bottom:147},{left:412,right:455,top:112,bottom:140}],
+  outdoor:[{left:19,right:64,top:113,bottom:147},{left:381,right:422,top:112,bottom:140}],
   upstairs:[{left:19,right:81,top:112,bottom:141},{left:398,right:453,top:112,bottom:142}],
   downstairs:[{left:18,right:79,top:111,bottom:140},{left:409,right:457,top:111,bottom:146}]
 };
