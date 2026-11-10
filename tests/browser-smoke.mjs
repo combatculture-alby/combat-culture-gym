@@ -1802,6 +1802,14 @@ try{
     ];
     for(const room of visits){
       await clickGame(page,room.door.x,room.door.y);
+      const clicked=await page.evaluate(()=>{
+        const game=window.__combatGym;
+        const secondary=game.scene.getScene('GymRoom');
+        const main=game.scene.getScene('Gym');
+        return {activeSecondary:secondary.sys.isActive(),destination:secondary.current,
+          activeMain:main.sys.isActive(),panel:main.furniturePanel?.visible};
+      });
+      console.log('Room door click',room.id,JSON.stringify(clicked));
       await page.waitForFunction(id=>{
         const game=window.__combatGym;
         const scene=game?.scene.getScene('GymRoom');
