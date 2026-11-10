@@ -1362,7 +1362,7 @@ class GymScene extends Phaser.Scene {
       ['VISIT OTHER ROOMS',()=>this.openRoomTravel()],
       [this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();}]
     ];
-    actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
+    actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,70+Math.floor(i/2)*31,149,fn));
     this.panelButton(this.furniturePanel,'EXPAND / UPGRADE',84,216,149,25,
       ()=>this.openExpansion(),false,0x39735f);
     this.panelButton(this.furniturePanel,this.devToolsEnabled()?'DEV TOOLS':'EDIT COACH',245,216,149,25,
