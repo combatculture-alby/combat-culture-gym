@@ -1858,7 +1858,27 @@ try{
       assert.ok(check.player>=36&&check.player<=42,
         'Character must retain one consistent 40px sprite scale');
       await page.screenshot({path:output+'/room-'+room.id+'-before-building.png'});
-      const returnDoor=room.id==='outdoor'?{x:368,y:146}:room.id==='upstairs'?{x:120,y:148}:{x:111,y:149};
+      // Side wings are navigable, but never item-placement zones.
+      const wing=await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('GymRoom');
+        const start={x:s.coach.body.x,y:s.coach.body.y};
+        const left={x:45,y:184},right={x:427,y:184};
+        return {left:s.canStand(left.x,left.y),right:s.canStand(right.x,right.y),
+          pathLeft:s.navigation.route(start,left).length,
+          pathRight:s.navigation.route(start,right).length};
+      });
+      assert.deepEqual([wing.left,wing.right],[true,true],
+        'Both non-mat wings must remain walkable in '+room.id);
+      assert.ok(wing.pathLeft>0&&wing.pathRight>0,
+        'Pathfinding must reach both wings in '+room.id);
+      const wingDestination=room.id==='outdoor'?{x:427,y:184}:{x:45,y:184};
+      await clickGame(page,wingDestination.x,wingDestination.y);
+      await page.waitForFunction(p=>{
+        const s=window.__combatGym.scene.getScene('GymRoom');
+        return s.sys.isActive()&&Math.hypot(s.coach.body.x-p.x,s.coach.body.y-p.y)<9;
+      },wingDestination,{timeout:15000});
+      await page.screenshot({path:output+'/room-'+room.id+'-walkable-side-floor.png'});
+      const returnDoor=room.id==='outdoor'?{x:443,y:146}:room.id==='upstairs'?{x:68,y:151}:{x:68,y:152};
       await clickGame(page,returnDoor.x,returnDoor.y);
       const leaving=await page.evaluate(()=>{
         const s=window.__combatGym.scene.getScene('GymRoom');
