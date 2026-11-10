@@ -107,12 +107,9 @@ function bakeClassicRoom(g:Phaser.GameObjects.Graphics):void {
 function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
   const level=normalizeGymLevel(requestedLevel),theme=THEMES[level-1];
   const g=scene.add.graphics();
-  if(level===3){
-    bakeClassicRoom(g);
-    g.generateTexture('gym-room-'+level,480,330);
-    g.destroy();
-    return;
-  }
+  // Every tier now draws the mat from the same placement bounds.
+  // The original oversized Level 3 art is retired because it no longer
+  // matches the Level 2-sized main floor once extra rooms are unlocked.
   const rect=(color:number,x:number,y:number,w:number,h:number,alpha=1)=>
     g.fillStyle(color,alpha).fillRect(x,y,w,h);
   const line=(color:number,x1:number,y1:number,x2:number,y2:number,alpha=1,width=1)=>{
