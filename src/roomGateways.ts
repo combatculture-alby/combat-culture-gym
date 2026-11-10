@@ -21,7 +21,7 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
   px(0x5a7774,-25,-44,5,43);
   px(0x5a7774,20,-44,5,43);
   for(const y of [-35,-24,-13]){
-    px(0x9caf9f,-25,y,5,2,.5);px(0x9caf9f,20,y,5,2,.5);
+    px(0x9caf9f,-25,y,5,2);px(0x9caf9f,20,y,5,2);
   }
   if(kind==='outdoor'){
     // Recessed glass gym door, attached wall jambs and a short paved step.
