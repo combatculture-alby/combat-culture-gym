@@ -1541,7 +1541,8 @@ try{
     const closed=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {phase:s.dayPhase(),water:s.saveData.waterLevel,
-        mat:s.saveData.matCleanliness,money:s.saveData.money};
+        mat:s.saveData.matCleanliness,money:s.saveData.money,
+        remainingTrash:s.saveData.trashSpawnedToday-(s.saveData.gatheredToday?.length||0)};
     });
     assert.equal(closed.phase,'closing');
     assert.ok(closed.water<initial.water);
@@ -1558,7 +1559,7 @@ try{
     assert.equal(second.phase,'opening');
     assert.equal(second.stock,4);
     assert.equal(second.pending,0);
-    assert.equal(second.trash,4);
+    assert.equal(second.trash,closed.remainingTrash);
     assert.equal(second.cleaned,0);
     assert.equal(second.water,closed.water);
     assert.equal(second.mat,closed.mat);
@@ -1581,7 +1582,7 @@ try{
     });
     assert.equal(third.phase,'opening');
     assert.equal(third.stock,4);
-    assert.equal(third.trash,4);
+    assert.equal(third.trash,second.trash+4);
     assert.ok(third.water<=second.water);
     assert.notDeepEqual(third.attending,second.attending);
   });
