@@ -1916,12 +1916,13 @@ try{
       const s=window.__combatGym.scene.getScene('GymRoom');
       return {mopping:s.mopActive,marks:s.mopMarks.length,
         inside:s.canStand(240,165),outside:s.canStand(430,165),
-        students:s.students.length};
+        boundary:s.canStand(477,165),students:s.students.length};
     });
     assert.equal(initial.mopping,false,'Mopping should not start on room entry');
     assert.equal(initial.marks,0,'Mop target circles must remain hidden by default');
     assert.equal(initial.inside,true);
-    assert.equal(initial.outside,false,'Compact secondary rooms have real boundaries');
+    assert.equal(initial.outside,true,'The yard side floor is walkable');
+    assert.equal(initial.boundary,false,'The solid exterior wall still blocks movement');
     assert.ok(initial.students>=1,'At least one NPC appears in the outside gym');
 
     await page.evaluate(()=>{
