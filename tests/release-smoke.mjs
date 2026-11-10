@@ -50,8 +50,76 @@ try {
   await page.reload();
   await ready(2);
   assert.deepEqual(await inspect(),levelTwo);
+
+  // The initial open/close loop must work even when students have not yet
+  // arrived, and "talk" must never crash on an empty floor.
+  await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    s.closePanel();
+    s.saveData.gymPhase='opening';
+    s.saveData.arrivedCount=0;
+    s.persist();s.scene.restart();
+  });
+  await ready(2);
+  const empty=await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    s.interact();
+    return {phase:s.dayPhase(),students:s.activeStudents().length};
+  });
+  assert.deepEqual(empty,{phase:'opening',students:0});
+  const classDay=await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    s.advanceGymPhase();
+    const started=s.dayPhase();
+    s.saveData.arrivedCount=2;
+    s.refresh();
+    const before={money:s.saveData.money,reputation:s.saveData.reputation,
+      classes:s.saveData.classesTaught||0,day:s.saveData.day};
+    s.simulateClass(0,0.9,false);
+    return {started,present:s.activeStudents().length,before,
+      after:{money:s.saveData.money,reputation:s.saveData.reputation,
+        classes:s.saveData.classesTaught,classesToday:s.saveData.classesToday}};
+  });
+  assert.equal(classDay.started,'open');
+  assert.equal(classDay.present,2);
+  assert.ok(classDay.after.money>classDay.before.money);
+  assert.ok(classDay.after.reputation>classDay.before.reputation);
+  assert.equal(classDay.after.classes,classDay.before.classes+1);
+  assert.equal(classDay.after.classesToday,1);
+  await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    s.advanceGymPhase();
+  });
+  const closing=await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    return {phase:s.dayPhase(),classesToday:s.saveData.classesToday};
+  });
+  assert.equal(closing.phase,'closing');
+  await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    s.saveData.arrivedCount=0;s.persist();
+    s.advanceGymPhase();
+  });
+  await page.waitForFunction(day=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    return s?.sys.isActive()&&s.saveData.day===day+1;
+  },classDay.before.day);
+  const tomorrow=await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    return {level:s.gymLevel(),phase:s.dayPhase(),arrived:s.saveData.arrivedCount,
+      classesToday:s.saveData.classesToday,classes:s.saveData.classesTaught};
+  });
+  assert.deepEqual(tomorrow,{level:2,phase:'opening',arrived:0,
+    classesToday:0,classes:classDay.after.classes});
+  await page.reload();
+  await ready(2);
+  assert.deepEqual(await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    return {level:s.gymLevel(),phase:s.dayPhase(),arrived:s.saveData.arrivedCount,
+      classesToday:s.saveData.classesToday,classes:s.saveData.classesTaught};
+  }),tomorrow);
   assert.deepEqual(errors,[]);
-  console.log('Release smoke passed: mobile Level 1 to Level 2 expansion, cap, and save reload.');
+  console.log('Release smoke passed: touch Level 1->2, cap, empty gym, class day cycle, and reload.');
 } finally {
   await browser?.close();
   server.kill();
