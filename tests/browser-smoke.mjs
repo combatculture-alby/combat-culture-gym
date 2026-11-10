@@ -1548,6 +1548,10 @@ try{
       return {menu,hasRoster:!!rosterButton};
     });
     assert.ok(state.hasRoster,'Manage Gym should offer direct student roster access');
+    assert.ok(state.menu.includes('SUPPLY ORDERS'),'Supply ordering should be accessible from management');
+    assert.ok(state.menu.includes('DAILY GYM PLAN'),'Daily operations should be accessible from management');
+    assert.ok(state.menu.includes('EXPAND / UPGRADE'),'Gym expansion should remain accessible');
+    assert.ok(state.menu.includes('EDIT COACH'),'Coach wardrobe should remain accessible');
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       s.furniturePanel.setVisible(false);
