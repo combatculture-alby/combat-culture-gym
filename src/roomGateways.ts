@@ -111,9 +111,11 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
   }).setOrigin(.5).setVisible(false);
   body.add(caption);
   // Zones cover the actual art, not an unrelated on-floor invisible portal.
+  // Keep passageways walkable/clickable nearby; the door's upper half and
+  // stair treads are the hotspots, not the entire side corridor.
   const hit=kind==='outdoor'
-    ?scene.add.zone(0,-12,80,79)
-    :scene.add.zone(0,-23,100,81);
+    ?scene.add.zone(0,-28,54,55)
+    :scene.add.zone(0,-26,90,55);
   hit.setInteractive({useHandCursor:true});
   hit.on('pointerover',()=>caption.setVisible(true));
   hit.on('pointerout',()=>caption.setVisible(false));
