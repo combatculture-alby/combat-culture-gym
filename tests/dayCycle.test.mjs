@@ -35,3 +35,15 @@ test('overnight uncollected litter persists without respawning cleaned piles',()
   assert.equal(outstandingTrash(15,0),12);
   assert.equal(outstandingTrash(1,5),0);
 });
+
+
+test('corrupted or partial day-cycle saves cannot create phantom attendance or trash',()=>{
+  for(const bad of [NaN,Infinity,-Infinity]){
+    assert.equal(outstandingTrash(bad,0),0);
+    assert.equal(outstandingTrash(4,bad),4);
+  }
+  assert.equal(outstandingTrash(-4,0),0);
+  assert.equal(outstandingTrash(4,-10),4);
+  assert.equal(normalizeArrivalCount(3,'open',-5),0);
+  assert.equal(normalizeArrivalCount(3,'closing',0),0);
+});
