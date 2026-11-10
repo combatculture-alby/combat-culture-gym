@@ -38,3 +38,18 @@ export function overnightSupplies(stock:number[],pending:number[]):number[]{
 export function canCompleteDay(phase:GymPhase,arrived:number,classesToday:number):boolean {
   return canAdvanceDay(phase,arrived)&&classesToday>=1;
 }
+
+/** Consistent daily coaching requests, regardless of staggered arrivals. */
+export function availableCoachingRequests(planned:number[],present:number[],completed:number[],limit=2):number[]{
+  const visible=new Set(present);
+  const done=new Set(completed);
+  return planned.filter(index=>visible.has(index)&&!done.has(index)).slice(0,Math.max(0,limit));
+}
+
+/** Projected earnings should never imply the full roster is on the floor. */
+export function classAttendanceForPreview(phase:GymPhase,arrived:number,scheduled:number):number {
+  if(phase!=='open')return 0;
+  const a=Number.isFinite(arrived)?Math.max(0,Math.floor(arrived)):0;
+  const cap=Number.isFinite(scheduled)?Math.max(0,Math.floor(scheduled)):0;
+  return Math.min(a,cap);
+}
