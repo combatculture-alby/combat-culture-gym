@@ -480,8 +480,8 @@ class GymScene extends Phaser.Scene {
           y:prop.y-22,duration:430,yoyo:true,repeat:-1});
       }
       hit.on('pointerover',()=>{if(!this.furniturePanel.visible&&!this.rosterPanel.visible)
-        hint.setVisible(true);});
-      hit.on('pointerout',()=>hint.setVisible(false));
+        hint.setVisible(true).setScale(1.06);});
+      hit.on('pointerout',()=>hint.setVisible(false).setScale(1));
       hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
         event:Phaser.Types.Input.EventData)=>{
         event.stopPropagation();hint.setVisible(false);
@@ -1295,8 +1295,36 @@ class GymScene extends Phaser.Scene {
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
     this.panelButton(this.furniturePanel,'EXPAND / UPGRADE',84,216,149,25,
       ()=>this.openExpansion(),false,0x39735f);
-    this.panelButton(this.furniturePanel,'EDIT COACH',245,216,149,25,
-      ()=>this.openCoachWardrobe(),false,0x564844);
+    this.panelButton(this.furniturePanel,this.devToolsEnabled()?'DEV TOOLS':'EDIT COACH',245,216,149,25,
+      ()=>this.devToolsEnabled()?this.openDevTools():this.openCoachWardrobe(),false,0x564844);
+  }
+  private devToolsEnabled():boolean {
+    // Explicit opt-in, only on the isolated garage preview, never production.
+    return window.location.pathname.includes('/garage/')&&
+      new URLSearchParams(window.location.search).get('dev')==='1';
+  }
+  private openDevTools():void {
+    if(!this.devToolsEnabled()||this.running||this.isPlacing())return;
+    this.menuShell('DEVELOPER TOOLS','PREVIEW ONLY / MODIFIES YOUR GARAGE SAVE.',()=>this.openGymUpgrades());
+    this.panelButton(this.furniturePanel,'ADD $1,000',84,77,149,29,()=>{
+      this.saveData.money+=1000;this.persist();this.refresh();this.openDevTools();
+    },false,0x39735f);
+    this.panelButton(this.furniturePanel,'ADD $10,000',245,77,149,29,()=>{
+      this.saveData.money+=10000;this.persist();this.refresh();this.openDevTools();
+    },false,0x39735f);
+    this.furniturePanel.add(this.add.text(85,115,'JUMP TO A GYM LEVEL (NO REQUIREMENTS)',{
+      fontFamily:UI_FONT,fontSize:'10px',color:'#f5d49b'
+    }));
+    GYM_LEVELS.forEach((gym,i)=>{
+      const x=84+(i%2)*161,y=134+Math.floor(i/2)*28;
+      this.panelButton(this.furniturePanel,(i+1)+' '+gym.name.toUpperCase(),x,y,149,25,()=>{
+        this.saveData.gymLevel=i+1;
+        this.saveData.gymPhase='opening';
+        this.saveData.arrivedCount=0;
+        this.persist();
+        this.scene.restart({notice:'DEV: viewing '+gym.name+'. Your garage save has been updated.'});
+      },false,i+1===this.gymLevel()?0x527f74:0x355b5d);
+    });
   }
   private coachStyle():CoachAppearance {
     return normalizeUnlockedAppearance(this.saveData.coachAppearance,this.saveData.wardrobeOwned);
