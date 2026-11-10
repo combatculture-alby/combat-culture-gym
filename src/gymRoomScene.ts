@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {ROOMS,unlockedRooms,normalizeRoom,type RoomId} from './gymRooms';
-import {normalizeRoomState} from './roomState';
+import {normalizeRoomState,itemRoom} from './roomState';
 
 const KEY=import.meta.env.VITE_GARAGE_PREVIEW==='1'
   ?'combat-culture-gym-garage-preview-v1'
@@ -16,6 +16,7 @@ export class GymRoomScene extends Phaser.Scene {
   private player!:Phaser.GameObjects.Container;
   private keys!:Record<string,Phaser.Input.Keyboard.Key>;
   private exits:Phaser.GameObjects.Container[]=[];
+  private roomItems:Phaser.GameObjects.Container[]=[];
   constructor(){super('GymRoom');}
   create(data?:{room?:RoomId}):void {
     let raw:Record<string,unknown>={};
@@ -60,7 +61,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.add.rectangle(0,226,480,104,0x152b30).setOrigin(0);
     this.add.text(240,246,'ADDITIONAL TRAINING SPACE',{
       fontFamily:'Arial',fontSize:'13px',color:'#f4ddad'}).setOrigin(.5);
-    this.add.text(240,268,'Use doors to return to the main gym. Room building is in development.',{
+    this.add.text(240,268,'Click an item to store it. Place stored items using the room inventory.',{
       fontFamily:'Arial',fontSize:'10px',color:'#c7d6cc'}).setOrigin(.5);
     const saved=state.playerPositions[this.current]||room.entry;
     this.player=this.add.container(saved.x,saved.y);
@@ -70,6 +71,7 @@ export class GymRoomScene extends Phaser.Scene {
     const hair=this.add.rectangle(0,-33,15,5,0x333a3b);
     this.player.add([shadow,body,head,hair]);
     this.player.setDepth(14);
+    this.drawRoomInventory(raw,state);
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E') as Record<string,Phaser.Input.Keyboard.Key>;
     this.input.keyboard!.on('keydown-ESC',()=>this.goTo('main'));
     for(const [destination,exit] of Object.entries(room.exits)){
@@ -85,6 +87,77 @@ export class GymRoomScene extends Phaser.Scene {
     }
     this.add.text(240,314,'WASD / ARROWS TO WALK  •  CLICK EXIT TO CHANGE ROOMS',{
       fontFamily:'Arial',fontSize:'10px',color:'#b9cebf'}).setOrigin(.5);
+  }
+  private drawRoomInventory(raw:Record<string,unknown>,state:ReturnType<typeof normalizeRoomState>):void {
+    const furniture=Array.isArray(raw.furniture)?raw.furniture as Array<{kind:number;x:number;y:number;rotation:number;stored:boolean}>:[];
+    const gearNames=['Heavy Bag','Thai Pads','Speed Bag','Jump Rope','Weight Bench','Kettlebells','Treadmill','Assault Bike'];
+    const gearPositions=Array.isArray(raw.gearPositions)?raw.gearPositions as Array<{x:number;y:number}>:[];
+    const gearOwned=Array.isArray(raw.ownedGear)?raw.ownedGear as boolean[]:[];
+    const gearStored=Array.isArray(raw.gearStored)?raw.gearStored as boolean[]:[];
+    const furnitureNames=['Lamp','Bench','Trophy Case','Water Cooler','Punching Dummy'];
+    const placeable:Array<{label:string;kind:'furniture'|'gear';index:number;x:number;y:number;stored:boolean}>=[];
+    furniture.forEach((item,index)=>{
+      if(itemRoom(state.furnitureRooms,index,this.level)===this.current)
+        placeable.push({label:furnitureNames[item.kind]||'Furniture',kind:'furniture',index,x:item.x,y:item.y,stored:item.stored});
+      else if(item.stored)placeable.push({label:furnitureNames[item.kind]||'Furniture',kind:'furniture',index,x:0,y:0,stored:true});
+    });
+    gearOwned.forEach((owned,index)=>{
+      if(!owned)return;
+      const room=itemRoom(state.gearRooms,index,this.level);
+      if(room!==this.current&&!gearStored[index])return;
+      const pos=gearPositions[index]||{x:160,y:140};
+      placeable.push({label:gearNames[index]||'Gear',kind:'gear',index,x:pos.x,y:pos.y,stored:!!gearStored[index]});
+    });
+    const placed=placeable.filter(item=>!item.stored);
+    for(const item of placed){
+      const g=this.add.container(item.x,item.y);
+      const isGear=item.kind==='gear';
+      const shadow=this.add.ellipse(0,3,isGear?31:38,9,0x172f35,.5);
+      const body=this.add.rectangle(0,-9,isGear?20:30,isGear?24:17,isGear?0x9d594b:0x9b805e).setStrokeStyle(2,0xd1b88c);
+      const label=this.add.text(0,-29,item.label.toUpperCase(),{fontFamily:'Arial',fontSize:'8px',color:'#f4dfb5',backgroundColor:'#28464b'}).setOrigin(.5);
+      g.add([shadow,body,label]).setDepth(11+item.y/100).setSize(42,40).setInteractive({useHandCursor:true});
+      g.on('pointerdown',()=>this.storeRoomItem(item));
+      this.roomItems.push(g);
+    }
+    const available=placeable.filter(item=>item.stored);
+    const inventory=this.add.text(240,291,'ROOM INVENTORY ('+available.length+' STORED)',{
+      fontFamily:'Arial',fontSize:'10px',color:'#ffe0a2',backgroundColor:'#31525b',
+      padding:{x:8,y:4}}).setOrigin(.5).setInteractive({useHandCursor:true}).setDepth(31);
+    inventory.on('pointerdown',()=>{
+      if(!available.length){this.add.text(240,213,'No stored equipment. Buy items at the main desk.',{fontFamily:'Arial',fontSize:'10px',color:'#ffe0a2'}).setOrigin(.5).setDepth(31);return;}
+      const chosen=available[0];
+      const spots=[{x:90,y:145},{x:150,y:145},{x:210,y:145},{x:270,y:145},{x:330,y:145},{x:390,y:145},{x:90,y:190},{x:150,y:190},{x:210,y:190},{x:270,y:190},{x:330,y:190},{x:390,y:190}];
+      const occupied=placed.map(item=>({x:item.x,y:item.y}));
+      const spot=spots.find(p=>occupied.every(o=>Math.abs(p.x-o.x)>=52||Math.abs(p.y-o.y)>=34));
+      if(!spot)return;
+      this.saveRoomItem(chosen,false,spot);
+    });
+  }
+  private storeRoomItem(item:{kind:'furniture'|'gear';index:number}):void {
+    this.saveRoomItem(item,true);
+  }
+  private saveRoomItem(item:{kind:'furniture'|'gear';index:number},stored:boolean,position?:{x:number;y:number}):void {
+    try{
+      const raw=JSON.parse(localStorage.getItem(KEY)||'{}') as Record<string,unknown>;
+      const state=normalizeRoomState(raw.roomState,this.level);
+      if(item.kind==='furniture'){
+        const furniture=raw.furniture as Array<{x:number;y:number;stored:boolean}>;
+        if(!furniture?.[item.index])return;
+        furniture[item.index].stored=stored;
+        if(position)Object.assign(furniture[item.index],position);
+        state.furnitureRooms[item.index]=this.current;
+      }else{
+        const gearStored=raw.gearStored as boolean[];
+        const positions=raw.gearPositions as Array<{x:number;y:number}>;
+        if(!gearStored||!positions)return;
+        gearStored[item.index]=stored;
+        if(position)positions[item.index]=position;
+        state.gearRooms[item.index]=this.current;
+      }
+      raw.roomState=state;
+      localStorage.setItem(KEY,JSON.stringify(raw));
+      this.scene.restart({room:this.current});
+    }catch{/* storage unavailable */}
   }
   private goTo(destination:RoomId):void {
     if(!unlockedRooms(this.level).some(r=>r.id===destination))return;
