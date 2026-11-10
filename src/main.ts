@@ -1395,7 +1395,7 @@ class GymScene extends Phaser.Scene {
       if(!exit)continue;
       // Actual in-world door/stair destination, in addition to the menu.
       const sign=this.add.container(exit.x,exit.y).setDepth(27);
-      sign.setSize(56,52).setInteractive(new Phaser.Geom.Rectangle(-28,-46,56,52),
+      sign.setSize(44,42).setInteractive(new Phaser.Geom.Rectangle(-22,-40,44,40),
         Phaser.Geom.Rectangle.Contains);
       sign.on('pointerdown',()=>this.visitRoom(room.id));
       const frame=this.add.graphics();
