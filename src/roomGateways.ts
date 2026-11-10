@@ -45,15 +45,20 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
     r(0xc9b98c,-38,-46,37,2);
     r(0x7fa097,-29,-37,3,47);
     r(0x809e91,-4,-35,4,53);
-    // Part-open slatted swing gate, hinged into the side walkway.
-    // The diagonal silhouette reads as an opening, not a closed door prop.
-    line(0x243d42,tx(-6),-28,tx(27),-16,5);
-    line(0xbac9af,tx(-7),-28,tx(26),-16,2);
+    // Hinged metal gate swung OPEN into the walkway. Four edges and
+    // full-height slats make a readable door leaf, not a diagonal stair rail.
+    line(0x1e3a40,tx(-4),-28,tx(23),-18,4);
+    line(0x96b7a8,tx(-4),-28,tx(23),-18,2);
+    line(0x243f43,tx(-4),11,tx(23),21,4);
+    line(0x799b8e,tx(-3),9,tx(22),19,2);
+    line(0x29474a,tx(23),-18,tx(23),21,4);
     for(let i=0;i<3;i++){
-      const ox=-2+i*8;
-      line(0x477369,tx(ox),-26+i*3,tx(ox+2),7+i*3,3);
+      const ox=3+i*8,offset=3+i*3;
+      line(0x426d65,tx(ox),-27+offset,tx(ox),10+offset,3);
+      line(0x86aba0,tx(ox-1),-26+offset,tx(ox-1),9+offset,1);
     }
-    line(0x1e3a40,tx(-8),-30,tx(28),-17,2);
+    rect(0x253d42,tx(19)-2,0,4,3);
+    line(0xabc3ae,tx(19),0,tx(19),5,2);
     // Small wall-mounted exterior sign, no giant floating arrow or portal.
     r(0x29454b,-31,-58,33,11);
     r(0xe1cb99,-29,-55,29,5);
@@ -103,6 +108,9 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
     rect(0x425b5e,38,-5,15,7);
     rect(0xb5b39a,39,-6,13,2);
   }
+  // Center the main upstairs run left of its landing, leaving the
+  // timetable/noticeboard clear rather than crossing it.
+  if(side==='back')g.x=-22;
   body.add(g);
   const caption=scene.add.text(0,-63,options.returning?'MAIN GYM':
     kind==='outdoor'?'OUTSIDE':kind==='upstairs'?'UPSTAIRS':'DOWNSTAIRS',{
