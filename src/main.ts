@@ -1057,8 +1057,8 @@ class GymScene extends Phaser.Scene {
     this.updatePhaseDisplay();
     this.drawEquipment();
     this.drawGatheringNodes();
-    const visibleTrash=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)-
-      (this.saveData.gatheredToday?.length||0);
+    const visibleTrash=outstandingTrash(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH,
+      this.saveData.gatheredToday?.length||0);
     this.dailyStatus.setText('CLASS '+(this.saveData.classesToday||0)+
       '/2  HELP '+(this.saveData.coachedToday?.length||0)+
       '/'+dailyShiftHelpTarget(this.requestStudentIds().length)+'  TRASH '+Math.max(0,visibleTrash));
@@ -1288,15 +1288,15 @@ class GymScene extends Phaser.Scene {
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
       ['BUILD / ARRANGE',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
-      ['MATERIALS / CRAFT',()=>this.openMaterials()],
-      ['EXPAND GYM',()=>this.openExpansion()],
+      ['SUPPLY ORDERS',()=>this.openSupplyOrders()],
+      ['DAILY GYM PLAN',()=>this.openDailyHubPlan()],
       [this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
-    this.panelButton(this.furniturePanel,'EDIT COACH / WARDROBE',84,216,149,25,
-      ()=>this.openCoachWardrobe(),false,0x39735f);
-    this.panelButton(this.furniturePanel,'NEW GYM / RESET',245,216,149,25,
-      ()=>this.confirmNewGym(),false,0x564844);
+    this.panelButton(this.furniturePanel,'EXPAND / UPGRADE',84,216,149,25,
+      ()=>this.openExpansion(),false,0x39735f);
+    this.panelButton(this.furniturePanel,'EDIT COACH',245,216,149,25,
+      ()=>this.openCoachWardrobe(),false,0x564844);
   }
   private coachStyle():CoachAppearance {
     return normalizeUnlockedAppearance(this.saveData.coachAppearance,this.saveData.wardrobeOwned);
@@ -1496,7 +1496,7 @@ class GymScene extends Phaser.Scene {
   }
   private openMaterials():void {
     const collected=this.saveData.gatheredToday?.length||0;
-    const available=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH)-collected;
+    const available=outstandingTrash(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH,collected);
     this.menuShell('MATERIALS & CRAFT',Math.max(0,available)+' TRASH TO CLEAN  /  '+collected+' CLEANED TODAY',()=>this.openGymUpgrades());
     const stock=this.saveData.materials||[0,0,0];
     this.furniturePanel.add(this.add.text(84,75,MATERIAL_NAMES.map((name,i)=>name+': '+(stock[i]||0)).join('    '),{fontFamily:UI_FONT,fontSize:'10px',color:'#f4d68c'}));
