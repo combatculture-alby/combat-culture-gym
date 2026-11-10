@@ -1076,6 +1076,25 @@ class GymScene extends Phaser.Scene {
     this.refreshServiceHotspots();
     this.updateIndicators();
   }
+  private addFixtureInteraction(x:number,y:number,w:number,h:number,name:string,description:string):void {
+    const hit=this.add.zone(x,y,w,h).setDepth(19).setInteractive({useHandCursor:true});
+    const label=this.add.text(x,y-h/2-5,name.toUpperCase(),{
+      fontFamily:UI_FONT,fontSize:'9px',color:'#fff0d0',
+      backgroundColor:'#244349',padding:{x:4,y:2}
+    }).setOrigin(.5,1).setDepth(23).setVisible(false);
+    hit.on('pointerover',()=>{
+      if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())
+        label.setVisible(true);
+    });
+    hit.on('pointerout',()=>label.setVisible(false));
+    hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+      event:Phaser.Types.Input.EventData)=>{
+      event.stopPropagation();label.setVisible(false);
+      if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;
+      this.say(name+': '+description);
+    });
+    this.worldFixtures.push(hit,label);
+  }
   private drawEquipment():void {
     this.footprints=this.solidFootprints();
     this.navigation.rebuild();
@@ -1241,6 +1260,9 @@ class GymScene extends Phaser.Scene {
         g.fillStyle(0xffd99b).fillRect(x+15,y-25,2,6).fillRect(x+15,y-17,2,2);
       }
       if(this.placingGear===i)this.decor.lineStyle(2,0xffe08a).strokeRect(x-12,y-11,24,22);
+      this.addFixtureInteraction(x,y,Math.max(28,GEAR_BOUNDS[i].rx*2+6),
+        Math.max(32,GEAR_BOUNDS[i].ry*2+12),GEAR_ITEMS[i].name,
+        'Training equipment. Use Build / Arrange to move it, or maintain it when needed.');
     });
     const decor=this.saveData.decorLevel||0;
     const pos=this.saveData.decorPositions||defaults.decorPositions!;
@@ -1250,6 +1272,7 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
       this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
       this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
+      this.addFixtureInteraction(p.x,p.y,54,25,'Gym Banner','Your gym colors on display.');
     }
     if(decor>=2&&!this.saveData.decorStored?.[1]) {
       const p=pos[1];
@@ -1257,6 +1280,7 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
       this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
       this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
+      this.addFixtureInteraction(p.x,p.y,52,25,'Training Poster','Inspiration for the next training session.');
     }
     if(decor>=3&&!this.saveData.decorStored?.[2]) {
       const p=pos[2];
@@ -1264,6 +1288,7 @@ class GymScene extends Phaser.Scene {
       this.decor.fillStyle(0x355d45).fillRect(p.x-8,p.y-6,16,20);
       this.decor.fillStyle(0x4d885c).fillCircle(p.x,p.y-11,12);
       this.decor.fillStyle(0x7ca76d).fillCircle(p.x-5,p.y-14,5);
+      this.addFixtureInteraction(p.x,p.y-5,29,38,'Indoor Plant','A little greenery for the gym.');
     }
     if(this.placingDecor>=0&&!this.saveData.decorStored?.[this.placingDecor]) {
       const p=pos[this.placingDecor];
