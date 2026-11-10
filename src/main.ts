@@ -169,7 +169,7 @@ class GymScene extends Phaser.Scene {
   private tasks: Record<number,string> = {};
   private feedback!: Phaser.GameObjects.Text;
   private decor!: Phaser.GameObjects.Graphics;
-  private worldFixtures:Phaser.GameObjects.Graphics[]=[];
+  private worldFixtures:Phaser.GameObjects.GameObject[]=[];
   private placementPreview!:Phaser.GameObjects.Graphics;
   private placementHint!:Phaser.GameObjects.Text;
   private buildMode=false;
@@ -1150,8 +1150,7 @@ class GymScene extends Phaser.Scene {
           'Students can practice striking here.'
         )+' Use Build / Arrange to move or store it.');
       });
-      this.worldFixtures.push(hotspot as unknown as Phaser.GameObjects.Graphics,
-        caption as unknown as Phaser.GameObjects.Graphics);
+      this.worldFixtures.push(hotspot,caption);
     });
     const level=this.saveData.equipment||0;
     if(level>=1) {
