@@ -28,7 +28,8 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
 import { drawGym } from './gymWorld';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
-import {unlockedRooms,studentRoom,type RoomId} from './gymRooms';
+import {unlockedRooms,type RoomId} from './gymRooms';
+import {distributeStudents} from './roomPopulation';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
@@ -283,10 +284,12 @@ class GymScene extends Phaser.Scene {
     // Changing gym tier redistributes the same roster over unlocked rooms.
     // Existing savings, attendance and class statistics are retained.
     const rooms=this.saveData.roomState!;
-    if(rooms.assignmentLevel!==this.gymLevel()){
-      rooms.studentRooms=this.students.map((_,i)=>studentRoom(i,this.gymLevel()));
+    if(rooms.assignmentLevel!==this.gymLevel()||rooms.assignmentDay!==this.saveData.day){
+      rooms.studentRooms=distributeStudents(this.gymLevel(),this.saveData.day,
+        this.students.length,rooms,this.saveData);
       rooms.assignmentLevel=this.gymLevel();
-    }else this.students.forEach((_,i)=>{rooms.studentRooms[i]??=studentRoom(i,this.gymLevel());});
+      rooms.assignmentDay=this.saveData.day;
+    }
     drawGym(this,this.gymLevel());
     this.classOverlay=this.add.graphics().setDepth(2);
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
