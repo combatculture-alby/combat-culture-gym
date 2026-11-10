@@ -17,7 +17,7 @@ export const ROOMS:readonly RoomDefinition[]=[
    exits:{outdoor:{x:44,y:153},upstairs:{x:310,y:135},downstairs:{x:44,y:211}}},
   {id:'outdoor',name:'Outdoor Training',unlocksAt:3,
    entry:{x:272,y:170},bounds:{left:83,right:377,top:112,bottom:210},
-   exits:{main:{x:433,y:165}}},
+   exits:{main:{x:443,y:165}}},
   {id:'upstairs',name:'Upstairs',unlocksAt:4,
    entry:{x:255,y:174},bounds:{left:112,right:368,top:116,bottom:205},
    exits:{main:{x:68,y:169}}},
