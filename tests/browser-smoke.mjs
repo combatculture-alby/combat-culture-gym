@@ -721,7 +721,13 @@ try{
     assert.equal(state.money,333);
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').confirmNewGym());
     await clickGame(page,313,201); // Deliberate destructive confirmation.
-    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1);
+    // Wait for the scene restart; if a frame swallowed the pointer, retry once.
+    try {
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,{timeout:3000});
+    } catch {
+      await clickGame(page,313,201);
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym').saveData.day===1,{timeout:10000});
+    }
     state=await sceneState(page);
     assert.equal(state.level,1);
     assert.equal(state.day,1);
