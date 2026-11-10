@@ -2344,6 +2344,7 @@ class GymScene extends Phaser.Scene {
   }
   private interact(target?:Student):void {
     const nearest=target??[...this.activeStudents()].sort((a,b)=>Phaser.Math.Distance.Between(this.player.x,this.player.y,a.x,a.y)-Phaser.Math.Distance.Between(this.player.x,this.player.y,b.x,b.y))[0];
+    if(!nearest){this.say('No students are here yet. Open the gym and let them arrive.');return;}
     if(Phaser.Math.Distance.Between(this.player.x,this.player.y,nearest.x,nearest.y)>42) { this.say('Move closer to a student.'); return; }
     const i=this.students.indexOf(nearest);
     nearest.routine=this.idleRoutine(nearest,3,'talk');
