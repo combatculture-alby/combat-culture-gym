@@ -429,8 +429,7 @@ export class GymRoomScene extends Phaser.Scene {
       this.save.decorStored[chosen.index]=false;
       this.roomState.decorRooms[chosen.index]=this.current;
     }
-    this.writeSave();
-    this.scene.restart({room:this.current});
+    this.restartRoom();
   }
   private storeSelected():void {
     if(!this.movingItem)return;
@@ -440,7 +439,7 @@ export class GymRoomScene extends Phaser.Scene {
       const furniture=this.save.furniture?.[item.index];if(!furniture)return;
       furniture.stored=true;
     }else{this.save.decorStored??=[];this.save.decorStored[item.index]=true;}
-    this.writeSave();this.scene.restart({room:this.current});
+    this.restartRoom();
   }
   private rotateItem():void {
     if(this.movingItem?.kind!=='furniture')return;
@@ -454,7 +453,7 @@ export class GymRoomScene extends Phaser.Scene {
   private drawTrash():void {
     const left=this.roomState.trashByRoom[this.current]||[];
     for(const id of left){
-      const p=TRASH_POSITIONS[id];if(!p)continue;
+      const p=this.trashPoints()[id];if(!p)continue;
       const node=this.add.container(p.x,p.y).setDepth(9+p.y/100);
       const art=this.add.graphics();
       art.fillStyle(0x344f4a,.4).fillEllipse(0,2,19,6);
@@ -471,7 +470,7 @@ export class GymRoomScene extends Phaser.Scene {
     }
   }
   private pickTrash(index:number):void {
-    const p=TRASH_POSITIONS[index];if(!p)return;
+    const p=this.trashPoints()[index];if(!p)return;
     if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<27){
       this.cleanTrash(index);return;
     }
@@ -487,40 +486,48 @@ export class GymRoomScene extends Phaser.Scene {
     this.save.materials[index%3]=(this.save.materials[index%3]||0)+1;
     if(!this.roomState.trashByRoom[this.current]?.length)
       this.save.reputation=(this.save.reputation||0)+1;
-    this.writeSave();this.scene.restart({room:this.current});
+    this.restartRoom();
   }
   private drawMop():void {
-    const mop=this.add.container(411,185).setDepth(14);
+    const point=this.mopStation();
+    const mop=this.add.container(point.x,point.y).setDepth(14);
     const art=this.add.graphics();
-    art.fillStyle(0x2a4347).fillEllipse(0,3,30,7);
+    art.fillStyle(0x2a4347).fillEllipse(0,3,27,7);
     art.fillStyle(0x7694a0).fillRect(-7,-9,14,13);
     art.fillStyle(0xb6c9c7).fillRect(-8,-8,16,2);
     art.lineStyle(3,0xd1ad75).lineBetween(8,-31,11,-5);
     art.fillStyle(0x97b2a8).fillRect(5,-6,13,4);
-    const hit=this.add.zone(0,-10,36,37).setInteractive({useHandCursor:true});
+    const hit=this.add.zone(0,-10,35,35).setInteractive({useHandCursor:true});
     hit.on('pointerdown',()=>this.beginMop());
     mop.add([art,hit]);
+    // Floor targets are an ACTIVE mop minigame, never default room graphics.
+    if(this.mopActive)this.drawMopMarkers();
+  }
+  private drawMopMarkers():void {
+    if(this.mopMarks.length)return;
     const done=this.roomState.moppedByRoom[this.current]||[];
-    for(const [id,p] of MOP_POSITIONS.entries()){
+    for(const [id,p] of this.mopPoints().entries()){
       if(done.includes(id))continue;
       const spot=this.add.circle(p.x,p.y,7,0x80bed1,.35)
         .setStrokeStyle(1,0xbde6e1).setDepth(8).setInteractive({useHandCursor:true});
       spot.on('pointerdown',()=>this.goMop(id));
+      this.mopMarks.push(spot);
     }
   }
   private beginMop():void {
-    if((this.roomState.moppedByRoom[this.current]||[]).length>=MOP_POSITIONS.length){
+    if((this.roomState.moppedByRoom[this.current]||[]).length>=this.mopPoints().length){
       this.notice('This room has already been mopped today.');return;
     }
     if((this.save.supplies?.[3]||0)<1){
       this.notice('Buy sanitizing supplies at the main gym storage closet first.');return;
     }
-    const remaining=MOP_POSITIONS.findIndex((_,i)=>!this.roomState.moppedByRoom[this.current]?.includes(i));
+    if(!this.mopActive){this.mopActive=true;this.drawMopMarkers();}
+    const remaining=this.mopPoints().findIndex((_,i)=>!this.roomState.moppedByRoom[this.current]?.includes(i));
     if(remaining>=0)this.goMop(remaining);
   }
   private goMop(index:number):void {
     if((this.save.supplies?.[3]||0)<1){this.notice('No sanitizer. Restock at reception.');return;}
-    const p=MOP_POSITIONS[index];if(!p)return;
+    const p=this.mopPoints()[index];if(!p)return;
     if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<19){
       this.mopSpot(index);return;
     }
@@ -532,11 +539,11 @@ export class GymRoomScene extends Phaser.Scene {
     if(cleaned.includes(index))return;
     const next=[...cleaned,index];
     this.roomState.moppedByRoom[this.current]=next;
-    if(next.length===MOP_POSITIONS.length){
+    if(next.length===this.mopPoints().length){
       this.save.supplies![3]--;
       this.save.reputation=(this.save.reputation||0)+1;
     }
-    this.writeSave();this.scene.restart({room:this.current});
+    this.restartRoom(next.length<this.mopPoints().length);
   }
   private drawStudents():void {
     if(this.save.gymPhase==='opening'||this.save.gymPhase==='closing')return;
@@ -649,7 +656,7 @@ export class GymRoomScene extends Phaser.Scene {
       }
     }
     const nearest=(this.roomState.trashByRoom[this.current]||[]).find(i=>{
-      const p=TRASH_POSITIONS[i];
+      const p=this.trashPoints()[i];
       return p&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<28;
     });
     if(nearest!==undefined){this.cleanTrash(nearest);return;}
@@ -693,13 +700,13 @@ export class GymRoomScene extends Phaser.Scene {
     if(this.movingItem||this.inventoryPanel)this.coach.animate('idle',dt);
     this.coach.place(this.coach.body.x,this.coach.body.y);
     if(this.targetTrash!==null){
-      const p=TRASH_POSITIONS[this.targetTrash];
+      const p=this.trashPoints()[this.targetTrash];
       if(p&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<27){
         this.cleanTrash(this.targetTrash);return;
       }
     }
     if(this.targetMop!==null){
-      const p=MOP_POSITIONS[this.targetMop];
+      const p=this.mopPoints()[this.targetMop];
       if(p&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,p.x,p.y)<19){
         this.mopSpot(this.targetMop);return;
       }
