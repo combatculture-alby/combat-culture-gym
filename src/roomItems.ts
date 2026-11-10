@@ -1,4 +1,4 @@
-import type {RoomId,RoomPoint} from './gymRooms';
+import {ROOMS,type RoomId,type RoomPoint} from './gymRooms';
 
 export type ItemKind='gear'|'furniture'|'decor';
 export type RoomFixture={kind:ItemKind;index:number;typeId?:number;x:number;y:number;rotation:number};
@@ -11,11 +11,14 @@ export const GEAR_LABELS=['Heavy Bag','Thai Pads','Speed Bag','Jump Rope','Weigh
 export const FURNITURE_LABELS=['Floor Lamp','Bench','Trophy Case','Water Cooler','Punching Dummy'] as const;
 export const DECOR_LABELS=['Gym Banner','Training Poster','Indoor Plant'] as const;
 export const ROOM_FLOOR={left:36,right:444,top:101,bottom:211} as const;
+export function roomFloor(room:RoomId){
+  return room==='main'?ROOM_FLOOR:ROOMS.find(r=>r.id===room)!.bounds;
+}
 const blocked:{[key in RoomId]:RoomPoint[]}={
   main:[],
-  outdoor:[{x:421,y:153}],
-  upstairs:[{x:47,y:197}],
-  downstairs:[{x:47,y:110}],
+  outdoor:[{x:368,y:168}],
+  upstairs:[{x:120,y:170}],
+  downstairs:[{x:111,y:171}],
 };
 export function footprint(item:RoomFixture):Bounds {
   if(item.kind==='gear')return GEAR_BOUNDS[item.index]||{rx:14,ry:12};
@@ -38,26 +41,28 @@ export function overlap(a:RoomFixture,b:RoomFixture,margin=3):boolean {
     Math.abs(a.y-b.y)<x.ry+y.ry+margin;
 }
 export function canFitRoomItem(item:RoomFixture,others:RoomFixture[],room:RoomId):boolean {
-  const size=footprint(item);
-  if(item.x-size.rx<ROOM_FLOOR.left||item.x+size.rx>ROOM_FLOOR.right||
-    item.y-size.ry<ROOM_FLOOR.top||item.y+size.ry>ROOM_FLOOR.bottom)return false;
+  const size=footprint(item),floor=roomFloor(room);
+  if(item.x-size.rx<floor.left+5||item.x+size.rx>floor.right-5||
+    item.y-size.ry<floor.top+5||item.y+size.ry>floor.bottom-5)return false;
   if(others.some(other=>other.kind!==item.kind||other.index!==item.index?
     overlap(item,other):false))return false;
   return !blocked[room].some(p=>
     Math.abs(item.x-p.x)<size.rx+21&&Math.abs(item.y-p.y)<size.ry+18);
 }
 export function firstOpenSpot(item:RoomFixture,others:RoomFixture[],room:RoomId):RoomPoint|null {
-  for(let y=125;y<=194;y+=23){
-    for(let x=69;x<=414;x+=27){
+  const floor=roomFloor(room);
+  for(let y=floor.top+19;y<=floor.bottom-19;y+=17){
+    for(let x=floor.left+22;x<=floor.right-22;x+=20){
       const trial={...item,x,y};
       if(canFitRoomItem(trial,others,room))return {x,y};
     }
   }
   return null;
 }
-export function canWalkInRoom(point:RoomPoint,items:RoomFixture[]):boolean {
-  if(point.x<ROOM_FLOOR.left+7||point.x>ROOM_FLOOR.right-7||
-    point.y<ROOM_FLOOR.top+3||point.y>ROOM_FLOOR.bottom-3)return false;
+export function canWalkInRoom(point:RoomPoint,items:RoomFixture[],room:RoomId='outdoor'):boolean {
+  const floor=roomFloor(room);
+  if(point.x<floor.left+7||point.x>floor.right-7||
+    point.y<floor.top+4||point.y>floor.bottom-4)return false;
   return items.every(item=>{
     const b=footprint(item);
     return Math.abs(point.x-item.x)>=b.rx+8||Math.abs(point.y-item.y)>=b.ry+5;
