@@ -2,112 +2,119 @@ import Phaser from 'phaser';
 import type {RoomId} from './gymRooms';
 
 type GatewayOptions={returning?:boolean;depth?:number};
-type WallSide='left'|'right'|'back';
+type Side='left'|'right'|'back';
 
-/** Architectural entrances share the 40px coach scale. Side exits are
- * recessed into the room perimeter; only the upstairs main-gym stairwell
- * extends from the back wall onto the mat. They are not placeable props.
+/** Entrances are built into room edges. Stairs are read in side elevation:
+ * horizontal left-to-right flights, not ladders facing out of the screen.
+ * Clicking a doorway still uses the normal route-to-entrance behavior.
  */
 export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number,
   onClick:()=>void,options:GatewayOptions={}):Phaser.GameObjects.Container {
-  const body=scene.add.container(x,y).setDepth(options.depth??12);
+  const body=scene.add.container(x,y).setDepth(options.depth??9.5);
   const g=scene.add.graphics();
   const rect=(c:number,x:number,y:number,w:number,h:number,a=1)=>
     g.fillStyle(c,a).fillRect(x,y,w,h);
-  const line=(c:number,x1:number,y1:number,x2:number,y2:number,w=2)=>
+  const line=(c:number,x1:number,y1:number,x2:number,y2:number,w=1)=>
     g.lineStyle(w,c).lineBetween(x1,y1,x2,y2);
-  const dark=0x172c32,ink=0x233e45,metal=0xa1b3ac,wood=0xb49b73;
-  // The main room's outdoor and basement entrances are in its left wall;
-  // return entrances occupy the left/right edge of each smaller room.
-  const side:WallSide=options.returning?(kind==='outdoor'?'right':'left'):
+  const side:Side=options.returning?(kind==='outdoor'?'right':'left'):
     kind==='upstairs'?'back':'left';
-  const ascending=options.returning?kind==='downstairs':kind==='upstairs';
-
-  if(side==='back'){
-    // An open flight of stairs meets the existing BACK WALL at y-46.
-    // No black 50x50 box or freestanding door casing on top of the floor.
-    // Structural opening starts at the wall/floor seam (world y~74).
-    // Extending the recess behind the steps makes it a real stairwell.
-    rect(0x38545a,-20,-61,40,32);
-    rect(0x9ab1a7,-21,-62,42,3);
-    rect(ink,-17,-58,34,28);
-    rect(dark,-14,-56,28,25);
-    rect(0x59716b,-12,-51,24,3);
-    rect(wood,-18,-30,36,3);
-    for(let step=0;step<5;step++){
-      const yTop=-28+step*6;
-      rect(0x294248,-16,yTop,32,6);
-      rect(ascending?0xa38a67:0x73817a,-15,yTop+2,30,4);
-      rect(ascending?0xd9c397:0xa9b7a9,-14,yTop+2,28,1);
-    }
-    line(metal,-19,-31,-19,-1,3);
-    line(metal,19,-31,19,-1,3);
-    rect(0x395a5e,-21,-3,42,3);
-    rect(0xb8bcac,-18,-3,36,1);
-    // Feet of the staircase visibly terminate at the walkable mat.
-    rect(0x1b3439,-21,0,42,2,.45);
-  }else{
-    // Mirror one wall-recess design onto the opposite side of the room.
-    // The architectural masonry stays OUTSIDE the buildable mat; the
-    // threshold just meets its edge instead of sitting in its middle.
+  const ink=0x1b333a,wall=0x3e5b60,stone=0xabb8a6,gold=0xd5b68a;
+  if(kind==='outdoor'){
+    // Exterior access is a walk-through gap cut into the left/right perimeter,
+    // with real masonry jambs, lintel, raised threshold and an OPEN gate.
+    // It replaces the tall freestanding glass cabinet from earlier versions.
+    const flip=side==='right';
     const r=(c:number,xx:number,yy:number,w:number,h:number,a=1)=>
-      rect(c,side==='right'?-xx-w:xx,yy,w,h,a);
-    const edge=(xx:number)=>side==='right'?-xx:xx;
-    // Wall pier, lintel, floor continuation and a genuine dark opening.
-    r(0x38565a,-33,-35,23,65);
-    r(0x627f7c,-32,-34,3,62);
-    r(0x29464d,-34,-35,28,5);
-    r(0xa8b9a9,-32,-34,25,2);
-    r(0x29464d,-34,23,28,7);
-    r(0x8ea198,-32,24,25,2);
-    r(dark,-28,-28,31,49);
-    r(0x304b4d,-25,-26,27,45);
-    // Structural inner jamb and the thin line where it meets the floor.
-    r(0xb8b3a0,-9,-28,3,48);
-    r(0x19323a,-6,-28,3,48);
-    r(0x6c8c86,-8,17,16,3);
-    r(0xc4c6aa,-5,18,13,2);
-    if(kind==='outdoor'){
-      // Sliding glass gate in a side-wall track, not a standalone cabinet.
-      // The opening is an inset passage with a partly open side gate,
-      // not an opaque rectangular "door prop" pasted onto the mat.
-      r(0x162f33,-26,-25,18,43);
-      r(0x294d48,-24,-23,14,39);
-      r(0x1c3938,-22,-21,11,35);
-      r(0x749b8e,-25,-23,2,39);
-      r(0x577c6e,-13,-20,2,35);
-      line(wood,edge(-11),-19,edge(1),-10,3);
-      line(0xa8b5a0,edge(-10),-17,edge(0),-9,1);
-      r(0x94aba0,-27,-28,21,2);
-      // Paving visibly continues from the passage across the threshold.
-      for(let k=0;k<3;k++)r(0x658f83,-5+k*4,12,2,7,.75);
-    }else{
-      // Recessed stair treads follow the wall edge. Their darker side
-      // disappears into the stairwell, with no freestanding stair box.
-      r(ink,-27,-25,20,42);
-      for(let step=0;step<5;step++){
-        const yTop=-23+step*8;
-        r(ascending?0x947f65:0x677978,-25,yTop,17,6);
-        r(ascending?0xd5bd93:0xa0b5a8,-24,yTop+1,15,2);
-      }
-      r(wood,-29,-29,25,3);
-      r(0xaec3b6,-28,-29,23,1);
-      line(0xadbab1,edge(-6),-25,edge(-6),16,2);
-      r(0x476269,-7,16,15,4);
+      rect(c,flip?-xx-w:xx,yy,w,h,a);
+    const tx=(xx:number)=>flip?-xx:xx;
+    // The wall pier and roofline physically join the room's side border.
+    r(0x253f45,-35,-41,27,73);
+    r(0x728f87,-34,-40,4,68);
+    r(0x486a68,-28,-38,18,62);
+    r(0x112c33,-28,-31,30,52);
+    r(0x335956,-26,-29,27,48);
+    r(0x182f35,-23,-28,24,43);
+    // Paving running through the passage creates an actual entry gap.
+    r(0x456b65,-23,10,36,10);
+    r(0x789e8c,-20,13,32,3);
+    for(let i=0;i<3;i++)r(0xb5bd9f,-16+i*10,18,7,2,.62);
+    r(0x263f44,-37,-40,36,6);
+    r(0xc4bca1,-35,-40,32,2);
+    // Wide overhang and side posts make the gate part of the building.
+    r(0x28474b,-40,-46,41,7);
+    r(0xc9b98c,-38,-46,37,2);
+    r(0x7fa097,-29,-37,3,47);
+    r(0x809e91,-4,-35,4,53);
+    // Part-open slatted swing gate, hinged into the side walkway.
+    // The diagonal silhouette reads as an opening, not a closed door prop.
+    line(0x243d42,tx(-6),-28,tx(27),-16,5);
+    line(0xbac9af,tx(-7),-28,tx(26),-16,2);
+    for(let i=0;i<3;i++){
+      const ox=-2+i*8;
+      line(0x477369,tx(ox),-26+i*3,tx(ox+2),7+i*3,3);
     }
+    line(0x1e3a40,tx(-8),-30,tx(28),-17,2);
+    // Small wall-mounted exterior sign, no giant floating arrow or portal.
+    r(0x29454b,-31,-58,33,11);
+    r(0xe1cb99,-29,-55,29,5);
+    for(const xx of [-25,-17,-9])r(0x41655e,xx,-53,5,1);
+    g.fillStyle(0x162c31,.25).fillEllipse(0,25,62,9);
+  }else{
+    // Side-on staircase: individual horizontal treads ascend from left to
+    // right. A continuous diagonal handrail and full-length stringer connect
+    // the flight to the landing and the floor.
+    const rising=side==='back'||(options.returning?kind==='downstairs':kind==='upstairs');
+    const rise=(i:number)=>rising?5-i:i;
+    // Recess behind the high landing, tied to the architectural back/side wall.
+    if(side==='back'){
+      rect(0x2c4851,18,-61,29,41);
+      rect(0x1a343e,22,-57,20,31);
+      rect(0xa0b6a8,18,-61,29,3);
+      rect(0x6e8b84,43,-57,3,34);
+    }else{
+      rect(0x2d4850,-48,-46,26,47);
+      rect(0x162f38,-44,-42,20,41);
+      rect(0x9fb5a8,-48,-46,26,3);
+      rect(0x587773,-45,-39,2,35);
+    }
+    // Under-stair wall and 6 solid risers, all resting on the same floor.
+    rect(ink,-41,-4,88,7);
+    for(let i=0;i<6;i++){
+      const x=-37+i*13;
+      const top=-12-rise(i)*5;
+      rect(0x2f4a50,x,top,14,-top);
+      rect(0x6d7972,x+2,top+2,11,-top-2);
+      rect(0x9b927b,x,top,14,4);
+      rect(0xe2c99c,x,top,13,2);
+      rect(0x364f55,x+12,top+4,2,Math.max(1,-top-4));
+    }
+    const y0=-12-rise(0)*5,y5=-12-rise(5)*5;
+    line(0x354c51,-40,y0-10,40,y5-10,5);
+    line(stone,-40,y0-12,40,y5-12,3);
+    line(gold,-40,y0-13,40,y5-13,1);
+    for(const idx of [0,2,4,5]){
+      const xx=-37+idx*13;
+      const yy=-12-rise(idx)*5;
+      line(0x849994,xx,yy-11,xx,yy+3,2);
+    }
+    rect(0x2b4249,-44,-1,94,3);
+    rect(0x9baea3,-42,-2,90,1);
+    // A visible flat landing joins the return corridor at floor level.
+    rect(0x425b5e,38,-5,15,7);
+    rect(0xb5b39a,39,-6,13,2);
   }
-
   body.add(g);
-  const name=options.returning?'MAIN GYM':kind==='outdoor'?'YARD':
-    kind==='upstairs'?'UPSTAIRS':'DOWNSTAIRS';
-  const caption=scene.add.text(side==='left'?-8:side==='right'?8:0,-50,name,{
+  const caption=scene.add.text(0,-63,options.returning?'MAIN GYM':
+    kind==='outdoor'?'OUTSIDE':kind==='upstairs'?'UPSTAIRS':'DOWNSTAIRS',{
     fontFamily:'Arial',fontSize:'8px',color:'#f8e9ce',
     backgroundColor:'#28454a',padding:{x:3,y:2}
   }).setOrigin(.5).setVisible(false);
   body.add(caption);
-  const hit=scene.add.zone(side==='left'?-8:side==='right'?8:0,-11,
-    side==='back'?44:40,side==='back'?45:58)
-    .setInteractive({useHandCursor:true});
+  // Zones cover the actual art, not an unrelated on-floor invisible portal.
+  const hit=kind==='outdoor'
+    ?scene.add.zone(0,-12,80,79)
+    :scene.add.zone(0,-23,100,81);
+  hit.setInteractive({useHandCursor:true});
   hit.on('pointerover',()=>caption.setVisible(true));
   hit.on('pointerout',()=>caption.setVisible(false));
   hit.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
