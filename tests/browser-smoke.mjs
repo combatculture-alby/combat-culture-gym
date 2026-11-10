@@ -9,7 +9,7 @@ const url=origin+'/combat-culture-gym/';
 const saveKey='combat-culture-gym-living-preview-v1';
 const output='browser-artifacts';
 const server=spawn('npm',['run','dev','--','--host','127.0.0.1','--port',String(port),'--strictPort'],
-  {stdio:'pipe',detached:process.platform!=='win32',env:{...process.env,VITE_ISOLATE_SAVE:'1'}});
+  {stdio:'pipe',detached:process.platform!=='win32',env:{...process.env,VITE_ISOLATE_SAVE:'1',VITE_FULL_GYM_QA:'1'}});
 let serverOutput='';
 server.stdout.on('data',data=>serverOutput+=data.toString());
 server.stderr.on('data',data=>serverOutput+=data.toString());

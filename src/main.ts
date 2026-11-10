@@ -64,7 +64,10 @@ const initialStats=()=>STUDENT_NAMES.map(()=>[10,10,10,10]);
 const initialXP=()=>STUDENT_NAMES.map(()=>[0,0,0,0]);
 const initialGoals=()=>STUDENT_NAMES.map((_,i)=>[[20,0],[25,2],[20,3],[25,1]][i%4].slice());
 const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
-const SAVE_KEY = import.meta.env.VITE_GARAGE_PREVIEW === '1'
+const GARAGE_PREVIEW = import.meta.env.VITE_GARAGE_PREVIEW === '1';
+const GYM_LEVEL_LIMIT = GARAGE_PREVIEW || import.meta.env.VITE_FULL_GYM_QA === '1' ? GYM_LEVELS.length : 2;
+const nextGymLevel = (level:number) => level<GYM_LEVEL_LIMIT ? GYM_LEVELS[level] : undefined;
+const SAVE_KEY = GARAGE_PREVIEW
   ? 'combat-culture-gym-garage-preview-v1'
   : PLAYTEST ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
 const walkable = (x:number,y:number,level:number):boolean => {
@@ -87,7 +90,7 @@ function loadSave(): Save {
     const data: unknown = JSON.parse(raw);
     if (!data || typeof data !== 'object') throw Error('invalid');
     const s = data as Partial<Save>;
-    const level=normalizeGymLevel(s.gymLevel);
+    const level=Math.min(GYM_LEVEL_LIMIT,normalizeGymLevel(s.gymLevel));
     const enrolled=enrolledCount(s.enrolledStudents,level);
     const phase=normalizeGymPhase(s.gymPhase,true);
     const attendance=attendingIndices(enrolled,level,s.day??1).length;
@@ -1028,7 +1031,7 @@ class GymScene extends Phaser.Scene {
     this.scene.start('Seminar',{coachId,saveKey:SAVE_KEY});
   }
   private openDailyHubPlan():void {
-    const level=this.gymLevel(),next=GYM_LEVELS[level];
+    const level=this.gymLevel(),next=nextGymLevel(level);
     const collected=this.saveData.gatheredToday?.length||0;
     const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
     const classes=this.saveData.classesTaught||0;
@@ -1050,7 +1053,7 @@ class GymScene extends Phaser.Scene {
       'Day '+this.saveData.day+'   Classes '+(this.saveData.classesToday||0)+'/2   Trash cleaned '+collected+'/'+(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH),
       'Students '+this.students.length+'/'+studentCapacity(level)+
         '   Cash $'+this.saveData.money+'   REP '+this.saveData.reputation,
-      next?'Next: '+next.name+'   Expansion $'+next.cost:'Flagship academy unlocked. Keep building!',
+      next?'Next: '+next.name+'   Expansion $'+next.cost:'Highest gym level unlocked. Keep building!',
       next?'Requires REP '+next.reputation+' / '+this.saveData.reputation+
         '   Classes '+classes+'/'+next.classesTaught+
         '   Gear '+owned+'/'+next.gearOwned:
@@ -1340,11 +1343,11 @@ class GymScene extends Phaser.Scene {
   }
   private openExpansion():void {
     const level=this.gymLevel();
-    const current=GYM_LEVELS[level-1],next=GYM_LEVELS[level];
-    this.menuShell('GYM EXPANSION','LEVEL '+level+' / 5   '+current.name,()=>this.openGymUpgrades());
+    const current=GYM_LEVELS[level-1],next=nextGymLevel(level);
+    this.menuShell('GYM EXPANSION','LEVEL '+level+' / '+GYM_LEVEL_LIMIT+'   '+current.name,()=>this.openGymUpgrades());
     this.furniturePanel.add(this.add.text(86,77,'STUDENTS '+this.students.length+' / '+current.capacity+'   ON FLOOR '+this.activeStudents().length,{fontFamily:UI_FONT,fontSize:'12px',color:'#fff0d3'}));
     if(!next){
-      this.furniturePanel.add(this.add.text(86,111,'MAX LEVEL: COMBAT ACADEMY',{fontFamily:UI_FONT,fontSize:'11px',color:'#a9dfbd'}));
+      this.furniturePanel.add(this.add.text(86,111,'MAX LEVEL: '+current.name.toUpperCase(),{fontFamily:UI_FONT,fontSize:'11px',color:'#a9dfbd'}));
       return;
     }
     const owned=this.saveData.ownedGear?.filter(Boolean).length||0;
@@ -1467,7 +1470,7 @@ class GymScene extends Phaser.Scene {
   }
   private devToolsEnabled():boolean {
     // Explicit opt-in, only on the isolated garage preview, never production.
-    return window.location.pathname.includes('/garage/')&&
+    return GARAGE_PREVIEW&&window.location.pathname.includes('/garage/')&&
       new URLSearchParams(window.location.search).get('dev')==='1';
   }
   private openDevTools():void {

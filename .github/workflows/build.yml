@@ -22,6 +22,8 @@ jobs:
         run: npx playwright install chromium
       - name: Exercise garage progression in Chromium
         run: npm run test:browser
+      - name: Verify the two-level release build
+        run: node tests/release-smoke.mjs
       - name: Upload QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
