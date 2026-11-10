@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {GymCharacter} from './characters';
 import {DEFAULT_COACH,normalizeCoachAppearance} from './coachStyle';
 import {attendingIndices,STUDENT_NAMES} from './gymProgression';
+import {dailyHelpStudents,dailyShiftReady,DAILY_SHIFT_CASH,DAILY_SHIFT_REP} from './hubActivities';
 import {GymNavigation,type Point} from './navigation';
 import {ROOMS,normalizeRoom,roomTransition,studentRoom,unlockedRooms,type RoomId} from './gymRooms';
 import {normalizeRoomState,itemRoom,type RoomState} from './roomState';
@@ -19,9 +20,12 @@ type ExtraSave={
   furniture?:Furniture[];gearPositions?:Point[];gearStored?:boolean[];
   ownedGear?:boolean[];decorPositions?:Point[];decorStored?:boolean[];decorLevel?:number;
   coachAppearance?:unknown;roomState?:RoomState;
+  coachedToday?:number[];friendships?:number[];lastTalkDays?:number[];
+  studentXP?:number[][];studentStats?:number[][];studentGoals?:number[][];
+  classesToday?:number;gatheredToday?:number[];dailyShiftClaimed?:boolean;lifetimeEarnings?:number;
   [key:string]:unknown;
 };
-type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text};
+type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text;indicator:Phaser.GameObjects.Text;pose:'stretch'|'bag'|'lift'|'rest'|'shadow'|'drink'};
 const TRASH_POSITIONS:Point[]=[
   {x:98,y:125},{x:174,y:184},{x:259,y:137},
   {x:343,y:187},{x:123,y:185},{x:348,y:135}
@@ -464,18 +468,94 @@ export class GymRoomScene extends Phaser.Scene {
       const actor=new GymCharacter(this,spawn.x,spawn.y,1+(id%4));
       const chat=this.add.text(spawn.x,spawn.y-43,'',{fontFamily:'Arial',fontSize:'9px',color:'#233d42',
         backgroundColor:'#f8ebd6',padding:{x:5,y:2}}).setOrigin(.5,1).setVisible(false).setDepth(34);
-      const npc:RoomStudent={id,actor,goal:{...spawn},pause:seed*.7+1,chat};
+      const indicator=this.add.text(spawn.x,spawn.y-40,'?',{fontFamily:'Arial',fontSize:'12px',
+        color:'#f9e9c9',backgroundColor:'#5d6650',padding:{x:3,y:1}})
+        .setOrigin(.5).setDepth(35).setVisible(this.canCoach(id));
+      const npc:RoomStudent={id,actor,goal:{...spawn},pause:seed*.7+1,chat,indicator,pose:'shadow'};
       actor.body.setSize(28,40).setInteractive(new Phaser.Geom.Rectangle(-14,-39,28,40),Phaser.Geom.Rectangle.Contains);
       actor.body.on('pointerdown',()=>this.talkTo(npc));
       this.students.push(npc);
     }
   }
   private talkTo(npc:RoomStudent):void {
+    if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,
+      npc.actor.body.x,npc.actor.body.y)>48){
+      this.walkTo({x:npc.actor.body.x,y:npc.actor.body.y});
+      this.notice('Walk closer to '+STUDENT_NAMES[npc.id]+' to help or talk.');return;
+    }
+    if(this.canCoach(npc.id)){this.openCoaching(npc);return;}
     const lines=['Ready for training!','Working on my technique.','Nice gym, coach.','One more round!'];
     npc.chat.setText(STUDENT_NAMES[npc.id]+': '+lines[(npc.id+(this.save.day||1))%lines.length])
       .setPosition(npc.actor.body.x,npc.actor.body.y-43).setVisible(true);
     this.time.delayedCall(2200,()=>npc.chat?.setVisible(false));
     npc.pause=2.5;npc.actor.animate('talk',0.1);
+  }
+  private canCoach(id:number):boolean {
+    const present=attendingIndices(Number(this.save.enrolledStudents)||4,this.level,
+      Number(this.save.day)||1);
+    return this.save.gymPhase==='open'&&
+      dailyHelpStudents(present,Number(this.save.day)||1).includes(id)&&
+      !(this.save.coachedToday||[]).includes(id)&&
+      (this.save.coachedToday||[]).length<2;
+  }
+  private openCoaching(npc:RoomStudent):void {
+    if(this.inventoryPanel||!this.canCoach(npc.id))return;
+    const panel=this.add.container(0,0).setDepth(65);
+    this.inventoryPanel=panel;
+    panel.add(this.add.rectangle(240,142,422,157,0x243e44).setStrokeStyle(2,0xd5b588).setInteractive());
+    const goal=this.save.studentGoals?.[npc.id]||[0,0];
+    const statName=['STRIKING','SPEED','STRENGTH','CONDITIONING'][goal[1]]||'STRIKING';
+    panel.add(this.add.text(240,86,STUDENT_NAMES[npc.id].toUpperCase()+' NEEDS HELP',{
+      fontFamily:'Arial',fontSize:'13px',color:'#f6e4bc'
+    }).setOrigin(.5));
+    const choose=(x:number,label:string,kind:'goal'|'bond')=>{
+      const button=this.add.text(x,135,label,{fontFamily:'Arial',fontSize:'10px',
+        color:'#f6e4bc',backgroundColor:'#396a62',padding:{x:10,y:9}})
+        .setOrigin(.5).setInteractive({useHandCursor:true});
+      button.on('pointerdown',()=>{this.closeInventory();this.coachStudent(npc,kind);});
+      panel.add(button);
+    };
+    choose(150,'COACH '+statName+'  +25 XP','goal');
+    choose(341,'ENCOURAGE  +3 BOND','bond');
+    const cancel=this.add.text(240,180,'CANCEL',{fontFamily:'Arial',fontSize:'10px',
+      color:'#f6e4bc',backgroundColor:'#644c45',padding:{x:9,y:5}}).setOrigin(.5).setInteractive();
+    cancel.on('pointerdown',()=>this.closeInventory());panel.add(cancel);
+  }
+  private coachStudent(npc:RoomStudent,kind:'goal'|'bond'):void {
+    const id=npc.id;
+    if(!this.canCoach(id))return;
+    this.save.coachedToday??=[];
+    this.save.coachedToday.push(id);
+    this.save.friendships??=[];
+    this.save.friendships[id]=(this.save.friendships[id]||0)+(kind==='bond'?3:1);
+    if(kind==='goal'){
+      const stat=Math.max(0,Math.min(3,this.save.studentGoals?.[id]?.[1]||0));
+      const total=Math.max(Number(this.save.enrolledStudents)||4,id+1);
+      this.save.studentStats??=Array.from({length:total},()=>[10,10,10,10]);
+      this.save.studentXP??=Array.from({length:total},()=>[0,0,0,0]);
+      this.save.studentStats[id]??=[10,10,10,10];
+      this.save.studentXP[id]??=[0,0,0,0];
+      let level=this.save.studentStats[id][stat]||10;
+      let xp=(this.save.studentXP[id][stat]||0)+25;
+      const threshold=(n:number)=>n<20?30:n<40?55:n<60?90:n<80?140:220;
+      while(level<100&&xp>=threshold(level)){xp-=threshold(level);level++;}
+      this.save.studentStats[id][stat]=level;
+      this.save.studentXP[id][stat]=level>=100?0:xp;
+    }
+    this.save.reputation=(this.save.reputation||0)+1;
+    if(dailyShiftReady(this.save.coachedToday.length,
+      this.save.gatheredToday?.length||0,this.save.classesToday||0,
+      this.save.dailyShiftClaimed===true,
+      Math.min(2,attendingIndices(Number(this.save.enrolledStudents)||4,this.level,
+        Number(this.save.day)||1).length))){
+      this.save.dailyShiftClaimed=true;
+      this.save.money=(this.save.money||0)+DAILY_SHIFT_CASH;
+      this.save.lifetimeEarnings=(this.save.lifetimeEarnings||0)+DAILY_SHIFT_CASH;
+      this.save.reputation=(this.save.reputation||0)+DAILY_SHIFT_REP;
+    }
+    this.writeSave();this.updateStatus();
+    this.notice(STUDENT_NAMES[id]+': Thanks, coach! '+(kind==='goal'?'+25 training XP.':'+3 bond.'));
+    npc.indicator.setVisible(false);
   }
   private interactNearby():void {
     if(this.movingItem){this.placeAt(this.coach.body.x+34,this.coach.body.y);return;}
@@ -542,15 +622,29 @@ export class GymRoomScene extends Phaser.Scene {
     }
     if(this.inventoryPanel||this.movingItem)return;
     for(const npc of this.students){
-      if(npc.pause>0){npc.pause-=dt;npc.actor.animate('stretch',dt);}
+      if(npc.pause>0){npc.pause-=dt;npc.actor.animate(npc.pose,dt);}
       else{
         const body=npc.actor.body;
         const dist=Phaser.Math.Distance.Between(body.x,body.y,npc.goal.x,npc.goal.y);
         if(dist<3){
           npc.pause=2+Math.random()*4;
-          for(let tryNo=0;tryNo<8;tryNo++){
-            const goal={x:80+Math.random()*320,y:124+Math.random()*70};
-            if(this.canStand(goal.x,goal.y)){npc.goal=goal;break;}
+          const nearby=this.displayItems.filter(item=>item.kind!=='decor');
+          const selected=nearby.length?nearby[Math.floor(Math.random()*nearby.length)]:null;
+          if(selected){
+            const b=footprint(selected);
+            const goal={x:selected.x+b.rx+14,y:selected.y};
+            if(this.canStand(goal.x,goal.y)){
+              npc.goal=goal;
+              npc.pose=selected.kind==='furniture'&&selected.typeId===3?'drink':
+                selected.kind==='furniture'&&selected.typeId===1?'rest':
+                selected.kind==='gear'&&selected.index>=4?'lift':'bag';
+            }
+          }else npc.pose='shadow';
+          if(Math.hypot(npc.goal.x-body.x,npc.goal.y-body.y)<3){
+            for(let tryNo=0;tryNo<8;tryNo++){
+              const goal={x:80+Math.random()*320,y:124+Math.random()*70};
+              if(this.canStand(goal.x,goal.y)){npc.goal=goal;npc.pose='shadow';break;}
+            }
           }
           npc.actor.animate('rest',dt);
         }else{
@@ -561,6 +655,8 @@ export class GymRoomScene extends Phaser.Scene {
         }
       }
       npc.chat.setPosition(npc.actor.body.x,npc.actor.body.y-43);
+      npc.indicator.setPosition(npc.actor.body.x,npc.actor.body.y-39)
+        .setVisible(this.canCoach(npc.id));
     }
   }
 }
