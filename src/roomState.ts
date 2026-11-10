@@ -1,4 +1,4 @@
-import {normalizeRoom,roomUnlocked,type RoomId,type RoomPoint} from './gymRooms';
+import {normalizeRoom,roomUnlocked,type RoomId,type RoomPoint} from './gymRooms.ts';
 
 export type RoomItemLocation={room:RoomId;x:number;y:number};
 export type RoomState={
