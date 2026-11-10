@@ -34,3 +34,14 @@ test('main mat no longer expands past level two',()=>{
   const lines=progression.split('\n').filter(line=>line.includes('left:55,right:294,top:93,bottom:200'));
   assert.equal(lines.length,4);
 });
+
+test('main room filters out equipment assigned to other rooms',()=>{
+  assert.match(main,/itemRoom\(this\.saveData\.roomState\?\.furnitureRooms,i,this\.gymLevel\(\)\)!=='main'/);
+  assert.match(main,/itemRoom\(this\.saveData\.roomState\?\.gearRooms,i,this\.gymLevel\(\)\)!=='main'/);
+});
+test('secondary room supports storing and placing owned inventory',()=>{
+  assert.match(scene,/private drawRoomInventory/);
+  assert.match(scene,/private saveRoomItem/);
+  assert.match(scene,/state\.furnitureRooms\[item\.index\]=this\.current/);
+  assert.match(scene,/state\.gearRooms\[item\.index\]=this\.current/);
+});
