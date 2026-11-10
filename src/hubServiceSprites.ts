@@ -125,12 +125,13 @@ export function paintHubFixture(
     if(urgent)px(0xe8b768,10,-24,4,4);
     return;
   }
-  // Physical mop, leaning in its bucket/caddy. The handle stays visible.
-  px(0x183037,-15,17,31,4,.3);
-  px(0xeee0ad,4,-33,4,48);
-  px(0x315f68,3,-36,6,5);
-  px(0xf2e8d0,-1,12,14,4);
-  for(let i=0;i<4;i++)px(0xf3e7c5,-3+i*4,15,3,5);
+  // Mop and bucket are distinct objects: angled wooden shaft and pale cotton head.
+  px(0x183037,-15,20,31,3,.3);
+  g.lineStyle(3,0xe4cb93).lineBetween(4,-33,-8,12);
+  g.lineStyle(1,0x8b704b).lineBetween(6,-33,-6,10);
+  px(0x335d65,2,-36,6,5);
+  px(0xe8e0c9,-15,9,15,4);
+  for(let i=0;i<5;i++)px(i%2?0xe5d7b6:0xf5e8cb,-15+i*3,12,2,10);
   if(tier===1){
     px(0x253c47,-12,4,21,15);
     px(0xe1b54f,-10,6,17,11);
