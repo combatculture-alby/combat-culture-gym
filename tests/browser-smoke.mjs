@@ -105,7 +105,7 @@ try{
   // Separate screenshots for every tier. Read pixels from the baked
   // texture rather than trusting that a differently named texture exists.
   const themePixels=new Set();
-  for(const [level,capacity] of [[1,4],[2,6],[3,10],[4,16],[5,24]]){
+  for(const [level,capacity] of [[1,4],[2,6],[3,8],[4,10],[5,12]]){
     await openScenario('layout-level-'+level,sampleSave({
       gymLevel:level,enrolledStudents:capacity,
       friendships:Array(capacity).fill(0),skills:Array(capacity).fill(0),money:1000
@@ -177,8 +177,8 @@ try{
     assert.equal(state.originalWideMat,true,'Original Level 3 mat must be placeable');
   });
   await openScenario('flagship-receptionist',sampleSave({
-    gymLevel:5,enrolledStudents:24,friendships:Array(24).fill(0),
-    skills:Array(24).fill(0)
+    gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
+    skills:Array(12).fill(0)
   }),async page=>{
     const state=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
@@ -551,8 +551,8 @@ try{
 
   for(const level of [1,5]){
     await openScenario('hub-supplies-level-'+level,sampleSave({
-      gymLevel:level,enrolledStudents:level===1?4:24,
-      friendships:Array(level===1?4:24).fill(0),skills:Array(level===1?4:24).fill(0),
+      gymLevel:level,enrolledStudents:level===1?4:12,
+      friendships:Array(level===1?4:12).fill(0),skills:Array(level===1?4:12).fill(0),
       materials:[0,0,0],gatheredToday:[]
     }),async page=>{
       const gathered=await page.evaluate(()=>{
@@ -832,9 +832,9 @@ try{
   for(const level of [1,3,5]){
     await openScenario('level-'+level+'-physical-service-props',sampleSave({
       gymLevel:level,money:300,phoneCallsSpawned:0,
-      enrolledStudents:level===1?4:level===3?10:24,
-      friendships:Array(level===1?4:level===3?10:24).fill(0),
-      skills:Array(level===1?4:level===3?10:24).fill(0)
+      enrolledStudents:level===1?4:level===3?8:12,
+      friendships:Array(level===1?4:level===3?8:12).fill(0),
+      skills:Array(level===1?4:level===3?8:12).fill(0)
     }),async page=>{
       const info=await page.evaluate(()=>{
         const s=window.__combatGym.scene.getScene('Gym');
@@ -1463,11 +1463,11 @@ try{
     assert.equal(valid.outside,false);
   });
 
-  await openScenario('level-5-attendance',sampleSave({gymLevel:5,enrolledStudents:24,
-    friendships:Array(24).fill(0),skills:Array(24).fill(0),money:99999,day:2}),async page=>{
+  await openScenario('level-5-attendance',sampleSave({gymLevel:5,enrolledStudents:12,
+    friendships:Array(12).fill(0),skills:Array(12).fill(0),money:99999,day:2}),async page=>{
     const state=await sceneState(page);
     assert.equal(state.level,5);
-    assert.equal(state.enrolled,24);
+    assert.equal(state.enrolled,12);
     assert.equal(state.activeNames.length,8);
     assert.equal(state.activeNames[0],'Sam');
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').toggleRoster());
@@ -1538,7 +1538,7 @@ try{
     await page.screenshot({path:output+'/mobile-garage.png',fullPage:true});
   }finally{await mobile.close();}
 
-  console.log('Browser smoke passed: five distinct levels, garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 24-student roster, rotating crowded NPCs, and mobile touch.');
+  console.log('Browser smoke passed: five distinct levels, garage, menu, placement bounds, class timetable, recruitment/save, expansion/save, 12-student roster, rotating crowded NPCs, and mobile touch.');
 }catch(error){
   console.error(error);
   process.exitCode=1;
