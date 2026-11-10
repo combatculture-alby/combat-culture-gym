@@ -264,8 +264,8 @@ export class GymRoomScene extends Phaser.Scene {
     if(destination==='main'){
       // Each return point is inside the unchanged Level 2-sized main mat,
       // never in the wall, reception fixtures or a locked service corridor.
-      const approaches:Record<'outdoor'|'upstairs'|'downstairs',Point>={
-        outdoor:{x:86,y:153},upstairs:{x:273,y:144},downstairs:{x:85,y:191}
+      const approaches:Record<RoomId,Point>={
+        main:{x:170,y:150},outdoor:{x:86,y:153},upstairs:{x:273,y:144},downstairs:{x:85,y:191}
       };
       this.roomState.playerPositions.main=approaches[this.current];
     }
