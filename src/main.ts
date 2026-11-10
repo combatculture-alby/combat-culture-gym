@@ -1281,7 +1281,7 @@ class GymScene extends Phaser.Scene {
   private openGymUpgrades():void {
     if(this.running||this.isPlacing())return;
     this.clearIntent();
-    this.menuShell('MANAGE GYM','Manage supplies, upgrades and the daily opening / closing cycle.');
+    this.menuShell('MANAGE GYM','RUN YOUR GYM: TRAIN, RESTOCK, MAINTAIN AND GROW.');
     const actions:[string,()=>void][]=[
       ['TRAINING GEAR',()=>this.openGearShop()],
       ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.showRosterPage();}],
@@ -1648,7 +1648,7 @@ class GymScene extends Phaser.Scene {
     const programIndex=plan[slot]??0;
     const program=CLASS_PROGRAMS[programIndex];
     const editable=slot>=finished&&!this.running;
-    this.menuShell('CLASS SCHEDULE','PLAN TWO SESSIONS. CLASSES RUN IN ORDER.',()=>this.openTrainingBoard());
+    this.menuShell('CLASS SCHEDULE','SET AM / PM PROGRAMS. TEACH UP TO TWO CLASSES DAILY.',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((option,i)=>{
       const selected=i===programIndex;
       this.panelButton(this.furniturePanel,(selected?'• ':'')+option.name,84,73+i*31,142,27,()=>{
@@ -2335,11 +2335,11 @@ class GymScene extends Phaser.Scene {
     const phase=this.dayPhase(),present=this.activeStudents().length;
     const label=phase==='opening'?'OPEN GYM':phase==='open'?'CLOSE GYM':
       present>0?'LEAVING...':'NEXT DAY';
-    this.phaseActionText?.setText(label);
+    this.phaseActionText?.setText(phase==='open'&&(this.saveData.classesToday||0)<1?'TEACH FIRST':label);
     if(!this.running)this.modeLabel?.setText(phase==='opening'?'OPENING PREP':
       phase==='open'?'GYM OPEN':'CLOSING PREP');
     this.phaseStatus?.setText(phase==='opening'?'OPENING PREP / EMPTY GYM':
-      phase==='open'?'OPEN / '+present+' STUDENTS PRESENT':
+      phase==='open'?'OPEN / '+present+' PRESENT / '+(this.saveData.classesToday||0)+'/2 CLASSES':
       present>0?'CLOSING / '+present+' STUDENTS LEAVING':
       'CLOSING PREP / READY FOR TOMORROW');
   }
