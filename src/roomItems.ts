@@ -14,11 +14,26 @@ export const ROOM_FLOOR={left:36,right:444,top:101,bottom:211} as const;
 export function roomFloor(room:RoomId){
   return room==='main'?ROOM_FLOOR:ROOMS.find(r=>r.id===room)!.bounds;
 }
+/** Secondary rooms have full-width circulation space around the central mat.
+ * Only roomFloor() is buildable. Walk bounds must never be used for placement.
+ */
+export function roomWalkBounds(room:RoomId){
+  return room==='main'?ROOM_FLOOR:{left:16,right:464,top:109,bottom:221};
+}
+/** Permanent wall-mounted side fixtures occupy a little of the perimeter.
+ * They are not equipment or training space and cannot be walked through.
+ */
+const fixedFurniture:Record<RoomId,readonly {left:number;right:number;top:number;bottom:number}[]>={
+  main:[],
+  outdoor:[{left:19,right:64,top:113,bottom:147},{left:412,right:455,top:112,bottom:140}],
+  upstairs:[{left:19,right:81,top:112,bottom:141},{left:398,right:453,top:112,bottom:142}],
+  downstairs:[{left:18,right:79,top:111,bottom:140},{left:409,right:457,top:111,bottom:146}]
+};
 const blocked:{[key in RoomId]:RoomPoint[]}={
   main:[],
-  outdoor:[{x:368,y:168}],
-  upstairs:[{x:120,y:170}],
-  downstairs:[{x:111,y:171}],
+  outdoor:[{x:433,y:165}],
+  upstairs:[{x:68,y:169}],
+  downstairs:[{x:68,y:170}],
 };
 export function footprint(item:RoomFixture):Bounds {
   if(item.kind==='gear')return GEAR_BOUNDS[item.index]||{rx:14,ry:12};
@@ -60,9 +75,11 @@ export function firstOpenSpot(item:RoomFixture,others:RoomFixture[],room:RoomId)
   return null;
 }
 export function canWalkInRoom(point:RoomPoint,items:RoomFixture[],room:RoomId='outdoor'):boolean {
-  const floor=roomFloor(room);
+  const floor=roomWalkBounds(room);
   if(point.x<floor.left+7||point.x>floor.right-7||
     point.y<floor.top+4||point.y>floor.bottom-4)return false;
+  if(fixedFurniture[room].some(r=>point.x>r.left-6&&point.x<r.right+6&&
+      point.y>r.top-4&&point.y<r.bottom+6))return false;
   return items.every(item=>{
     const b=footprint(item);
     return Math.abs(point.x-item.x)>=b.rx+8||Math.abs(point.y-item.y)>=b.ry+5;
