@@ -24,3 +24,17 @@ export function canCloseInPhase(phase:GymPhase,classesToday:number):boolean {
 export function canAdvanceDay(phase:GymPhase,arrived:number):boolean {
   return phase==='closing'&&arrived===0;
 }
+
+/** Daily services persist; only deliveries and per-day counters reset overnight. */
+export function overnightSupplies(stock:number[],pending:number[]):number[]{
+  return Array.from({length:4},(_,i)=>{
+    const available=Number.isFinite(stock?.[i])?Math.max(0,Math.floor(stock[i])):0;
+    const ordered=Number.isFinite(pending?.[i])?Math.max(0,Math.floor(pending[i])):0;
+    return Math.min(99,available+ordered);
+  });
+}
+
+/** A day cannot be skipped while students are still on the floor. */
+export function canCompleteDay(phase:GymPhase,arrived:number,classesToday:number):boolean {
+  return canAdvanceDay(phase,arrived)&&classesToday>=1;
+}
