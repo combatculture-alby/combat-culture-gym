@@ -40,8 +40,9 @@ test('main room filters out equipment assigned to other rooms',()=>{
   assert.match(main,/itemRoom\(this\.saveData\.roomState\?\.gearRooms,i,this\.gymLevel\(\)\)!=='main'/);
 });
 test('secondary room supports storing and placing owned inventory',()=>{
-  assert.match(scene,/private drawRoomInventory/);
-  assert.match(scene,/private saveRoomItem/);
-  assert.match(scene,/state\.furnitureRooms\[item\.index\]=this\.current/);
-  assert.match(scene,/state\.gearRooms\[item\.index\]=this\.current/);
+  assert.match(scene,/private inventoryOptions/);
+  assert.match(scene,/private storeSelected/);
+  assert.match(scene,/private placeAt/);
+  assert.match(scene,/this\.roomState\.furnitureRooms\[chosen\.index\]=this\.current/);
+  assert.match(scene,/this\.roomState\.gearRooms\[chosen\.index\]=this\.current/);
 });
