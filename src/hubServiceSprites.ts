@@ -41,7 +41,8 @@ export function paintHubFixture(
     return;
   }
   if(type==='water'){
-    px(0x142c32,-13,20,26,5,.18);
+    // Slim cooler silhouette; the invisible interaction zone stays generous.
+    px(0x142c32,-11,20,22,4,.18);
     if(tier===1){
       // Budget jug on a narrow plastic stand and drip tray.
       px(0x42575b,-10,-4,20,23);
