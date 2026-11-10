@@ -71,9 +71,59 @@ export function paintCompactRoom(scene:Phaser.Scene,room:RoomId):void {
       block(0x7a9b9d,x+2,90,5,19);
     }
   }
+  // Non-buildable wings are part of the same architecture as the mat,
+  // not empty wallpaper flanking an isolated black-bordered room box.
+  if(room==='outdoor'){
+    // Left tool shed with slatted doors; right sitting/planting edge.
+    block(0x294f4c,11,132,50,65);
+    block(0x769687,14,135,44,57);
+    for(let x=18;x<57;x+=9)block(0x4d7168,x,138,4,50);
+    block(0xc0b893,12,133,47,3);
+    block(0x293f40,29,163,4,5);
+    block(0x476b60,411,165,58,7);
+    block(0xb6ad8b,413,165,54,4);
+    for(const x of [418,462])block(0x38544c,x,170,4,22);
+    block(0x4d735c,420,145,36,19);
+    for(const [x,y] of [[423,142],[438,138],[453,144]])
+      g.fillStyle(0x83a17b).fillEllipse(x,y,21,17);
+    block(0x3b625a,0,f.bottom+8,480,5);
+    block(0x8eab95,0,f.bottom+8,480,2);
+  }else if(room==='upstairs'){
+    // Side lockers, low seating and the continuation of the loft rail.
+    block(0x304e56,12,154,65,49);
+    block(0x82969a,16,156,57,44);
+    for(let x=18;x<72;x+=18){
+      block(0x42656b,x,159,16,38);
+      block(0xa8bcb5,x+3,163,10,2);
+      block(0xcab48d,x+12,178,2,4);
+    }
+    block(0x344f55,406,174,62,20);
+    block(0x9c7c63,410,175,54,8);
+    block(0xc9ad83,410,175,54,3);
+    for(const x of [416,457])block(0x455b5c,x,183,4,17);
+    block(0x405f66,0,211,480,6);
+    block(0xbda98a,0,211,480,2);
+  }else{
+    // Utility/storage wings outside the basement's placing footprint.
+    block(0x273e44,13,125,58,82);
+    for(const y of [132,159,186]){
+      block(0x8e9c96,16,y,52,3);
+      for(const x of [22,42,57])block(0x526c6a,x,y-16,9,15);
+    }
+    block(0x364f53,409,146,60,59);
+    block(0x8e9992,414,149,50,51);
+    for(let x=417;x<462;x+=15){
+      block(0x46636a,x,152,13,44);
+      block(0xb7b9aa,x+2,157,9,2);
+    }
+    block(0x36474b,0,215,480,6);
+    block(0xa9a496,0,215,480,2);
+  }
   const left=f.left-18,right=f.right+18,top=f.top-54,bottom=f.bottom+12;
-  block(0x0f252b,left-6,top-5,right-left+12,bottom-top+9);
-  block(p.shadow,left,top,right-left,bottom-top);
+  // A thin structural reveal replaces the heavy black frame: the side
+  // architecture continues up to the room instead of a boxed-in cutout.
+  block(p.shadow,left-3,top-2,right-left+6,bottom-top+4);
+  block(p.wall,left,top,right-left,bottom-top);
   block(p.wall,left+6,top+4,right-left-12,f.top-top-4);
   block(p.ground,left+4,f.top-4,right-left-8,f.bottom-f.top+15);
   // Ceiling / support walls cast shadows behind characters.
