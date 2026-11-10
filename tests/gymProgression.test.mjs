@@ -75,11 +75,13 @@ test('reception and community board are progressively upgraded with the room',()
     assert.ok(bigger.board.h>smaller.board.h,'Community board must get taller');
     assert.ok(bigger.desk.w>smaller.desk.w,'Reception desk must physically grow');
     assert.ok(bigger.desk.h>=smaller.desk.h,'Reception desk must not shrink');
-    assert.ok(bigger.room.left<=smaller.room.left,'Room must open toward left');
-    assert.ok(bigger.room.right>=smaller.room.right,'Room must open toward right');
+    assert.ok(bigger.room.left<=smaller.room.left,'Room must not shrink');
+    assert.ok(bigger.room.right>=smaller.room.right,'Room must not shrink');
+    if(i>=2)assert.deepEqual(bigger.room,services[1].room,
+      'Levels 3 to 5 unlock new rooms rather than enlarging the main room');
   }
-  assert.deepEqual(services[2].board,{x:344,y:50,w:112,h:65},'Level 3 restores the original board');
-  assert.deepEqual(services[2].desk,{x:388,y:181,w:82,h:39},'Level 3 restores the original reception');
+  assert.deepEqual(services[2].board,{x:347,y:50,w:112,h:65},'Level 3 upgrades the board without resizing the room');
+  assert.deepEqual(services[2].desk,{x:378,y:181,w:82,h:39},'Level 3 upgrades reception inside Level 2 walls');
   assert.ok(services[0].board.w<=70&&services[0].desk.w<=50,'Garage must look makeshift');
   assert.ok(services[4].desk.w>=100,'Flagship must have a real reception counter');
   for(const layout of services){
