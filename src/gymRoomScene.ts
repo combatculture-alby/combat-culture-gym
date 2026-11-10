@@ -724,8 +724,12 @@ export class GymRoomScene extends Phaser.Scene {
         }else{
           const step=Math.min(dist,27*dt),dx=npc.goal.x-body.x,dy=npc.goal.y-body.y;
           const nx=body.x+dx/dist*step,ny=body.y+dy/dist*step;
-          if(this.canStand(nx,ny)){npc.actor.face(dx,dy);npc.actor.place(nx,ny);npc.actor.animate('walk',dt);}
-          else npc.pause=.3;
+          const clear=this.canStand(nx,ny)&&
+            this.students.every(other=>other===npc||
+              Math.abs(other.actor.body.x-nx)>16||Math.abs(other.actor.body.y-ny)>11)&&
+            Math.hypot(this.coach.body.x-nx,this.coach.body.y-ny)>16;
+          if(clear){npc.actor.face(dx,dy);npc.actor.place(nx,ny);npc.actor.animate('walk',dt);}
+          else{npc.goal={x:body.x,y:body.y};npc.pause=1;}
         }
       }
       npc.chat.setPosition(npc.actor.body.x,npc.actor.body.y-43);
