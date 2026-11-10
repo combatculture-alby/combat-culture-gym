@@ -1024,7 +1024,9 @@ class GymScene extends Phaser.Scene {
     button(this.dayPhase()==='opening'?'SET CLASS PLAN':'TEACH NEXT CLASS',84,158,()=>this.openClassSchedule(),(this.saveData.classesToday||0)>=2);
     button('CLEAN THE GYM',245,158,()=>this.collectNextSupply(),collected>=(this.saveData.trashSpawnedToday??INITIAL_DAILY_TRASH));
     button('EXPAND GYM',84,188,()=>this.openExpansion(),!next);
-    button(this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();},this.dayPhase()==='closing'&&(this.saveData.arrivedCount??0)>0);
+    button(this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',245,188,()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();},
+      this.dayPhase()==='open'?(this.saveData.classesToday||0)<1:
+      this.dayPhase()==='closing'&&!canCompleteDay(this.dayPhase(),this.saveData.arrivedCount??0,this.saveData.classesToday||0));
   }
   private addButton(x:number,y:number,w:number,h:number,label:string,fn:()=>void,primary=false):Phaser.GameObjects.Container {
     const bg=this.add.rectangle(0,0,w,h,primary?0x426c62:0x294f52).setOrigin(0).setStrokeStyle(1,primary?0xe2c285:0x77958c).setInteractive({useHandCursor:true});
@@ -1282,7 +1284,7 @@ class GymScene extends Phaser.Scene {
     this.menuShell('MANAGE GYM','Manage supplies, upgrades and the daily opening / closing cycle.');
     const actions:[string,()=>void][]=[
       ['TRAINING GEAR',()=>this.openGearShop()],
-      ['DECORATIONS',()=>this.openUpgradePurchase('decor')],
+      ['STUDENT ROSTER',()=>{this.furniturePanel.setVisible(false);this.showRosterPage();}],
       ['FURNITURE SHOP',()=>this.openFurniture('shop')],
       ['BUILD / ARRANGE',()=>this.openFurniture('build')],
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
@@ -1645,7 +1647,7 @@ class GymScene extends Phaser.Scene {
     const slot=this.selectedSlot;
     const programIndex=plan[slot]??0;
     const program=CLASS_PROGRAMS[programIndex];
-    const editable=slot>=finished;
+    const editable=slot>=finished&&!this.running;
     this.menuShell('CLASS SCHEDULE','PLAN TWO SESSIONS. CLASSES RUN IN ORDER.',()=>this.openTrainingBoard());
     CLASS_PROGRAMS.forEach((option,i)=>{
       const selected=i===programIndex;
@@ -1668,10 +1670,11 @@ class GymScene extends Phaser.Scene {
       },false,selected?0x527f74:0x355b5d);
     });
     const matchingGear=this.matchingClassGear(program.stats);
-    const earnings=classEarnings(this.gymLevel(),this.activeStudents().length,matchingGear,this.saveData.equipment||0);
+    const attendance=this.activeStudents().length;
+    const earnings=attendance>0?classEarnings(this.gymLevel(),attendance,matchingGear,this.saveData.equipment||0):0;
     this.furniturePanel.add(this.add.text(239,137,program.stats.map(k=>CORE_STATS[k]).join(' + '),
       {fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:152}}));
-    this.furniturePanel.add(this.add.text(239,160,'BASE $'+earnings+'   REP 1-4   GEAR '+matchingGear,
+    this.furniturePanel.add(this.add.text(239,160,(attendance?'BASE $'+earnings:'AWAIT STUDENTS')+'   REP 1-4   GEAR '+matchingGear,
       {fontFamily:UI_FONT,fontSize:'9px',color:'#aee0b0'}));
     const ready=finished<2&&slot===finished&&canTeachInPhase(this.dayPhase(),this.activeStudents().length);
     const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':
