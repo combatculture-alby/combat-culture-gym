@@ -46,3 +46,20 @@ test('mat condition and save normalization are bounded',()=>{
   assert.equal(normalizePercent(-9),0);
   assert.equal(normalizePercent(43.9),43);
 });
+
+
+test('malformed equipment and service counters never poison the daily loop',()=>{
+  assert.equal(gearActive(true,false,NaN,100),false);
+  assert.equal(gearActive(true,false,100,NaN),false);
+  assert.equal(gearActive(true,false,Infinity,100),false);
+  assert.equal(maintenanceWear(NaN,24),0);
+  assert.equal(maintenanceWear(80,NaN),80);
+  assert.equal(maintenanceWear(80,Infinity),80);
+  assert.equal(recharge(NaN,50),50);
+  assert.equal(recharge(50,Infinity),50);
+  assert.equal(discountRecruitment(NaN,1),0);
+  assert.equal(discountRecruitment(100,Infinity),100);
+  assert.equal(availablePhoneCalls(NaN,NaN),0);
+  assert.equal(availablePhoneCalls(Infinity,0),0);
+  assert.equal(availablePhoneCalls(2,NaN),2);
+});
