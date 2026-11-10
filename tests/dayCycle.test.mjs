@@ -80,3 +80,14 @@ test('class payout preview never counts students who have not arrived',()=>{
   assert.equal(classAttendanceForPreview('open',10,6),6);
   assert.equal(classAttendanceForPreview('open',NaN,6),0);
 });
+
+
+test('corrupted attendance never yields NaN or an over-capacity arrival count',()=>{
+  for(const attendance of [NaN,Infinity,-Infinity,-3]){
+    assert.equal(normalizeArrivalCount(undefined,'open',attendance),0);
+    assert.equal(normalizeArrivalCount(5,'open',attendance),0);
+  }
+  assert.equal(normalizeArrivalCount(undefined,'open',4.9),4);
+  assert.equal(normalizeArrivalCount(20,'open',4.9),4);
+  assert.equal(normalizeArrivalCount(-3,'closing',8),0);
+});
