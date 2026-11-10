@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type {RoomFixture} from './roomItems';
-import {itemLabel} from './roomItems';
+import {footprint,itemLabel} from './roomItems';
 
 /** One pixel-art scale across equipment and 40px character sprites.
  * The feet/ground contact is always local 0,0.
@@ -10,7 +10,8 @@ export function paintRoomFixture(g:Phaser.GameObjects.Graphics,item:RoomFixture)
   const line=(color:number,x1:number,y1:number,x2:number,y2:number,width=2)=>g.lineStyle(width,color).lineBetween(x1,y1,x2,y2);
   const ring=(x:number,y:number,r:number,color:number,width=2)=>g.lineStyle(width,color).strokeCircle(x,y,r);
   const body=0x4a5a5c,edge=0x283e44,metal=0xc3c9b9,red=0xa35049,gold=0xc9ab73,wood=0x987450;
-  g.fillStyle(0x112d34,.3).fillEllipse(0,3,32,9);
+  const fp=footprint(item);
+  g.fillStyle(0x112d34,.28).fillEllipse(0,3,Math.max(14,fp.rx*2+5),Math.max(6,fp.ry*.65));
   if(item.kind==='gear'){
     switch(item.index){
       case 0: // hanging bag: chain, dark rim, red pad and stitch
@@ -91,11 +92,24 @@ export function paintRoomFixture(g:Phaser.GameObjects.Graphics,item:RoomFixture)
       default: rect(body,-10,-20,20,19);
     }
   }else if((item.typeId??item.index)===2){
-    rect(wood,-8,-11,16,12);rect(0x466a50,-6,-16,12,8);
-    for(const x of [-8,0,7]){g.fillStyle(0x6b9670).fillCircle(x,-19,6);}
+    // Potted plant at human knee height, in a visible, grounded clay planter.
+    rect(edge,-9,-10,18,10);rect(0xad7955,-7,-10,14,9);
+    rect(gold,-9,-11,18,3);rect(edge,-6,-1,12,2);
+    for(const [x,y,r] of [[-8,-20,6],[0,-25,8],[8,-19,6]]){
+      g.fillStyle(x<0?0x4b7759:x>0?0x709b6a:0x568363).fillCircle(x,y,r);
+    }
+    rect(0x9dc69a,-2,-27,3,3);rect(0x9dc69a,6,-23,2,2);
   }else{
-    rect(edge,-24,-28,48,23);rect((item.typeId??item.index)===0?red:0xc6ae82,-22,-26,44,19);
-    rect(gold,-18,-20,36,3);rect(gold,-14,-12,28,2);
+    // Posters and banners travel with the gym's shared inventory. They
+    // need a physical display frame rather than a floating floor rectangle.
+    const banner=(item.typeId??item.index)===0;
+    const c=banner?red:0xc6ae82;
+    rect(edge,-22,-39,44,28);rect(gold,-20,-37,40,25);
+    rect(c,-18,-35,36,21);
+    rect(edge,-23,-39,2,28);rect(edge,21,-39,2,28);
+    rect(gold,-15,-29,30,3);rect(gold,-12,-23,24,2);
+    rect(metal,-17,-11,3,12);rect(metal,14,-11,3,12);
+    rect(edge,-23,0,46,3);
   }
 }
 export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>void):Phaser.GameObjects.Container {
@@ -103,7 +117,8 @@ export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>
   paintRoomFixture(g,item);
   const display=scene.add.container(item.x,item.y,[g]);
   display.setDepth(10+item.y/100);
-  const hit=scene.add.zone(0,-15,Math.max(34,item.kind==='furniture'?44:34),45)
+  const fp=footprint(item);
+  const hit=scene.add.zone(0,-20,Math.max(30,fp.rx*2+8),item.kind==='decor'?52:45)
     .setInteractive({useHandCursor:true});
   display.add(hit);
   hit.on('pointerdown',onClick);
