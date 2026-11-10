@@ -3,6 +3,7 @@ import {GymCharacter} from './characters';
 import {DEFAULT_COACH,normalizeCoachAppearance} from './coachStyle';
 import {attendingIndices,STUDENT_NAMES} from './gymProgression';
 import {dailyHelpStudents,dailyShiftReady,DAILY_SHIFT_CASH,DAILY_SHIFT_REP} from './hubActivities';
+import {recharge,GEAR_WIPE_RESTORE,GEAR_REPAIR_RESTORE,CLEAN_GEAR_THRESHOLD,GEAR_WORKING_THRESHOLD} from './facilityOps';
 import {GymNavigation,type Point} from './navigation';
 import {ROOMS,normalizeRoom,roomTransition,studentRoom,unlockedRooms,type RoomId} from './gymRooms';
 import {normalizeRoomState,itemRoom,type RoomState} from './roomState';
@@ -23,6 +24,7 @@ type ExtraSave={
   coachedToday?:number[];friendships?:number[];lastTalkDays?:number[];
   studentXP?:number[][];studentStats?:number[][];studentGoals?:number[][];
   classesToday?:number;gatheredToday?:number[];dailyShiftClaimed?:boolean;lifetimeEarnings?:number;
+  gearCondition?:number[];gearCleanliness?:number[];gearWipedToday?:number[];gearServicedToday?:number[];
   [key:string]:unknown;
 };
 type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text;indicator:Phaser.GameObjects.Text;pose:'stretch'|'bag'|'lift'|'rest'|'shadow'|'drink'};
@@ -189,7 +191,7 @@ export class GymRoomScene extends Phaser.Scene {
   private drawFixtures():void {
     this.displayItems=this.createItemList();
     for(const item of this.displayItems){
-      makeRoomFixture(this,item,()=>this.moveItem(item));
+      makeRoomFixture(this,item,()=>item.kind==='gear'?this.openGearStation(item):this.moveItem(item));
     }
   }
   private canStand(x:number,y:number):boolean {
@@ -314,6 +316,64 @@ export class GymRoomScene extends Phaser.Scene {
     panel.add(close);
   }
   private closeInventory():void {this.inventoryPanel?.destroy();this.inventoryPanel=null;}
+  private openGearStation(item:RoomFixture):void {
+    if(this.inventoryPanel||this.movingItem||item.kind!=='gear')return;
+    const i=item.index;
+    if(!this.save.ownedGear?.[i]||this.save.gearStored?.[i])return;
+    const health=this.save.gearCondition?.[i]??100;
+    const clean=this.save.gearCleanliness?.[i]??100;
+    const sanitizer=this.save.supplies?.[3]??0;
+    const scrap=this.save.materials?.[0]??0;
+    const panel=this.add.container(0,0).setDepth(65);
+    this.inventoryPanel=panel;
+    panel.add(this.add.rectangle(240,143,426,180,0x243e44)
+      .setStrokeStyle(2,0xd5b588).setInteractive());
+    panel.add(this.add.text(240,68,itemLabel(item).toUpperCase()+' / MAINTENANCE',{
+      fontFamily:'Arial',fontSize:'12px',color:'#f4e5c9'
+    }).setOrigin(.5));
+    panel.add(this.add.text(240,90,'CONDITION '+health+'%    HYGIENE '+clean+'%',{
+      fontFamily:'Arial',fontSize:'11px',
+      color:health<GEAR_WORKING_THRESHOLD||clean<CLEAN_GEAR_THRESHOLD?'#f1ad91':'#b3e5ba'
+    }).setOrigin(.5));
+    panel.add(this.add.text(240,106,'SANITIZER '+sanitizer+'  |  SCRAP '+scrap,{
+      fontFamily:'Arial',fontSize:'10px',color:'#e8d19e'
+    }).setOrigin(.5));
+    const action=(x:number,y:number,width:number,label:string,enabled:boolean,callback:()=>void)=>{
+      const button=this.add.text(x,y,label,{
+        fontFamily:'Arial',fontSize:'10px',color:enabled?'#f5e8d1':'#879a9a',
+        backgroundColor:enabled?'#3b7066':'#35494b',padding:{x:7,y:6}
+      }).setOrigin(.5);
+      if(enabled){button.setInteractive({useHandCursor:true});button.on('pointerdown',callback);}
+      panel.add(button);return button;
+    };
+    action(145,146,158,'CLEAN: -1 SANITIZER',clean<90&&sanitizer>0&&
+      !this.save.gearWipedToday?.includes(i),()=>this.maintainGear(i,'clean'));
+    action(340,146,155,'REPAIR: -1 SCRAP',health<90&&scrap>0&&
+      !this.save.gearServicedToday?.includes(i),()=>this.maintainGear(i,'repair'));
+    action(147,193,158,'MOVE / REPOSITION',true,()=>{this.closeInventory();this.moveItem(item);});
+    action(343,193,155,'CLOSE',true,()=>this.closeInventory());
+  }
+  private maintainGear(index:number,kind:'clean'|'repair'):void {
+    if(!this.save.ownedGear?.[index]||this.save.gearStored?.[index])return;
+    if(kind==='clean'){
+      if((this.save.supplies?.[3]||0)<1||this.save.gearWipedToday?.includes(index)||
+        (this.save.gearCleanliness?.[index]??100)>=90)return;
+      this.save.supplies![3]--;
+      this.save.gearCleanliness??=Array(8).fill(100);
+      this.save.gearCleanliness[index]=recharge(this.save.gearCleanliness[index],GEAR_WIPE_RESTORE);
+      this.save.gearWipedToday??=[];this.save.gearWipedToday.push(index);
+    }else{
+      if((this.save.materials?.[0]||0)<1||this.save.gearServicedToday?.includes(index)||
+        (this.save.gearCondition?.[index]??100)>=90)return;
+      this.save.materials![0]--;
+      this.save.gearCondition??=Array(8).fill(100);
+      this.save.gearCondition[index]=recharge(this.save.gearCondition[index],GEAR_REPAIR_RESTORE);
+      this.save.gearServicedToday??=[];this.save.gearServicedToday.push(index);
+    }
+    this.writeSave();this.closeInventory();
+    this.notice(itemLabel({kind:'gear',index,x:0,y:0,rotation:0})+
+      (kind==='clean'?' sanitized.':' repaired.'));
+  }
   private moveItem(item:RoomFixture):void {
     if(this.inventoryPanel)return;
     this.movingItem={...item};
