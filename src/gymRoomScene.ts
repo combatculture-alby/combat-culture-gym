@@ -66,6 +66,7 @@ export class GymRoomScene extends Phaser.Scene {
   private mopActive=false;
   private mopMarks:Phaser.GameObjects.GameObject[]=[];
   private pendingStudent:number|null=null;
+  private pendingExit:RoomId|null=null;
   constructor(){super('GymRoom');}
 
   create(data?:{room?:RoomId;mopping?:boolean}):void {
@@ -80,7 +81,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.writeSave();
     this.students=[];this.path=[];this.targetTrash=null;this.targetMop=null;this.movingItem=null;
     this.cleanNodes=[];this.displayItems=[];this.fixtureSprites=[];this.inventoryPanel=null;
-    this.mopActive=!!data?.mopping;this.mopMarks=[];this.pendingStudent=null;
+    this.mopActive=!!data?.mopping;this.mopMarks=[];this.pendingStudent=null;this.pendingExit=null;
     this.reflowRoomItems();
     this.drawEnvironment();
     const room=ROOMS.find(r=>r.id===this.current)!;
@@ -98,6 +99,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-E',()=>this.interactNearby());
     this.input.on('pointerdown',(pointer:Phaser.Input.Pointer,targets:Phaser.GameObjects.GameObject[])=>{
       if(targets.length||this.inventoryPanel)return;
+      this.pendingExit=null;
       if(pointer.worldY<94||pointer.worldY>220)return;
       if(this.movingItem){this.placeAt(pointer.worldX,pointer.worldY);return;}
       this.walkTo({x:pointer.worldX,y:pointer.worldY});
@@ -222,6 +224,7 @@ export class GymRoomScene extends Phaser.Scene {
   }
   private walkTo(point:Point):void {
     if(this.movingItem)return;
+    this.pendingExit=null;
     const target=this.navigation.recover(point);
     this.path=this.navigation.route(this.coach.body,target);
   }
@@ -231,7 +234,7 @@ export class GymRoomScene extends Phaser.Scene {
       if(!exit||!unlockedRooms(this.level).some(r=>r.id===destination))continue;
       const target=destination as RoomId;
       makeRoomGateway(this,this.current,exit.x,exit.y,
-        ()=>this.goTo(target),{returning:target==='main',depth:26});
+        ()=>this.requestExit(target),{returning:target==='main',depth:26});
     }
   }
   private addControls():void {
@@ -255,6 +258,24 @@ export class GymRoomScene extends Phaser.Scene {
       '   $'+(this.save.money||0)+'   REP '+(this.save.reputation||0));
   }
   private notice(text:string):void {this.message.setText(text);}
+  private requestExit(destination:RoomId):void {
+    const transition=roomTransition(this.current,destination,this.level);
+    if(!transition||this.inventoryPanel||this.movingItem)return;
+    const f=roomFloor(this.current);
+    const exit=transition.exit;
+    const approach=this.navigation.recover({
+      x:Phaser.Math.Clamp(exit.x+(exit.x<(f.left+f.right)/2?27:-27),f.left+15,f.right-15),
+      y:Phaser.Math.Clamp(exit.y,f.top+12,f.bottom-12)
+    });
+    if(Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,approach.x,approach.y)<14){
+      this.goTo(destination);return;
+    }
+    this.pendingStudent=null;
+    this.path=this.navigation.route(this.coach.body,approach);
+    if(!this.path.length){this.notice('That exit is blocked. Clear equipment from the walkway.');return;}
+    this.pendingExit=destination;
+    this.notice('Walking to the '+(destination==='main'?'main gym':'next room')+' entrance.');
+  }
   private goTo(destination:RoomId):void {
     if(!roomTransition(this.current,destination,this.level))return;
     this.roomState.playerPositions[this.current]={
@@ -291,7 +312,7 @@ export class GymRoomScene extends Phaser.Scene {
   }
   private openInventory(page=0):void {
     if(this.movingItem||this.inventoryPanel)return;
-    this.path=[];
+    this.path=[];this.pendingExit=null;
     const panel=this.add.container(0,0).setDepth(65);
     this.inventoryPanel=panel;
     panel.add(this.add.rectangle(240,137,432,182,0x243e44).setStrokeStyle(2,0xb9a379)
@@ -400,7 +421,7 @@ export class GymRoomScene extends Phaser.Scene {
   private moveItem(item:RoomFixture):void {
     if(this.inventoryPanel)return;
     this.movingItem={...item};
-    this.path=[];
+    this.path=[];this.pendingExit=null;
     this.showPlacement(this.coach.body.x+37,this.coach.body.y);
     this.notice('Moving '+itemLabel(item)+'. Click a clear floor spot; Q rotates, X stores, ESC cancels.');
   }
@@ -713,7 +734,7 @@ export class GymRoomScene extends Phaser.Scene {
       const y=Number(this.keys.S.isDown||this.keys.DOWN.isDown)-
         Number(this.keys.W.isDown||this.keys.UP.isDown);
       if(x||y){
-        this.path=[];
+        this.path=[];this.pendingExit=null;
         const len=Math.hypot(x,y);
         const nx=this.coach.body.x+x/len*WALK_SPEED*dt;
         const ny=this.coach.body.y+y/len*WALK_SPEED*dt;
@@ -723,12 +744,18 @@ export class GymRoomScene extends Phaser.Scene {
       }else if(this.path.length){
         const p=this.path[0],dx=p.x-this.coach.body.x,dy=p.y-this.coach.body.y;
         const d=Math.hypot(dx,dy),speed=Math.min(WALK_SPEED*dt,d);
-        if(d<3)this.path.shift();
+        if(d<3){
+          this.path.shift();
+          if(!this.path.length&&this.pendingExit){
+            const destination=this.pendingExit;
+            this.pendingExit=null;this.goTo(destination);return;
+          }
+        }
         else{
           const nx=this.coach.body.x+dx/d*speed,ny=this.coach.body.y+dy/d*speed;
           if(this.canStand(nx,ny)){this.coach.body.setPosition(nx,ny);
             this.coach.face(dx,dy);this.coach.animate('walk',dt);}
-          else this.path=[];
+          else{this.path=[];this.pendingExit=null;}
         }
       }else this.coach.animate('idle',dt);
     }
