@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import {normalizeGymLevel,trainingBounds,gymServiceLayout} from './gymProgression';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
-// Room dimensions, board, and reception stay fixed; each expansion opens more mat
-// space and makes the gym visually more established.
+// The floor plan expands within the 480px stage; mat, navigation and placement
+// must all use the same per-level bounds.
 const THEMES=[
   {wall:0x737d79,mortar:0x56625e,floor:0x7d7f7c,floorLine:0x515957,
    mat:0x425e61,tile:0x506f71,edge:0x94a69a,accent:0xe2c391,ink:0x2a4245},
@@ -501,20 +501,20 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
     const staff=scene.add.graphics().setDepth(11.8);
     const cx=d.x+Math.round(d.w*0.52);
     // Staff shirt, shoulders, head, hair, small face highlights.
-    draw(staff,0x102f3b,cx-16,165,32,23);
-    draw(staff,0x426b69,cx-14,165,28,23);
-    draw(staff,0xe0c49d,cx-9,147,18,21);
-    draw(staff,0x292b32,cx-11,143,22,10);
-    draw(staff,0x292b32,cx-12,151,4,15);
-    draw(staff,0x292b32,cx+8,151,4,15);
-    draw(staff,0x35302e,cx-6,156,2,2);
-    draw(staff,0x35302e,cx+4,156,2,2);
-    draw(staff,0x9b765b,cx-2,162,5,1);
-    draw(staff,0xe6ce9f,cx-2,172,4,6);
-    draw(staff,gold,cx-12,176,8,2);
+    draw(staff,0x102f3b,cx-10,169,20,16);
+    draw(staff,0x426b69,cx-9,169,18,16);
+    draw(staff,0xe0c49d,cx-6,157,12,14);
+    draw(staff,0x292b32,cx-7,154,14,7);
+    draw(staff,0x292b32,cx-8,159,3,10);
+    draw(staff,0x292b32,cx+5,159,3,10);
+    draw(staff,0x35302e,cx-4,162,1,2);
+    draw(staff,0x35302e,cx+3,162,1,2);
+    draw(staff,0x9b765b,cx-2,167,4,1);
+    draw(staff,0xe6ce9f,cx-2,174,4,4);
+    draw(staff,gold,cx-8,178,5,2);
     scene.tweens.add({targets:staff,y:-1,duration:1100,
       ease:'Sine.easeInOut',yoyo:true,repeat:-1});
-    scene.add.text(cx,138,'FRONT DESK',{fontFamily:'monospace',
+    scene.add.text(cx,148,'FRONT DESK',{fontFamily:'monospace',
       fontSize:'6px',color:'#f8dfad'}).setOrigin(.5).setDepth(11.9);
   }
 
