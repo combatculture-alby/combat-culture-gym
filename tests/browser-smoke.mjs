@@ -1797,8 +1797,8 @@ try{
   }),async page=>{
     const visits=[
       {id:'outdoor',door:{x:44,y:132}},
-      {id:'upstairs',door:{x:325,y:111}},
-      {id:'downstairs',door:{x:341,y:191}}
+      {id:'upstairs',door:{x:310,y:115}},
+      {id:'downstairs',door:{x:44,y:191}}
     ];
     for(const room of visits){
       await clickGame(page,room.door.x,room.door.y);
