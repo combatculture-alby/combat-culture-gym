@@ -128,7 +128,7 @@ try{
           const scene=window.__combatGym.scene.getScene('Gym');
           return scene.validPlacement(310,140,8,8);
         });
-        assert.equal(valid,true,'Academy should unlock its wider training mat');
+        assert.equal(valid,false,'Main mat must stop expanding at Level 2');
       }
       await page.waitForTimeout(750);
     });
@@ -174,7 +174,7 @@ try{
     assert.equal(state.boardTarget,'board');
     assert.equal(state.desk,true);
     assert.equal(state.deskTarget,'desk');
-    assert.equal(state.originalWideMat,true,'Original Level 3 mat must be placeable');
+    assert.equal(state.originalWideMat,false,'Level 3 unlocks outdoor space, not extra main mat');
   });
   await openScenario('flagship-receptionist',sampleSave({
     gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
@@ -186,7 +186,7 @@ try{
       const staff=scene.useStationAt(424,155);
       return {standing,staff,target:scene.stationTarget,route:scene.route.length};
     });
-    assert.equal(state.standing,true,'Flagship should open nearly all room width');
+    assert.equal(state.standing,false,'Flagship main room retains Level 2 walls');
     assert.equal(state.staff,true,'Academy staff should be clickable');
     assert.equal(state.target,'desk');
     assert.ok(state.route>0,'Receptionist must be reachable');
