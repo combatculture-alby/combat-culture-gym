@@ -16,13 +16,13 @@ export const ROOMS:readonly RoomDefinition[]=[
    entry:{x:170,y:150},bounds:{left:44,right:450,top:84,bottom:213},
    exits:{outdoor:{x:44,y:153},upstairs:{x:310,y:135},downstairs:{x:44,y:211}}},
   {id:'outdoor',name:'Outdoor Training',unlocksAt:3,
-   entry:{x:422,y:153},bounds:{left:26,right:453,top:78,bottom:222},
+   entry:{x:382,y:171},bounds:{left:26,right:453,top:78,bottom:222},
    exits:{main:{x:443,y:153}}},
   {id:'upstairs',name:'Upstairs',unlocksAt:4,
-   entry:{x:48,y:200},bounds:{left:26,right:453,top:78,bottom:222},
+   entry:{x:96,y:187},bounds:{left:26,right:453,top:78,bottom:222},
    exits:{main:{x:42,y:207}}},
   {id:'downstairs',name:'Downstairs',unlocksAt:5,
-   entry:{x:48,y:106},bounds:{left:26,right:453,top:78,bottom:222},
+   entry:{x:96,y:148},bounds:{left:26,right:453,top:78,bottom:222},
    exits:{main:{x:42,y:106}}},
 ];
 export function unlockedRooms(level:number):RoomDefinition[]{
