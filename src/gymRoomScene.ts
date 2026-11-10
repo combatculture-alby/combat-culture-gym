@@ -7,8 +7,10 @@ import {recharge,GEAR_WIPE_RESTORE,GEAR_REPAIR_RESTORE,CLEAN_GEAR_THRESHOLD,GEAR
 import {GymNavigation,type Point} from './navigation';
 import {ROOMS,normalizeRoom,roomTransition,studentRoom,unlockedRooms,type RoomId} from './gymRooms';
 import {normalizeRoomState,itemRoom,type RoomState} from './roomState';
-import {canFitRoomItem,canWalkInRoom,footprint,itemLabel,type RoomFixture} from './roomItems';
-import {makeRoomFixture,paintRoomFixture} from './roomArt';
+import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor,type RoomFixture} from './roomItems';
+import {makeRoomFixture} from './roomArt';
+import {makeRoomGateway} from './roomGateways';
+import {paintCompactRoom} from './compactRoomArt';
 
 const SAVE_KEY=import.meta.env.VITE_GARAGE_PREVIEW==='1'
   ?'combat-culture-gym-garage-preview-v1'
@@ -28,11 +30,13 @@ type ExtraSave={
   [key:string]:unknown;
 };
 type RoomStudent={actor:GymCharacter;id:number;goal:Point;pause:number;chat:Phaser.GameObjects.Text;indicator:Phaser.GameObjects.Text;pose:'stretch'|'bag'|'lift'|'rest'|'shadow'|'drink'};
-const TRASH_POSITIONS:Point[]=[
-  {x:98,y:125},{x:174,y:184},{x:259,y:137},
-  {x:343,y:187},{x:123,y:185},{x:348,y:135}
-];
-const MOP_POSITIONS:Point[]=[{x:109,y:145},{x:237,y:190},{x:350,y:147}];
+function taskPoints(room:RoomId,kind:'trash'|'mop'):Point[] {
+  const f=roomFloor(room),w=f.right-f.left,h=f.bottom-f.top;
+  const relative=kind==='trash'
+    ?[[.17,.27],[.39,.73],[.60,.29],[.79,.72],[.23,.76],[.76,.30]]
+    :[[.25,.48],[.52,.75],[.76,.44]];
+  return relative.map(([x,y])=>({x:Math.round(f.left+x*w),y:Math.round(f.top+y*h)}));
+}
 const WALK_SPEED=102;
 
 /** Secondary rooms share the exact saved economy, roster and inventory with
@@ -58,9 +62,12 @@ export class GymRoomScene extends Phaser.Scene {
   private displayItems:RoomFixture[]=[];
   private inventoryPanel:Phaser.GameObjects.Container|null=null;
   private inventoryPage=0;
+  private mopActive=false;
+  private mopMarks:Phaser.GameObjects.GameObject[]=[];
+  private pendingStudent:number|null=null;
   constructor(){super('GymRoom');}
 
-  create(data?:{room?:RoomId}):void {
+  create(data?:{room?:RoomId;mopping?:boolean}):void {
     this.save=this.readSave();
     this.level=Math.max(1,Math.min(5,Math.floor(Number(this.save.gymLevel)||1)));
     this.roomState=normalizeRoomState(this.save.roomState,this.level);
@@ -72,6 +79,8 @@ export class GymRoomScene extends Phaser.Scene {
     this.writeSave();
     this.students=[];this.path=[];this.targetTrash=null;this.targetMop=null;this.movingItem=null;
     this.cleanNodes=[];this.displayItems=[];this.inventoryPanel=null;
+    this.mopActive=!!data?.mopping;this.mopMarks=[];this.pendingStudent=null;
+    this.reflowRoomItems();
     this.drawEnvironment();
     const room=ROOMS.find(r=>r.id===this.current)!;
     const savedPosition=this.roomState.playerPositions[this.current]||room.entry;
@@ -116,6 +125,53 @@ export class GymRoomScene extends Phaser.Scene {
   private writeSave():void {
     this.save.roomState=this.roomState;
     try{localStorage.setItem(SAVE_KEY,JSON.stringify(this.save));}catch{/* unsupported storage */}
+  }
+  private trashPoints():Point[]{return taskPoints(this.current,'trash');}
+  private mopPoints():Point[]{return taskPoints(this.current,'mop');}
+  private mopStation():Point[]{
+    return [{x:roomFloor(this.current).right-25,y:roomFloor(this.current).bottom-11}];
+  }
+  private randomRoomPoint():Point {
+    const f=roomFloor(this.current);
+    return {x:f.left+22+Math.random()*(f.right-f.left-44),
+      y:f.top+17+Math.random()*(f.bottom-f.top-34)};
+  }
+  /** Keep existing saves after rooms shrink: relocate items onto clear floor,
+   * or store them without losing ownership when the smaller room is full. */
+  private reflowRoomItems():void {
+    const placed:RoomFixture[]=[];
+    let changed=false;
+    for(const item of this.createItemList()){
+      if(canFitRoomItem(item,placed,this.current)){placed.push(item);continue;}
+      const point=firstOpenSpot(item,placed,this.current);
+      if(point){
+        const updated={...item,...point};
+        placed.push(updated);
+        if(item.kind==='gear'){
+          this.save.gearPositions??=[];this.save.gearPositions[item.index]=point;
+        }else if(item.kind==='furniture'){
+          Object.assign(this.save.furniture![item.index],point);
+        }else{
+          this.save.decorPositions??=[];this.save.decorPositions[item.index]=point;
+        }
+      }else if(item.kind==='gear'){
+        this.save.gearStored??=[];
+        this.save.gearStored[item.index]=true;
+      }else if(item.kind==='furniture')this.save.furniture![item.index].stored=true;
+      else{
+        this.save.decorStored??=[];
+        this.save.decorStored[item.index]=true;
+      }
+      changed=true;
+    }
+    if(changed)this.writeSave();
+  }
+  private restartRoom(mopping=this.mopActive):void {
+    // Phaser destroys the scene on restart. Without recording the coach's
+    // current position, every pickup or cleanup teleports them to the entrance.
+    this.roomState.playerPositions[this.current]={x:this.coach.body.x,y:this.coach.body.y};
+    this.writeSave();
+    this.scene.restart({room:this.current,mopping});
   }
   private drawEnvironment():void {
     const c=this.current==='outdoor'
@@ -195,7 +251,7 @@ export class GymRoomScene extends Phaser.Scene {
     }
   }
   private canStand(x:number,y:number):boolean {
-    return canWalkInRoom({x,y},this.displayItems);
+    return canWalkInRoom({x,y},this.displayItems,this.current);
   }
   private walkTo(point:Point):void {
     if(this.movingItem)return;
