@@ -91,7 +91,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.coach.body.setDepth(15);
     this.ghost=this.add.graphics().setDepth(42);
     this.keys=this.input.keyboard!.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,E,ESC,M,ENTER,Q,X') as Record<string,Phaser.Input.Keyboard.Key>;
-    this.input.keyboard!.on('keydown-ESC',()=>{if(this.movingItem)this.cancelMove();else if(this.inventoryPanel)this.closeInventory();else this.goTo('main');});
+    this.input.keyboard!.on('keydown-ESC',()=>{if(this.movingItem)this.cancelMove();else if(this.inventoryPanel)this.closeInventory();else this.requestExit('main');});
     this.input.keyboard!.on('keydown-M',()=>this.openInventory());
     this.input.keyboard!.on('keydown-Q',()=>this.rotateItem());
     this.input.keyboard!.on('keydown-X',()=>this.storeSelected());
@@ -240,7 +240,7 @@ export class GymRoomScene extends Phaser.Scene {
   private addControls():void {
     this.control(16,282,135,'INVENTORY  [M]',()=>this.openInventory());
     this.control(171,282,137,'CLEAN / MOP',()=>this.beginMop());
-    this.control(326,282,137,'MAIN GYM',()=>this.goTo('main'));
+    this.control(326,282,137,'MAIN GYM',()=>this.requestExit('main'));
     this.add.text(240,321,'WASD / ARROWS: MOVE    E: INTERACT    ESC: RETURN',
       {fontFamily:'Arial',fontSize:'9px',color:'#b5c9c0'}).setOrigin(.5).setDepth(31);
   }
@@ -707,7 +707,7 @@ export class GymRoomScene extends Phaser.Scene {
     if(this.movingItem){this.placeAt(this.coach.body.x+34,this.coach.body.y);return;}
     for(const [destination,point] of Object.entries(ROOMS.find(r=>r.id===this.current)!.exits)){
       if(point&&Phaser.Math.Distance.Between(this.coach.body.x,this.coach.body.y,point.x,point.y)<42){
-        this.goTo(destination as RoomId);return;
+        this.requestExit(destination as RoomId);return;
       }
     }
     const nearest=(this.roomState.trashByRoom[this.current]||[]).find(i=>{
