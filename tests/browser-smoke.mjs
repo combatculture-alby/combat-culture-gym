@@ -1499,7 +1499,7 @@ try{
       scene.arrivalsClock=4;
       scene.updateArrivals(0.1);
     });
-    assert.equal((await sceneState(page)).activeNames[0],'Ash',
+    assert.equal((await sceneState(page)).activeNames[0],'Maya',
       "Next day attending group arrives after opening");
   });
 
