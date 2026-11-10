@@ -438,8 +438,15 @@ class GymScene extends Phaser.Scene {
     this.pickupTarget=null;
     this.roomExitTarget=null;
   }
+  private mainFloorStudents():Student[] {
+    // Students training in another room must not be invisible collision
+    // barriers in the main gym. During an active class everyone attends here.
+    return this.activeStudents().filter(s=>this.running||
+      this.saveData.roomState?.studentRooms[this.students.indexOf(s)]==='main');
+  }
   private playerRoute(goal:Point,exact=false):Point[] {
-    return this.navigation.route(this.player,goal,(x,y)=>this.activeStudents().every(s=>!closeFeet(s,{x,y})),exact);
+    return this.navigation.route(this.player,goal,
+      (x,y)=>this.mainFloorStudents().every(s=>!closeFeet(s,{x,y})),exact);
   }
   private followStudent():void {
     const student=this.targetStudent;
@@ -2880,7 +2887,7 @@ class GymScene extends Phaser.Scene {
     const ratio=length?step/length:0;
     const from={x:this.player.x,y:this.player.y};
     const nx=from.x+heading.x*ratio,ny=from.y+heading.y*ratio;
-    const open=(x:number,y:number)=>this.canStand(x,y)&&this.activeStudents().every(s=>!closeFeet(s,{x,y}));
+    const open=(x:number,y:number)=>this.canStand(x,y)&&this.mainFloorStudents().every(s=>!closeFeet(s,{x,y}));
     let next={x:nx,y:ny};
     if(!clearSegment(from,next,open)){
       next=from;
