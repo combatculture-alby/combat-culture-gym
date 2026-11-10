@@ -1789,6 +1789,48 @@ try{
       'The outdoor area must not be accessible until Level 3');
   });
 
+  // Inspect the art and player/navigation paths of every unlocked room.
+  await openScenario('all-additional-rooms-visual-playtest',sampleSave({
+    gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
+    skills:Array(12).fill(0),money:900,day:4,
+    gymPhase:'open',arrivedCount:8
+  }),async page=>{
+    const visits=[
+      {id:'outdoor',door:{x:44,y:132}},
+      {id:'upstairs',door:{x:325,y:111}},
+      {id:'downstairs',door:{x:341,y:191}}
+    ];
+    for(const room of visits){
+      await clickGame(page,room.door.x,room.door.y);
+      await page.waitForFunction(id=>{
+        const game=window.__combatGym;
+        const scene=game?.scene.getScene('GymRoom');
+        return scene?.sys.isActive()&&scene.current===id;
+      },room.id,{timeout:15000});
+      const check=await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('GymRoom');
+        return {name:s.current,students:s.students.length,
+          player:s.coach.body.getBounds().height,gear:s.displayItems.length,
+          ui:s.status.text};
+      });
+      assert.equal(check.name,room.id);
+      assert.ok(check.students>=1,'Every room has visiting students');
+      assert.ok(check.player>=36&&check.player<=42,
+        'Character must retain one consistent 40px sprite scale');
+      await page.screenshot({path:output+'/room-'+room.id+'-before-building.png'});
+      await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').goTo('main'));
+      await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+    }
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').visitRoom('downstairs'));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')?.sys.isActive());
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym?.scene.getScene('GymRoom')?.sys.isActive());
+    assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').current),
+      'downstairs','Browser reload must reopen the visited room');
+    await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').goTo('main'));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
