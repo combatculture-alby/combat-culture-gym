@@ -28,6 +28,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
 import { drawGym } from './gymWorld';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
+import {makeRoomGateway} from './roomGateways';
 import {unlockedRooms,type RoomId} from './gymRooms';
 import {distributeStudents} from './roomPopulation';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
@@ -1397,21 +1398,7 @@ class GymScene extends Phaser.Scene {
       const exit=unlockedRooms(this.gymLevel())[0].exits[room.id];
       if(!exit)continue;
       // Actual in-world door/stair destination, in addition to the menu.
-      const sign=this.add.container(exit.x,exit.y).setDepth(27);
-      sign.setSize(44,42).setInteractive(new Phaser.Geom.Rectangle(-22,-40,44,40),
-        Phaser.Geom.Rectangle.Contains);
-      sign.on('pointerdown',()=>this.visitRoom(room.id));
-      const frame=this.add.graphics();
-      frame.fillStyle(0x25464c,.92).fillRoundedRect(-19,-34,38,28,3);
-      frame.lineStyle(2,0xd1ad72).strokeRoundedRect(-19,-34,38,28,3);
-      frame.fillStyle(0xaab6b0).fillRect(12,-22,3,3);
-      const label=this.add.text(0,-39,room.id==='outdoor'?'OUTSIDE':room.id==='upstairs'?'UP':'DOWN',{
-        fontFamily:UI_FONT,fontSize:'8px',fontStyle:'bold',color:'#ffdfab',
-        backgroundColor:'#294e52',padding:{x:3,y:2}
-      }).setOrigin(.5);
-      const hit=this.add.zone(0,-20,44,39).setInteractive({useHandCursor:true});
-      hit.on('pointerdown',()=>this.visitRoom(room.id));
-      sign.add([frame,label,hit]);
+      makeRoomGateway(this,room.id,exit.x,exit.y,()=>this.visitRoom(room.id),{depth:27});
     }
   }
   private visitRoom(room:RoomId):void {
@@ -1448,6 +1435,9 @@ class GymScene extends Phaser.Scene {
     const rooms=unlockedRooms(this.gymLevel());
     rooms.forEach((room,i)=>this.menuAction(room.name.toUpperCase(),84+(i%2)*161,88+Math.floor(i/2)*45,149,()=>{
       if(room.id==='main'){this.furniturePanel.setVisible(false);return;}
+      this.saveData.roomState??=defaultRoomState();
+      this.saveData.roomState.playerPositions.main={x:this.player.x,y:this.player.y};
+      this.saveData.roomState.currentRoom=room.id as RoomId;
       this.persist();
       this.scene.start('GymRoom',{room:room.id as RoomId});
     }));
