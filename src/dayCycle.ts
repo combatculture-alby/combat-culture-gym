@@ -6,9 +6,10 @@ export function normalizeGymPhase(value:unknown,legacy=false):GymPhase {
 }
 export function normalizeArrivalCount(value:unknown,phase:GymPhase,attendance:number):number {
   if(phase==='opening')return 0;
+  const capacity=Number.isFinite(attendance)?Math.max(0,Math.floor(attendance)):0;
   if(typeof value!=='number'||!Number.isInteger(value))
-    return phase==='open'?attendance:0;
-  return Math.max(0,Math.min(Math.max(0,Math.floor(attendance)||0),value));
+    return phase==='open'?capacity:0;
+  return Math.max(0,Math.min(capacity,value));
 }
 export function outstandingTrash(spawned:number,cleaned:number):number {
   const total=Number.isFinite(spawned)?Math.max(0,Math.floor(spawned)):0;
