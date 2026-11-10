@@ -1733,6 +1733,7 @@ try{
     assert.equal(placed.room,'outdoor');
     assert.deepEqual(placed.pos,{x:180,y:144});
     assert.ok(placed.artwork>=1);
+    await page.screenshot({path:output+'/room-outdoor-with-heavy-bag.png'});
     await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').cleanTrash(0));
     await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')
       ?.roomState?.trashByRoom?.outdoor?.length===2);
