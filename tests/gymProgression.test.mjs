@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
+import {dailyHelpStudents,dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
@@ -131,4 +131,20 @@ test('daily shift target adjusts to the students available and never grants an e
   assert.equal(dailyShiftReady(1,3,1,true,1),false);
   assert.equal(dailyShiftReady(1,3,1,false,2),false);
   assert.equal(dailyShiftReady(2,3,1,false,2),true);
+});
+
+
+test('daily coaching requests are stable for the full planned attendance roster',()=>{
+  for(let level=1;level<=5;level++){
+    const capacity=GYM_LEVELS[level-1].capacity;
+    for(let day=1;day<=8;day++){
+      const attending=attendingIndices(capacity,level,day);
+      const requests=dailyHelpStudents(attending,day);
+      assert.equal(requests.length,Math.min(2,attending.length));
+      assert.equal(new Set(requests).size,requests.length);
+      assert.ok(requests.every(index=>attending.includes(index)));
+      assert.deepEqual(requests,dailyHelpStudents(attending,day),
+        'Student coaching targets must not change during arrivals');
+    }
+  }
 });
