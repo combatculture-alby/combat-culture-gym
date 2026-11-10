@@ -1,4 +1,4 @@
-import {ROOMS,type RoomId,type RoomPoint} from './gymRooms';
+import {ROOMS,type RoomId,type RoomPoint} from './gymRooms.ts';
 
 export type ItemKind='gear'|'furniture'|'decor';
 export type RoomFixture={kind:ItemKind;index:number;typeId?:number;x:number;y:number;rotation:number};
