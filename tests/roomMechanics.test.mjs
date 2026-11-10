@@ -43,7 +43,7 @@ test('equipment is physically bounded and cannot overlap or block the door',()=>
   assert.equal(canFitRoomItem({...bag,y:215},[],'outdoor'),false);
   assert.equal(canFitRoomItem({...bag,x:422,y:153},[],'outdoor'),false,
     'Outside entry remains passable');
-  assert.equal(canFitRoomItem({...bag,x:192},[bag],'outdoor'),false);
+  assert.equal(canFitRoomItem({...bag,x:192},[{...bag,index:1}],'outdoor'),false);
   assert.equal(canFitRoomItem({...bag,x:260},[bag],'outdoor'),true);
   assert.equal(canWalkInRoom({x:180,y:149},[bag]),false);
   assert.equal(canWalkInRoom({x:270,y:149},[bag]),true);
