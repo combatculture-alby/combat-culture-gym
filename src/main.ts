@@ -3,7 +3,7 @@ import Phaser from 'phaser';
 import { GymCharacter, type Pose } from './characters';
 import {normalizeGymPhase,normalizeArrivalCount,outstandingTrash,
   ARRIVAL_INTERVAL_SECONDS,DEPARTURE_INTERVAL_SECONDS,
-  canTeachInPhase,canCloseInPhase,canAdvanceDay,type GymPhase} from './dayCycle';
+  canTeachInPhase,canCloseInPhase,canAdvanceDay,overnightSupplies,canCompleteDay,type GymPhase} from './dayCycle';
 import {serviceFixtureLayout,type HubService} from './hubServiceLayout';
 import {paintHubFixture} from './hubServiceSprites';
 import {
@@ -1668,10 +1668,10 @@ class GymScene extends Phaser.Scene {
       },false,selected?0x527f74:0x355b5d);
     });
     const matchingGear=this.matchingClassGear(program.stats);
-    const earnings=classEarnings(this.gymLevel(),this.students.length,matchingGear,this.saveData.equipment||0);
+    const earnings=classEarnings(this.gymLevel(),this.activeStudents().length,matchingGear,this.saveData.equipment||0);
     this.furniturePanel.add(this.add.text(239,137,program.stats.map(k=>CORE_STATS[k]).join(' + '),
       {fontFamily:UI_FONT,fontSize:'9px',color:'#c7ddd2',wordWrap:{width:152}}));
-    this.furniturePanel.add(this.add.text(239,160,'+$'+earnings+'   +'+CLASS_REPUTATION+' REP   GEAR '+matchingGear,
+    this.furniturePanel.add(this.add.text(239,160,'BASE $'+earnings+'   REP 1-4   GEAR '+matchingGear,
       {fontFamily:UI_FONT,fontSize:'9px',color:'#aee0b0'}));
     const ready=finished<2&&slot===finished&&canTeachInPhase(this.dayPhase(),this.activeStudents().length);
     const label=finished>=2?'DAILY LIMIT':slot<finished?'ALREADY TAUGHT':
@@ -2049,7 +2049,7 @@ class GymScene extends Phaser.Scene {
   private say(message:string):void { this.message.setText(message); }
   private requestStudentIds():number[] {
     return dailyHelpStudents(
-      this.activeStudents().map(student=>this.students.indexOf(student)),
+      this.todaysStudents().map(student=>this.students.indexOf(student)),
       this.saveData.day
     );
   }
@@ -2057,7 +2057,7 @@ class GymScene extends Phaser.Scene {
     const requests=this.requestStudentIds();
     this.students.forEach((s,i)=>{
       const active=this.running&&this.requests.includes(i);
-      const help=!this.running&&requests.includes(i)&&
+      const help=!this.running&&this.activeStudents().includes(s)&&requests.includes(i)&&
         !this.saveData.coachedToday?.includes(i)&&
         (this.saveData.coachedToday?.length||0)<DAILY_HELP_LIMIT;
       s.indicator?.setVisible(active||help)
@@ -2078,7 +2078,8 @@ class GymScene extends Phaser.Scene {
       ' and +'+DAILY_SHIFT_REP+' REP for coaching, cleaning and teaching.');
   }
   private openStudentRequest(index:number):void {
-    if(this.running||!this.requestStudentIds().includes(index)||
+    if(this.running||!this.activeStudents().includes(this.students[index])||
+      !this.requestStudentIds().includes(index)||
       this.saveData.coachedToday?.includes(index))return;
     const student=this.students[index],goal=this.saveData.studentGoals?.[index]||
       initialGoals()[index];
@@ -2278,7 +2279,7 @@ class GymScene extends Phaser.Scene {
       this.saveData.gymPhase='closing';
       this.arrivalsClock=0;this.persist();this.refresh();
       this.say('CLOSING TIME. Students are heading out. Prepare for tomorrow.');
-    }else if(canAdvanceDay(phase,this.saveData.arrivedCount??0)){
+    }else if(canCompleteDay(phase,this.saveData.arrivedCount??0,this.saveData.classesToday||0)){
       this.nextDay();
     }else this.say('Students are still leaving. You can prepare the gym while they go.');
   }
@@ -2350,8 +2351,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.classesToday=0;
     const delivery=this.saveData.pendingSupplies??[0,0,0,0];
     this.saveData.supplies??=Array.from(INITIAL_SUPPLIES);
-    this.saveData.supplies=this.saveData.supplies.map((value,i)=>
-      Math.min(99,value+(delivery[i]||0)));
+    this.saveData.supplies=overnightSupplies(this.saveData.supplies,delivery);
     this.saveData.pendingSupplies=[0,0,0,0];
     this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=0;
     this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(18,43);
