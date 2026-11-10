@@ -1394,7 +1394,10 @@ class GymScene extends Phaser.Scene {
       const exit=unlockedRooms(this.gymLevel())[0].exits[room.id];
       if(!exit)continue;
       // Actual in-world door/stair destination, in addition to the menu.
-      const sign=this.add.container(exit.x,exit.y).setDepth(18);
+      const sign=this.add.container(exit.x,exit.y).setDepth(27);
+      sign.setSize(56,52).setInteractive(new Phaser.Geom.Rectangle(-28,-46,56,52),
+        Phaser.Geom.Rectangle.Contains);
+      sign.on('pointerdown',()=>this.visitRoom(room.id));
       const frame=this.add.graphics();
       frame.fillStyle(0x25464c,.92).fillRoundedRect(-19,-34,38,28,3);
       frame.lineStyle(2,0xd1ad72).strokeRoundedRect(-19,-34,38,28,3);
