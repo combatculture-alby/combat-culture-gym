@@ -255,6 +255,11 @@ class GymScene extends Phaser.Scene {
   create(data?:{trainingBoard?:boolean;notice?:string}): void {
     this.saveData=loadSave();
     this.saveData.roomState=normalizeRoomState(this.saveData.roomState,this.gymLevel());
+    // Re-enter the room the coach was actually using after a browser reload.
+    if(this.saveData.roomState.currentRoom!=='main'){
+      this.scene.start('GymRoom',{room:this.saveData.roomState.currentRoom});
+      return;
+    }
     this.clearIntent();
     this.targetRefresh=0;
     this.buildMode=false;
@@ -763,7 +768,8 @@ class GymScene extends Phaser.Scene {
   private useGearAt(x:number,y:number):boolean {
     const index=(this.saveData.ownedGear||[]).findIndex((owned,i)=>{
       const p=this.saveData.gearPositions?.[i];
-      return owned&&!this.saveData.gearStored?.[i]&&p&&
+      return owned&&!this.saveData.gearStored?.[i]&&
+        itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'&&p&&
         Math.abs(p.x-x)<GEAR_BOUNDS[i].rx+7&&
         Math.abs(p.y-y)<GEAR_BOUNDS[i].ry+9;
     });
