@@ -15,7 +15,7 @@ export function paintHubFixture(
   if(type==='phone'){
     // Actual phone sitting on the reception counter; not a wall sign.
     // Desk-sized phone. The larger invisible touch area remains unchanged.
-    px(0x182a30,-10,5,21,3,.24);
+    px(0x182a30,-8,5,17,2,.24);
     if(tier<=2){
       px(outline,-10,-2,21,9);
       px(tier===1?0x535853:0x54747c,-8,0,17,5);
@@ -127,18 +127,18 @@ export function paintHubFixture(
   }
   // Physical mop, leaning in its bucket/caddy. The handle stays visible.
   px(0x183037,-15,17,31,4,.3);
-  px(tier>=4?0xb1b5a4:0x9e8b70,4,-26,3,41);
-  px(0x3a5960,3,-28,5,5);
-  px(0xdedfd1,-1,12,14,4);
-  for(let i=0;i<4;i++)px(0xc4d7cd,-3+i*4,15,3,4);
+  px(0xeee0ad,4,-33,4,48);
+  px(0x315f68,3,-36,6,5);
+  px(0xf2e8d0,-1,12,14,4);
+  for(let i=0;i<4;i++)px(0xf3e7c5,-3+i*4,15,3,5);
   if(tier===1){
-    px(0x334953,-12,4,21,15);
-    px(0x657579,-10,6,17,11);
+    px(0x253c47,-12,4,21,15);
+    px(0xe1b54f,-10,6,17,11);
     px(0xc2ae7e,-10,7,16,2);
     px(0x8b9ea2,-7,16,12,2);
   }else if(tier===2||tier===3){
     px(outline,-14,3,25,18);
-    px(tier===2?0x789298:0x8aadb5,-12,5,21,14);
+    px(tier===2?0xd6ad48:0xe0bd5c,-12,5,21,14);
     px(0xbad5d7,-10,7,17,3);
     px(0x3c656c,-12,17,21,3);
     if(tier===3){px(0x2b363c,-11,21,5,4);px(0x2b363c,5,21,5,4);}
