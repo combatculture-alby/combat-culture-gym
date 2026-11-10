@@ -1801,6 +1801,25 @@ try{
       'The outdoor area must not be accessible until Level 3');
   });
 
+  await openScenario('menu-travel-walks-to-physical-door',sampleSave({
+    gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
+    skills:Array(12).fill(0),gymPhase:'opening',arrivedCount:0
+  }),async page=>{
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openRoomTravel());
+    await clickGame(page,319,102);
+    const intent=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {active:s.sys.isActive(),target:s.roomExitTarget,
+        moving:s.route.length>0,panel:s.furniturePanel.visible};
+    });
+    assert.deepEqual(intent,{active:true,target:'outdoor',moving:true,panel:false},
+      'Choosing a room in Manage must not teleport the coach');
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')?.sys.isActive(),
+      null,{timeout:15000});
+    assert.equal(await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').current),
+      'outdoor');
+  });
+
   // Inspect the art and player/navigation paths of every unlocked room.
   await openScenario('all-additional-rooms-visual-playtest',sampleSave({
     gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
