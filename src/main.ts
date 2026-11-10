@@ -286,6 +286,17 @@ class GymScene extends Phaser.Scene {
       student.actor=new GymCharacter(this,student.x,student.y,1+(i%4));
       student.routine=this.idleRoutine(student,1+i);
       student.actor.body.setVisible(this.activeStudents().includes(student));
+      // NPCs are discoverable with a hand cursor and a name on hover.
+      student.actor.body.setSize(30,38).setInteractive(
+        new Phaser.Geom.Rectangle(-15,-36,30,38),Phaser.Geom.Rectangle.Contains
+      );
+      student.actor.body.input!.cursor='pointer';
+      student.actor.body.on('pointerover',()=>{
+        if(!student.actor?.body.visible||this.furniturePanel.visible||this.rosterPanel.visible)return;
+        this.studentCard.setText(student.name.toUpperCase()+' / TALK OR COACH')
+          .setVisible(true);
+      });
+      student.actor.body.on('pointerout',()=>this.studentCard.setVisible(false));
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
       this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
       this.speechUntil[i]=0;
