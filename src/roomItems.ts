@@ -31,7 +31,7 @@ const fixedFurniture:Record<RoomId,readonly {left:number;right:number;top:number
 };
 const blocked:{[key in RoomId]:RoomPoint[]}={
   main:[],
-  outdoor:[{x:433,y:165}],
+  outdoor:[{x:443,y:165}],
   upstairs:[{x:68,y:169}],
   downstairs:[{x:68,y:170}],
 };
