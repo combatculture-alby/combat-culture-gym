@@ -1537,6 +1537,44 @@ try{
       'Only physically present students may show coaching prompts');
   });
 
+  await openScenario('management-roster-and-class-day-controls',sampleSave({
+    gymPhase:'open',arrivedCount:2,classesToday:0,enrolledStudents:4
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.openGymUpgrades();
+      const menu=s.furniturePanel.list.map(o=>o.text||'');
+      const rosterButton=s.furniturePanel.list.find(o=>o.text==='STUDENT ROSTER');
+      return {menu,hasRoster:!!rosterButton};
+    });
+    assert.ok(state.hasRoster,'Manage Gym should offer direct student roster access');
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.furniturePanel.setVisible(false);
+      s.showRosterPage();
+    });
+    const roster=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {visible:s.rosterPanel.visible,title:s.rosterPanel.list.some(o=>o.text==='STUDENT ROSTER')};
+    });
+    assert.deepEqual(roster,{visible:true,title:true});
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.rosterPanel.setVisible(false);
+      s.openDailyHubPlan();
+    });
+    const dayPlan=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.furniturePanel.list.filter(o=>o.text==='CLOSE GYM').length;
+    });
+    assert.equal(dayPlan,1);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.advanceGymPhase();
+    });
+    assert.equal((await sceneState(page)).classesToday,0,'Gym cannot close without teaching');
+  });
+
   // Full multi-day hub regression: unfinished services, delayed supplies and
   // rotating attendance must remain consistent across class days and reloads.
   await openScenario('three-day-hub-continuity',sampleSave({
