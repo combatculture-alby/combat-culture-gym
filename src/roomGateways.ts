@@ -26,11 +26,13 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
   if(side==='back'){
     // An open flight of stairs meets the existing BACK WALL at y-46.
     // No black 50x50 box or freestanding door casing on top of the floor.
-    rect(0x38545a,-20,-46,40,16);
-    rect(0x9ab1a7,-20,-46,40,2);
-    rect(ink,-17,-43,34,15);
-    rect(dark,-14,-40,28,12);
-    rect(0x59716b,-12,-38,24,3);
+    // Structural opening starts at the wall/floor seam (world y~74).
+    // Extending the recess behind the steps makes it a real stairwell.
+    rect(0x38545a,-20,-61,40,32);
+    rect(0x9ab1a7,-21,-62,42,3);
+    rect(ink,-17,-58,34,28);
+    rect(dark,-14,-56,28,25);
+    rect(0x59716b,-12,-51,24,3);
     rect(wood,-18,-30,36,3);
     for(let step=0;step<5;step++){
       const yTop=-28+step*6;
@@ -67,14 +69,17 @@ export function makeRoomGateway(scene:Phaser.Scene,kind:RoomId,x:number,y:number
     r(0xc4c6aa,-5,18,13,2);
     if(kind==='outdoor'){
       // Sliding glass gate in a side-wall track, not a standalone cabinet.
-      r(0x1c383c,-26,-25,18,43);
-      r(0x85b0aa,-24,-23,15,26);
-      r(0xaad0c1,-22,-21,4,18,.76);
-      r(0x426b60,-24,3,15,13);
-      r(0x203e41,-18,-23,2,39);
-      r(wood,-12,-6,2,6);
-      r(0xcad5ba,-25,-27,18,2);
-      // Exterior paving crosses the threshold and ties it to the wall.
+      // The opening is an inset passage with a partly open side gate,
+      // not an opaque rectangular "door prop" pasted onto the mat.
+      r(0x162f33,-26,-25,18,43);
+      r(0x294d48,-24,-23,14,39);
+      r(0x1c3938,-22,-21,11,35);
+      r(0x749b8e,-25,-23,2,39);
+      r(0x577c6e,-13,-20,2,35);
+      line(wood,edge(-11),-19,edge(1),-10,3);
+      line(0xa8b5a0,edge(-10),-17,edge(0),-9,1);
+      r(0x94aba0,-27,-28,21,2);
+      // Paving visibly continues from the passage across the threshold.
       for(let k=0;k<3;k++)r(0x658f83,-5+k*4,12,2,7,.75);
     }else{
       // Recessed stair treads follow the wall edge. Their darker side
