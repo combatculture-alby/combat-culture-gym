@@ -8,6 +8,7 @@ export type RoomState={
   gearRooms:RoomId[];
   decorRooms:RoomId[];
   studentRooms:RoomId[];
+  assignmentLevel?:number;
   trashByRoom:Partial<Record<RoomId,number[]>>;
   moppedByRoom:Partial<Record<RoomId,number[]>>;
 };
@@ -40,6 +41,7 @@ export function normalizeRoomState(raw:unknown,level:number):RoomState {
     gearRooms:roomArray(data.gearRooms),
     decorRooms:roomArray(data.decorRooms),
     studentRooms:roomArray(data.studentRooms),
+    assignmentLevel:Number.isInteger(data.assignmentLevel)?data.assignmentLevel:undefined,
     trashByRoom:normalizeRoomIndices(data.trashByRoom,level),
     moppedByRoom:normalizeRoomIndices(data.moppedByRoom,level),
   };
