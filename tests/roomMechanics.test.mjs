@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {unlockedRooms,roomTransition,normalizeRoom} from '../src/gymRooms.ts';
 import {normalizeRoomState,itemRoom,defaultRoomState,moveItemToRoom} from '../src/roomState.ts';
-import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel} from '../src/roomItems.ts';
+import {canFitRoomItem,canWalkInRoom,firstOpenSpot,footprint,itemLabel,roomFloor} from '../src/roomItems.ts';
 
 test('only the new rooms unlock at levels three, four and five',()=>{
   assert.deepEqual([1,2,3,4,5].map(level=>unlockedRooms(level).map(r=>r.id)),[
@@ -58,4 +58,17 @@ test('rotated furniture uses its true design type, not array slot',()=>{
   const cooler={kind:'furniture',index:2,typeId:3,x:245,y:160,rotation:0};
   assert.deepEqual(footprint(cooler),{rx:11,ry:11});
   assert.equal(itemLabel(cooler),'Water Cooler');
+});
+
+test('every additional room is smaller than the main floor and has usable entry space',()=>{
+  const main=roomFloor('main');
+  const mainArea=(main.right-main.left)*(main.bottom-main.top);
+  for(const room of ['outdoor','upstairs','downstairs']){
+    const f=roomFloor(room);
+    const area=(f.right-f.left)*(f.bottom-f.top);
+    assert.ok(area<mainArea*.75,room+' should be meaningfully smaller');
+    assert.ok(canWalkInRoom({x:(f.left+f.right)/2,y:(f.top+f.bottom)/2},[],room));
+    assert.equal(canWalkInRoom({x:20,y:160},[],room),false);
+    assert.equal(canFitRoomItem({kind:'gear',index:0,x:400,y:150,rotation:0},[],room),false);
+  }
 });
