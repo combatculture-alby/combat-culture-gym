@@ -18,7 +18,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Install Chromium for headless hub tests
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 5
+        run: npx playwright install chromium
       - name: Exercise garage progression in Chromium
         run: npm run test:browser
       - name: Upload QA screenshots
