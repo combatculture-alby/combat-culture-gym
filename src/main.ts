@@ -1125,6 +1125,33 @@ class GymScene extends Phaser.Scene {
       else if(item.kind===3) {this.decor.fillStyle(0x547f85).fillRect(x-10,y-19,20,33);this.decor.fillStyle(0xc3e5df).fillRect(x-7,y-16,14,11);this.decor.fillStyle(0x8fbdb7).fillRect(x-5,y-14,10,7);this.decor.fillStyle(0x3a575a).fillRect(x-5,y+5,10,4);}
       else {this.decor.fillStyle(0x34373a).fillRoundedRect(x-10,y-21,20,40,6);this.decor.fillStyle(0xa7554a).fillRoundedRect(x-8,y-17,16,31,5);this.decor.fillStyle(0xd5a77d).fillRect(x-8,y-11,16,3);this.decor.fillStyle(0x30353b).fillRect(x-3,y-25,6,5);}
       if(this.selectedFurniture===i) this.decor.lineStyle(2,0xffe08a).strokeRect(x-24,y-27,48,54);
+      // Make each placed item identifiable and usable without entering Build mode.
+      const bounds=this.furnitureSize(item);
+      const hotspot=this.add.zone(x,y,bounds.rx*2+8,bounds.ry*2+12)
+        .setDepth(19).setInteractive({useHandCursor:true});
+      const caption=this.add.text(x,y-bounds.ry-20,FURNITURE[item.kind].name.toUpperCase(),{
+        fontFamily:UI_FONT,fontSize:'9px',color:'#fff0d0',
+        backgroundColor:'#244349',padding:{x:4,y:2}
+      }).setOrigin(.5,1).setDepth(23).setVisible(false);
+      hotspot.on('pointerover',()=>{
+        if(!this.furniturePanel.visible&&!this.rosterPanel.visible&&!this.isPlacing())
+          caption.setVisible(true);
+      });
+      hotspot.on('pointerout',()=>caption.setVisible(false));
+      hotspot.on('pointerdown',(_p:Phaser.Input.Pointer,_x:number,_y:number,
+        event:Phaser.Types.Input.EventData)=>{
+        event.stopPropagation();caption.setVisible(false);
+        if(this.running||this.furniturePanel.visible||this.rosterPanel.visible||this.isPlacing())return;
+        this.say(FURNITURE[item.kind].name+': '+(
+          item.kind===0?'Lighting for your training floor.':
+          item.kind===1?'Students can rest here between rounds.':
+          item.kind===2?'A display of your gym achievements.':
+          item.kind===3?'Students can stop here for water.':
+          'Students can practice striking here.'
+        )+' Use Build / Arrange to move or store it.');
+      });
+      this.worldFixtures.push(hotspot as unknown as Phaser.GameObjects.Graphics,
+        caption as unknown as Phaser.GameObjects.Graphics);
     });
     const level=this.saveData.equipment||0;
     if(level>=1) {
