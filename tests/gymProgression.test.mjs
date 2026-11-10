@@ -179,3 +179,18 @@ test('every gym tier can fund expansion from class income without minigames',()=
     assert.ok(next.classesTaught>GYM_LEVELS[level-1].classesTaught);
   }
 });
+
+
+test('corrupted day and economy values cannot create invalid gym state',()=>{
+  for(const day of [NaN,Infinity,-Infinity]){
+    assert.deepEqual(attendingIndices(8,3,day),attendingIndices(8,3,1));
+  }
+  assert.equal(classEarnings(1,NaN,NaN,NaN),classEarnings(1,4,0,0));
+  assert.equal(classEarnings(3,Infinity,Infinity,Infinity),classEarnings(3,4,0,0));
+  for(const value of [NaN,Infinity,-Infinity]){
+    assert.equal(canExpandGym(1,value,100,100,100),false);
+    assert.equal(canExpandGym(1,1000,value,100,100),false);
+    assert.equal(canExpandGym(1,1000,100,value,100),false);
+    assert.equal(canExpandGym(1,1000,100,100,value),false);
+  }
+});
