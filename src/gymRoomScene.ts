@@ -59,6 +59,7 @@ export class GymRoomScene extends Phaser.Scene {
   private message!:Phaser.GameObjects.Text;
   private status!:Phaser.GameObjects.Text;
   private cleanNodes:Phaser.GameObjects.Container[]=[];
+  private fixtureSprites:Phaser.GameObjects.Container[]=[];
   private displayItems:RoomFixture[]=[];
   private inventoryPanel:Phaser.GameObjects.Container|null=null;
   private inventoryPage=0;
@@ -78,7 +79,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.save.roomState=this.roomState;
     this.writeSave();
     this.students=[];this.path=[];this.targetTrash=null;this.targetMop=null;this.movingItem=null;
-    this.cleanNodes=[];this.displayItems=[];this.inventoryPanel=null;
+    this.cleanNodes=[];this.displayItems=[];this.fixtureSprites=[];this.inventoryPanel=null;
     this.mopActive=!!data?.mopping;this.mopMarks=[];this.pendingStudent=null;
     this.reflowRoomItems();
     this.drawEnvironment();
@@ -167,6 +168,10 @@ export class GymRoomScene extends Phaser.Scene {
     }
     if(changed)this.writeSave();
   }
+  private persistPosition():void {
+    this.roomState.playerPositions[this.current]={x:this.coach.body.x,y:this.coach.body.y};
+    this.writeSave();
+  }
   private restartRoom(mopping=this.mopActive):void {
     // Phaser destroys the scene on restart. Without recording the coach's
     // current position, every pickup or cleanup teleports them to the entrance.
@@ -203,10 +208,14 @@ export class GymRoomScene extends Phaser.Scene {
     return result;
   }
   private drawFixtures():void {
+    this.fixtureSprites.forEach(sprite=>sprite.destroy());
+    this.fixtureSprites=[];
     this.displayItems=this.createItemList();
     for(const item of this.displayItems){
-      makeRoomFixture(this,item,()=>item.kind==='gear'?this.openGearStation(item):this.moveItem(item));
+      this.fixtureSprites.push(makeRoomFixture(this,item,
+        ()=>item.kind==='gear'?this.openGearStation(item):this.moveItem(item)));
     }
+    this.navigation.rebuild();
   }
   private canStand(x:number,y:number):boolean {
     return canWalkInRoom({x,y},this.displayItems,this.current);
@@ -429,7 +438,8 @@ export class GymRoomScene extends Phaser.Scene {
       this.save.decorStored[chosen.index]=false;
       this.roomState.decorRooms[chosen.index]=this.current;
     }
-    this.restartRoom();
+    this.persistPosition();this.movingItem=null;this.ghost.clear();
+    this.drawFixtures();this.notice('Item placed without leaving the room.');
   }
   private storeSelected():void {
     if(!this.movingItem)return;
@@ -439,7 +449,8 @@ export class GymRoomScene extends Phaser.Scene {
       const furniture=this.save.furniture?.[item.index];if(!furniture)return;
       furniture.stored=true;
     }else{this.save.decorStored??=[];this.save.decorStored[item.index]=true;}
-    this.restartRoom();
+    this.persistPosition();this.movingItem=null;this.ghost.clear();
+    this.drawFixtures();this.notice('Item stored in the shared gym inventory.');
   }
   private rotateItem():void {
     if(this.movingItem?.kind!=='furniture')return;
@@ -451,6 +462,7 @@ export class GymRoomScene extends Phaser.Scene {
     this.notice('Placement cancelled. Your equipment has not moved.');
   }
   private drawTrash():void {
+    this.cleanNodes.forEach(node=>node.destroy());this.cleanNodes=[];
     const left=this.roomState.trashByRoom[this.current]||[];
     for(const id of left){
       const p=this.trashPoints()[id];if(!p)continue;
@@ -486,7 +498,8 @@ export class GymRoomScene extends Phaser.Scene {
     this.save.materials[index%3]=(this.save.materials[index%3]||0)+1;
     if(!this.roomState.trashByRoom[this.current]?.length)
       this.save.reputation=(this.save.reputation||0)+1;
-    this.restartRoom();
+    this.persistPosition();this.drawTrash();this.updateStatus();
+    this.notice('Trash cleared. Materials collected and saved.');
   }
   private drawMop():void {
     const point=this.mopStation();
@@ -543,7 +556,12 @@ export class GymRoomScene extends Phaser.Scene {
       this.save.supplies![3]--;
       this.save.reputation=(this.save.reputation||0)+1;
     }
-    this.restartRoom(next.length<this.mopPoints().length);
+    this.mopActive=next.length<this.mopPoints().length;
+    this.persistPosition();
+    this.mopMarks.forEach(mark=>mark.destroy());this.mopMarks=[];
+    if(this.mopActive)this.drawMopMarkers();
+    this.updateStatus();
+    this.notice(this.mopActive?'Keep mopping the remaining spots.':'Room mopped. Reputation improved.');
   }
   private drawStudents():void {
     if(this.save.gymPhase==='opening'||this.save.gymPhase==='closing')return;
