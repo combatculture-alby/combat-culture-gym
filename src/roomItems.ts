@@ -1,7 +1,7 @@
 import type {RoomId,RoomPoint} from './gymRooms';
 
 export type ItemKind='gear'|'furniture'|'decor';
-export type RoomFixture={kind:ItemKind;index:number;x:number;y:number;rotation:number};
+export type RoomFixture={kind:ItemKind;index:number;typeId?:number;x:number;y:number;rotation:number};
 export type Bounds={rx:number;ry:number};
 export const GEAR_BOUNDS:readonly Bounds[]=[
   {rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},
@@ -19,18 +19,18 @@ const blocked:{[key in RoomId]:RoomPoint[]}={
 };
 export function footprint(item:RoomFixture):Bounds {
   if(item.kind==='gear')return GEAR_BOUNDS[item.index]||{rx:14,ry:12};
-  if(item.kind==='decor')return item.index===2?{rx:11,ry:12}:{rx:25,ry:12};
-  const side=item.rotation%2===1;
-  if(item.index===1)return side?{rx:9,ry:22}:{rx:22,ry:9};
-  if(item.index===2)return side?{rx:11,ry:18}:{rx:18,ry:11};
-  if(item.index===3)return {rx:11,ry:11};
-  if(item.index===4)return {rx:10,ry:13};
+  if(item.kind==='decor')return (item.typeId??item.index)===2?{rx:11,ry:12}:{rx:25,ry:12};
+  const side=item.rotation%2===1,style=item.typeId??item.index;
+  if(style===1)return side?{rx:9,ry:22}:{rx:22,ry:9};
+  if(style===2)return side?{rx:11,ry:18}:{rx:18,ry:11};
+  if(style===3)return {rx:11,ry:11};
+  if(style===4)return {rx:10,ry:13};
   return {rx:9,ry:9};
 }
 export function itemLabel(item:RoomFixture):string {
   if(item.kind==='gear')return GEAR_LABELS[item.index]||'Equipment';
-  if(item.kind==='furniture')return FURNITURE_LABELS[item.index]||'Furniture';
-  return DECOR_LABELS[item.index]||'Decoration';
+  if(item.kind==='furniture')return FURNITURE_LABELS[item.typeId??item.index]||'Furniture';
+  return DECOR_LABELS[item.typeId??item.index]||'Decoration';
 }
 export function overlap(a:RoomFixture,b:RoomFixture,margin=3):boolean {
   const x=footprint(a),y=footprint(b);
