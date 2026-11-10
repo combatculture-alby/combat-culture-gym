@@ -27,6 +27,8 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
 } from './coachStyle';
 import { drawGym } from './gymWorld';
 import {defaultRoomState,normalizeRoomState,type RoomState} from './roomState';
+import {GymRoomScene} from './gymRoomScene';
+import {unlockedRooms,type RoomId} from './gymRooms';
 import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
@@ -1357,6 +1359,7 @@ class GymScene extends Phaser.Scene {
       ['INVENTORY / SELL',()=>this.openFurniture('inventory')],
       ['SUPPLY ORDERS',()=>this.openSupplyOrders()],
       ['DAILY GYM PLAN',()=>this.openDailyHubPlan()],
+      ['VISIT OTHER ROOMS',()=>this.openRoomTravel()],
       [this.dayPhase()==='opening'?'OPEN GYM':this.dayPhase()==='open'?'CLOSE GYM':'NEXT DAY',()=>{this.furniturePanel.setVisible(false);this.advanceGymPhase();}]
     ];
     actions.forEach(([label,fn],i)=>this.menuAction(label,84+(i%2)*161,77+Math.floor(i/2)*36,149,fn));
@@ -1364,6 +1367,16 @@ class GymScene extends Phaser.Scene {
       ()=>this.openExpansion(),false,0x39735f);
     this.panelButton(this.furniturePanel,this.devToolsEnabled()?'DEV TOOLS':'EDIT COACH',245,216,149,25,
       ()=>this.devToolsEnabled()?this.openDevTools():this.openCoachWardrobe(),false,0x564844);
+  }
+  private openRoomTravel():void {
+    if(this.running||this.isPlacing())return;
+    this.menuShell('EXPLORE GYM','Choose an unlocked room. Main gym activities remain unchanged.',()=>this.openGymUpgrades());
+    const rooms=unlockedRooms(this.gymLevel());
+    rooms.forEach((room,i)=>this.menuAction(room.name.toUpperCase(),84+(i%2)*161,88+Math.floor(i/2)*45,149,()=>{
+      if(room.id==='main'){this.furniturePanel.setVisible(false);return;}
+      this.persist();
+      this.scene.start('GymRoom',{room:room.id as RoomId});
+    }));
   }
   private devToolsEnabled():boolean {
     // Explicit opt-in, only on the isolated garage preview, never production.
@@ -3515,6 +3528,6 @@ class ConditioningScene extends Phaser.Scene {
   }
 }
 
-const combatGym = new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,SeminarScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
+const combatGym = new Phaser.Game({type:Phaser.AUTO,parent:'game',width:W,height:330,backgroundColor:'#c9ae86',pixelArt:true,input:{activePointers:2},scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:[GymScene,GymRoomScene,SeminarScene,BriefingScene,RushScene,RhythmScene,MemoryScene,DefenseScene,CompetitionScene,ConditioningScene]});
 // Test-only visibility for headless browser QA. Production builds do not expose the game object.
 if(import.meta.env.DEV)(window as unknown as {__combatGym?:Phaser.Game}).__combatGym=combatGym;
