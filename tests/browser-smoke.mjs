@@ -1680,6 +1680,115 @@ try{
     assert.notDeepEqual(third.attending,second.attending);
   });
 
+  // Multi-room release gate: unlocks, identical sprite scaling, owned gear
+  // placed in a different room, resource collection and return to the hub.
+  await openScenario('four-room-navigation-and-assets',sampleSave({
+    gymLevel:5,enrolledStudents:12,friendships:Array(12).fill(0),
+    skills:Array(12).fill(0),gymPhase:'open',arrivedCount:8,
+    money:1500,supplies:[2,2,2,3],materials:[0,0,0],
+    ownedGear:[true,false,false,false,false,false,false,false],
+    gearStored:[true,true,true,true,true,true,true,true],
+    gearPositions:[{x:120,y:150}]
+  }),async page=>{
+    const doors=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {names:s.gymLevel(),roomCount:s.saveData.roomState?.studentRooms.length||0,
+        assigned:s.saveData.roomState?.studentRooms?.slice(0,8),
+        exits:s.children.list.filter(o=>o?.list?.some?.(x=>x?.text==='UP')).length};
+    });
+    assert.equal(doors.names,5);
+    assert.equal(doors.roomCount,12,'All members must have a room assignment');
+    assert.ok(doors.assigned.includes('outdoor'));
+    assert.ok(doors.assigned.includes('upstairs'));
+    assert.ok(doors.assigned.includes('downstairs'));
+    await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').visitRoom('outdoor'));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')?.sys.isActive());
+    const initial=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {room:s.current,npcs:s.students.length,
+        level:s.level,gear:s.displayItems.length,
+        coachTexture:s.coach.getTextureKey(),litter:s.roomState.trashByRoom.outdoor};
+    });
+    assert.equal(initial.room,'outdoor');
+    assert.equal(initial.level,5);
+    assert.ok(initial.npcs>0,'Outdoor room must show assigned students');
+    assert.ok(initial.coachTexture.startsWith('gym-coach-')||
+      initial.coachTexture.startsWith('gym-character-'));
+    assert.deepEqual(initial.litter,[0,1,2]);
+    await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      s.moveItem({kind:'gear',index:0,x:120,y:145,rotation:0});
+    });
+    await clickGame(page,180,145);
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')
+      ?.displayItems?.some(i=>i.kind==='gear'&&i.index===0));
+    const placed=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {owned:s.save.ownedGear[0],stored:s.save.gearStored[0],
+        room:s.roomState.gearRooms[0],pos:s.save.gearPositions[0],
+        artwork:s.displayItems.length};
+    });
+    assert.equal(placed.owned,true);
+    assert.equal(placed.stored,false);
+    assert.equal(placed.room,'outdoor');
+    assert.deepEqual(placed.pos,{x:180,y:144});
+    assert.ok(placed.artwork>=1);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').cleanTrash(0));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('GymRoom')
+      ?.roomState?.trashByRoom?.outdoor?.length===2);
+    const afterTrash=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {stock:s.save.materials,trash:s.roomState.trashByRoom.outdoor};
+    });
+    assert.equal(afterTrash.stock[0],1);
+    assert.deepEqual(afterTrash.trash,[1,2]);
+    for(const index of [0,1,2]){
+      await page.evaluate(i=>window.__combatGym.scene.getScene('GymRoom').mopSpot(i),index);
+      await page.waitForTimeout(100);
+    }
+    const mop=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('GymRoom');
+      return {done:s.roomState.moppedByRoom.outdoor,stock:s.save.supplies[3],rep:s.save.reputation};
+    });
+    assert.deepEqual(mop.done,[0,1,2]);
+    assert.equal(mop.stock,2,'One sanitizer is used only on completion');
+    assert.ok(mop.rep>=1);
+    await page.evaluate(()=>window.__combatGym.scene.getScene('GymRoom').goTo('main'));
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+    const home=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {gear:s.saveData.gearStored[0],room:s.saveData.roomState.gearRooms[0],
+        onFloor:s.solidFootprints().some(o=>o.x===180&&o.y===144)};
+    });
+    assert.equal(home.gear,false);
+    assert.equal(home.room,'outdoor');
+    assert.equal(home.onFloor,false,'Other-room equipment must not block main-room paths');
+    await page.reload({waitUntil:'networkidle'});
+    await page.waitForFunction(()=>window.__combatGym.scene.getScene('Gym')?.sys.isActive());
+    const persisted=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {room:s.saveData.roomState.gearRooms[0],
+        cleaned:s.saveData.roomState.trashByRoom.outdoor,
+        mop:s.saveData.roomState.moppedByRoom.outdoor};
+    });
+    assert.equal(persisted.room,'outdoor');
+    assert.deepEqual(persisted.cleaned,[1,2]);
+    assert.deepEqual(persisted.mop,[0,1,2]);
+  });
+
+  await openScenario('room-unlock-gates',sampleSave({
+    gymLevel:2,enrolledStudents:6,friendships:Array(6).fill(0),
+    skills:Array(6).fill(0)
+  }),async page=>{
+    const before=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.visitRoom('outdoor');
+      return {active:s.sys.isActive(),level:s.gymLevel()};
+    });
+    assert.deepEqual(before,{active:true,level:2},
+      'The outdoor area must not be accessible until Level 3');
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
