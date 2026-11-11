@@ -51,3 +51,5 @@ for row in range(3):
             atlas.alpha_composite(crop,(x,y))
 atlas.save(dst,optimize=True)
 print('Generated',dst,atlas.size)
+
+# GitHub Actions commits the generated atlas directly to the release branch.
