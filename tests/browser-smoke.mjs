@@ -2230,7 +2230,7 @@ try{
       };
     });
     assert.ok(art.loaded,'Approved hub art atlas failed to load');
-    for(const name of ['garage-door','training-mat','gym-banner','water-cooler','supply-shelf'])
+    for(const name of ['garage-door','training-mat-tile','gym-banner','water-cooler','supply-shelf'])
       assert.ok(art.placed.includes(name),'Missing Level 1 imported art: '+name);
     assert.ok(art.frames.includes('heavy-bag'),'Gear artwork was not registered');
     for(const type of ['phone','water','stock','mop']){
@@ -2252,9 +2252,49 @@ try{
     });
     for(const name of ['heavy-bag-l2','bench-l2','kettlebell-rack','water-cooler-l2','supply-shelf','gym-banner'])
       assert.ok(frames.includes(name),'Missing Level 2 equipment art: '+name);
-    assert.equal(frames.filter(name=>name==='training-mat').length,2,
-      'Level 2 uses two independent training mat zones');
+    assert.equal(frames.filter(name=>name==='training-mat-tile').length,2,
+      'Level 2 uses two independent square-edged training mat zones');
   });
+
+  // A stretched perspective mat used to produce jagged diagonal borders.
+  // Verify source-art tiling fills the actual collision footprint instead.
+  for(const [level,expected] of [
+    [1,[{x:72,y:105,w:204,h:83}]],
+    [2,[{x:57,y:95,w:235,h:43},{x:57,y:155,w:235,h:43}]]
+  ]){
+    await openScenario('mat-and-student-layout-level-'+level,sampleSave({
+      gymLevel:level,gymPhase:'open',arrivedCount:level===1?4:5,
+      enrolledStudents:level===1?4:5
+    }),async page=>{
+      const visual=await page.evaluate(()=>{
+        const s=window.__combatGym.scene.getScene('Gym');
+        return {
+          mats:s.children.list.filter(o=>o.texture?.key==='combat-culture-hub-art'&&
+            o.frame?.name==='training-mat-tile').map(o=>({
+              x:o.x,y:o.y,w:o.width,h:o.height,type:o.type
+            })).sort((a,b)=>a.y-b.y),
+          students:s.activeStudents().map(student=>({
+            name:student.name,x:student.x,y:student.y,
+            canStand:s.canStand(student.x,student.y)
+          }))
+        };
+      });
+      assert.deepEqual(visual.mats.map(({x,y,w,h})=>({x,y,w,h})),expected,
+        'Imported mat tiles must match square-edged training zones at Level '+level);
+      assert.ok(visual.mats.every(mat=>mat.type==='TileSprite'),
+        'The source mat must be repeated as tiles, not perspective-scaled');
+      assert.equal(visual.students.length,level===1?4:5,
+        'Expected the full Level '+level+' active student group');
+      const bounds=level===1?
+        {left:70,right:278,top:103,bottom:190}:
+        {left:55,right:294,top:93,bottom:200};
+      for(const student of visual.students){
+        assert.ok(student.x>=bounds.left+8&&student.x<=bounds.right-8&&
+          student.y>=bounds.top+8&&student.y<=bounds.bottom-8&&student.canStand,
+          student.name+' must start on a navigable training mat, not inside the garage door');
+      }
+    });
+  }
 
   await openScenario('original-coach-and-student-chibis',sampleSave({
     gymLevel:1
