@@ -25,5 +25,7 @@ jobs:
           git add art-source/extracted/level1/
           if ! git diff --cached --quiet; then
             git commit -m "art: add 24 transparent Level 1 garage props"
+            git fetch origin release/levels-1-2
+            git rebase origin/release/levels-1-2
             git push origin HEAD:release/levels-1-2
           fi
