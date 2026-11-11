@@ -1348,17 +1348,27 @@ class GymScene extends Phaser.Scene {
     if(decor>=1&&!this.saveData.decorStored?.[0]&&itemRoom(this.saveData.roomState?.decorRooms,0,this.gymLevel())==='main') {
       const p=pos[0];
       layer(p.y);
-      this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
-      this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
-      this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
+      if(this.gymLevel()<=2&&hasHubArt(this)){
+        this.worldFixtures.push(placeHubArt(this,'gym-banner',p.x,p.y,54,25,
+          10+p.y/100-0.04));
+      }else{
+        this.decor.fillStyle(0xe8d4a1).fillRect(p.x-25,p.y-9,50,18);
+        this.decor.fillStyle(0x943f36).fillRect(p.x-21,p.y-5,42,10);
+        this.decor.fillStyle(0xf4e4c3).fillRect(p.x-17,p.y-1,34,2);
+      }
       this.addFixtureInteraction(p.x,p.y,54,25,'Gym Banner','Your gym colors on display.');
     }
     if(decor>=2&&!this.saveData.decorStored?.[1]&&itemRoom(this.saveData.roomState?.decorRooms,1,this.gymLevel())==='main') {
       const p=pos[1];
       layer(p.y);
-      this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
-      this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
-      this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
+      if(this.gymLevel()===2&&hasLevel2HubArt(this)){
+        this.worldFixtures.push(placeHubArt(this,'boxing-poster',p.x,p.y,45,30,
+          10+p.y/100-0.04));
+      }else{
+        this.decor.fillStyle(0x866142).fillRect(p.x-23,p.y-9,47,18);
+        this.decor.fillStyle(0xd9bd80).fillRect(p.x-19,p.y-6,39,12);
+        this.decor.fillStyle(0x476d66).fillRect(p.x-15,p.y-2,31,4);
+      }
       this.addFixtureInteraction(p.x,p.y,52,25,'Training Poster','Inspiration for the next training session.');
     }
     if(decor>=3&&!this.saveData.decorStored?.[2]&&itemRoom(this.saveData.roomState?.decorRooms,2,this.gymLevel())==='main') {
