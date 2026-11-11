@@ -411,9 +411,9 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
     addFitted(boardKey,layout.board.x+6,layout.board.y,
       Math.min(layout.board.w-12,level===1?53:65),
       Math.min(layout.board.h,level===1?34:39),11.2);
-    addFitted(level===1?'approved-level1-folding-desk':deskKey,layout.desk.x+(level===1?-8:3),layout.desk.y-(level===1?12:0),
-      level===1?110:Math.min(layout.desk.w-6,55),
-      level===1?58:Math.min(layout.desk.h,28),12.2);
+    addFitted(level===1?'approved-level1-folding-desk':deskKey,layout.desk.x+(level===1?-13:3),layout.desk.y-(level===1?17:0),
+      level===1?138:Math.min(layout.desk.w-6,55),
+      level===1?72:Math.min(layout.desk.h,28),12.2);
     return;
   }
   const {board:b,desk:d}=gymServiceLayout(level);
