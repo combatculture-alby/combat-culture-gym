@@ -166,8 +166,8 @@ export class GymCharacter {
       this.studentArt|| (this.approvedCoach?COACH_APPROVED_KEY:this.artActor===null?key:CHARACTER_ART_KEY),
       this.studentArt||this.approvedCoach?'idle-down-0':this.artActor===null?0:this.artActor+'-0')
       .setOrigin(0.5,this.studentArt?1:foot/frameSize);
-    if(this.studentArt||this.approvedCoach)this.image.setDisplaySize(39,52);
-    else if(this.artActor!==null)this.image.setDisplaySize(39,47);
+    if(this.studentArt||this.approvedCoach)this.image.setDisplaySize(43,57);
+    else if(this.artActor!==null)this.image.setDisplaySize(43,52);
     const shadow=scene.add.ellipse(0,0,19,6,0x202930,0.36);
     this.body=scene.add.container(x,y,[shadow,this.image]);
     this.place(x,y);
@@ -204,13 +204,13 @@ export class GymCharacter {
       this.approvedCoach=this.image.scene.textures.exists(COACH_APPROVED_KEY);
       this.artActor=this.approvedCoach?null:0;
       this.image.setTexture(this.approvedCoach?COACH_APPROVED_KEY:CHARACTER_ART_KEY,this.approvedCoach?'idle-down-0':'0-0')
-        .setDisplaySize(this.approvedCoach?39:39,this.approvedCoach?52:47);
+        .setDisplaySize(this.approvedCoach?43:43,this.approvedCoach?57:52);
     }else{
       this.approvedCoach=false;
       this.artActor=null;
       const key=coachTextureId(normalized);
       GymCharacter.ensureTexture(this.image.scene,key,customizedLook(normalized));
-      this.image.setTexture(key,0).setDisplaySize(48,48);
+      this.image.setTexture(key,0).setDisplaySize(53,53);
     }
     this.frame=-1;
     this.animate(this.pose,0);
