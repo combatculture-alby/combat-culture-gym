@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {normalizeGymLevel,trainingBounds,equipmentPlacementZone,gymServiceLayout} from './gymProgression';
-import {hasHubArt,placeHubArt,approvedRoomKey} from './hubArt';
+import {hasHubArt,placeHubArt,approvedRoomKey,garagePropKey} from './hubArt';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
 // The floor plan expands within the 480px stage; mat, navigation and placement
@@ -389,6 +389,31 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
     return;
   }
 
+  // Release levels use approved artwork for service stations rather than
+  // the legacy procedural desk and bulletin board. Keep hitboxes anchored
+  // to gymServiceLayout so existing interactions continue to work.
+  if(level<=2){
+    const layout=gymServiceLayout(level);
+    const boardKey=garagePropKey('bulletin-board');
+    const deskKey=garagePropKey('reception-desk');
+    const addFitted=(key:string,x:number,y:number,w:number,h:number,depth:number)=>{
+      if(!scene.textures.exists(key))return false;
+      const image=scene.add.image(x+w/2,y+h,key).setOrigin(.5,1).setDepth(depth);
+      const source=scene.textures.get(key).getSourceImage() as HTMLImageElement;
+      const scale=Math.min(w/source.width,h/source.height);
+      image.setScale(scale);
+      return true;
+    };
+    // Keep the board entirely above the walking lane and the desk within
+    // the right-hand service bay. Neither overlaps the training mat.
+    addFitted(boardKey,layout.board.x,layout.board.y,
+      Math.min(layout.board.w,level===1?55:65),
+      Math.min(layout.board.h,level===1?33:39),11.2);
+    addFitted(deskKey,layout.desk.x,layout.desk.y,
+      Math.min(layout.desk.w,level===1?43:55),
+      Math.min(layout.desk.h,level===1?23:28),12.2);
+    return;
+  }
   const {board:b,desk:d}=gymServiceLayout(level);
   const charcoal=0x26363a;
   const gold=level===5?0xe8c58e:0xd4a36d;
