@@ -96,8 +96,8 @@ export type GymPoint={x:number;y:number};
  * A tiny check-in desk grows into a staffed luxury reception on Level 5. */
 export const GYM_SERVICE_LAYOUTS=[
   {room:{left:44,right:450,top:84,bottom:213},
-   board:{x:380,y:37,w:66,h:39},desk:{x:415,y:192,w:47,h:24},
-   boardApproach:{x:363,y:144},deskApproach:{x:397,y:200}},
+   board:{x:380,y:37,w:66,h:39},desk:{x:366,y:178,w:91,h:47},
+   boardApproach:{x:363,y:144},deskApproach:{x:390,y:205}},
   {room:{left:27,right:460,top:79,bottom:215},
    board:{x:377,y:65,w:83,h:49},desk:{x:395,y:185,w:65,h:30},
    boardApproach:{x:351,y:144},deskApproach:{x:382,y:200}},
