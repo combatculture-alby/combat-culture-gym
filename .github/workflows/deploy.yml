@@ -96,6 +96,7 @@ jobs:
         with:
           ref: release/levels-1-2
           path: levels-source
+      # Publish the release branch only after its standalone browser QA passed.
       - name: Build Levels 1–2 playtest
         working-directory: levels-source
         env:
