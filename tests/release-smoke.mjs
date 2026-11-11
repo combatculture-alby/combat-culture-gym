@@ -32,6 +32,11 @@ try {
   await page.goto(url);
   await ready(1);
   const checkRoom=async level=>{
+    await page.waitForFunction(level=>{
+      const scene=window.__combatGym?.scene.getScene('Gym');
+      return scene?.sys.isActive()&&scene.gymLevel()===level&&
+        scene.children.list.some(child=>child.texture?.key==='approved-room-level'+level&&child.visible);
+    },level);
     const room=await page.evaluate(level=>{
       const scene=window.__combatGym.scene.getScene('Gym');
       const key='approved-room-level'+level;
