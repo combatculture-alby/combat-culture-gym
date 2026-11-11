@@ -14,6 +14,8 @@ export const HUB_ART_FRAMES={
   'water-cooler':{x:0,y:61,w:24,h:47},
   'weight-bench':{x:27,y:61,w:46,h:47},
   'training-mat':{x:76,y:61,w:84,h:47},
+  // Opaque center section of the original mat; tiles without trapezoid edges.
+  'training-mat-tile':{x:101,y:75,w:32,h:21},
   'gym-banner':{x:0,y:121,w:89,h:34},
   'garage-door':{x:92,y:119,w:66,h:36}
 } as const;
@@ -82,6 +84,20 @@ export function hasServiceHubArt(scene:Phaser.Scene):boolean {
   return scene.textures.exists(HUB_SERVICE_ART_KEY)&&
     scene.textures.get(HUB_SERVICE_ART_KEY).has('desk-phone');
 }
+/** Use the source mat's opaque interlocking tiles for a rectangular floor.
+ * The perspective-shaped full mat sprite cannot be stretched into a playable
+ * rectangle: it leaves diagonal black edges and makes characters look airborne. */
+export function placeHubTrainingMat(
+  scene:Phaser.Scene,left:number,top:number,right:number,bottom:number,
+  depth=0.3
+):Phaser.GameObjects.TileSprite {
+  const width=Math.max(1,Math.round(right-left)-4);
+  const height=Math.max(1,Math.round(bottom-top)-4);
+  return scene.add.tileSprite(Math.round(left)+2,Math.round(top)+2,
+    width,height,HUB_ART_KEY,'training-mat-tile')
+    .setOrigin(0,0).setDepth(depth);
+}
+
 export function placeHubArt(
   scene:Phaser.Scene,name:HubArtName,x:number,y:number,width:number,height:number,
   depth:number,originX=0.5,originY=0.5
