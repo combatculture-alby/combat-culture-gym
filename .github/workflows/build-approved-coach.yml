@@ -25,5 +25,6 @@ jobs:
           git add src/assets/coach-approved.png
           if ! git diff --cached --quiet; then
             git commit -m "art: install approved animated coach sprite"
+            git pull --rebase origin release/levels-1-2
             git push origin HEAD:release/levels-1-2
           fi
