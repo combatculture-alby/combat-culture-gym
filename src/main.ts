@@ -343,6 +343,13 @@ class GymScene extends Phaser.Scene {
         _pointer:Phaser.Input.Pointer,_localX:number,_localY:number,
         event:Phaser.Types.Input.EventData
       )=>{
+        // QA instrumentation for hit-testing class coaching.
+        (this as unknown as {studentTapDebug?:unknown}).studentTapDebug={
+          name:student.name,active:this.activeStudents().includes(student),
+          build:this.buildMode,placing:this.isPlacing(),panel:this.furniturePanel.visible,
+          roster:this.rosterPanel.visible,dist:distance(this.player,student),
+          requests:[...this.requests],running:this.running
+        };
         event.stopPropagation();
         if(!this.activeStudents().includes(student)||this.buildMode||
           this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
