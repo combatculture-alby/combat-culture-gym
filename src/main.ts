@@ -46,7 +46,7 @@ type Student = Point & { name:string; friendship:number; skill:number; actor?:Gy
 // stand on the roll-up door, window, wall or mat border.
 const STUDENT_HOMES:Point[]=[
   {x:94,y:139},{x:250,y:139},{x:107,y:177},{x:243,y:177},
-  {x:170,y:116},{x:205,y:181},{x:165,y:184},{x:82,y:158}
+  {x:194,y:133},{x:205,y:181},{x:165,y:184},{x:82,y:158}
 ];
 const GEAR_BOUNDS=[{rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},{rx:14,ry:11},{rx:14,ry:10},{rx:13,ry:13},{rx:16,ry:12}];
 const NEAR=42;
