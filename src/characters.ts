@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
-  normalizeCoachAppearance,coachTextureId,type CoachAppearance} from './coachStyle';
+  normalizeCoachAppearance,coachTextureId,DEFAULT_COACH,type CoachAppearance} from './coachStyle';
+import {CHARACTER_ART_KEY,actorArtAvailable,actorArtIndex,actorPoseFrame} from './characterArt';
 
 export type Facing = 'down' | 'up' | 'side';
 export type Pose = 'idle' | 'walk' | 'shadow' | 'bag' | 'lift' | 'stretch' | 'rest' | 'talk' | 'drink';
@@ -144,12 +145,22 @@ export class GymCharacter {
   private pose: Pose='idle';
   private elapsed=0;
   private frame=-1;
+  private artActor:number|null=null;
 
   constructor(scene: Phaser.Scene,x:number,y:number,look:number|CoachAppearance) {
     const key=typeof look==='number'?'gym-character-'+look:coachTextureId(look);
     const colors=typeof look==='number'?looks[look]:customizedLook(look);
-    GymCharacter.ensureTexture(scene,key,colors);
-    this.image=scene.add.image(0,0,key,0).setOrigin(0.5,foot/frameSize);
+    const isDefault=typeof look!=='number'&&
+      Object.keys(DEFAULT_COACH).every(k=>look[k as keyof CoachAppearance]===
+        DEFAULT_COACH[k as keyof CoachAppearance]);
+    const idx=typeof look==='number'?actorArtIndex(look):isDefault?0:null;
+    this.artActor=actorArtAvailable(scene)?idx:null;
+    if(this.artActor===null)GymCharacter.ensureTexture(scene,key,colors);
+    this.image=scene.add.image(0,0,
+      this.artActor===null?key:CHARACTER_ART_KEY,
+      this.artActor===null?0:this.artActor+'-0')
+      .setOrigin(0.5,foot/frameSize);
+    if(this.artActor!==null)this.image.setDisplaySize(frameSize,frameSize);
     const shadow=scene.add.ellipse(0,0,19,6,0x202930,0.36);
     this.body=scene.add.container(x,y,[shadow,this.image]);
     this.place(x,y);
@@ -177,14 +188,25 @@ export class GymCharacter {
 
   /** Swaps only the coach atlas. NPC palettes and all animation frames stay intact. */
   setAppearance(appearance:CoachAppearance):void {
-    const key=coachTextureId(appearance);
-    GymCharacter.ensureTexture(this.image.scene,key,customizedLook(appearance));
-    this.image.setTexture(key,0);
+    const normalized=normalizeCoachAppearance(appearance);
+    const source=actorArtAvailable(this.image.scene)&&
+      Object.keys(DEFAULT_COACH).every(k=>normalized[k as keyof CoachAppearance]===
+        DEFAULT_COACH[k as keyof CoachAppearance]);
+    if(source){
+      this.artActor=0;
+      this.image.setTexture(CHARACTER_ART_KEY,'0-0').setDisplaySize(frameSize,frameSize);
+    }else{
+      this.artActor=null;
+      const key=coachTextureId(normalized);
+      GymCharacter.ensureTexture(this.image.scene,key,customizedLook(normalized));
+      this.image.setTexture(key,0).setDisplaySize(frameSize,frameSize);
+    }
     this.frame=-1;
     this.animate(this.pose,0);
   }
 
   getTextureKey():string {return this.image.texture.key;}
+  getTextureFrame():string|number {return this.artActor!==null?this.artActor+'-0':0;}
 
   place(x:number,y:number):void {
     this.body.setPosition(x,y).setDepth(10+y/100);
@@ -202,8 +224,16 @@ export class GymCharacter {
     this.elapsed+=dt;
     const phase=pose==='idle'?[0,0,0,0,0,0,0,3][Math.floor(this.elapsed*5)%8]:
       Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:2,talk:3,drink:2}[pose]))%4;
-    const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
-    if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
+    if(this.artActor!==null){
+      const sourceFrame=actorPoseFrame(this.facing,pose);
+      if(sourceFrame!==this.frame){
+        this.image.setFrame(this.artActor+'-'+sourceFrame);
+        this.frame=sourceFrame;
+      }
+    }else{
+      const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
+      if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
+    }
     this.image.setFlipX(this.left);
   }
 }
