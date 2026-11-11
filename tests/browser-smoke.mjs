@@ -2320,6 +2320,24 @@ try{
     assert.notEqual(actors.students.find(s=>s.name==='Marshall')?.texture,
       'combat-culture-actor-art',
       'Marshall has no supplied art; should retain the existing fallback');
+    const motion=await page.evaluate(()=>{
+      const coach=window.__combatGym.scene.getScene('Gym').coach;
+      coach.face(1,0);
+      coach.animate('walk',0.01);
+      const walkStart=coach.image.frame.name;
+      coach.animate('walk',0.14);
+      const walkStep=coach.image.frame.name;
+      coach.animate('drink',0.01);
+      const bottleDown=coach.image.frame.name;
+      coach.animate('drink',0.6);
+      const bottleUp=coach.image.frame.name;
+      coach.animate('idle',0);
+      return {walkStart,walkStep,bottleDown,bottleUp};
+    });
+    assert.notEqual(motion.walkStart,motion.walkStep,
+      'Imported chibi must animate walking rather than freeze on one frame');
+    assert.notEqual(motion.bottleDown,motion.bottleUp,
+      'Imported chibi must lift the bottle while drinking');
     await page.screenshot({path:output+'/original-chibis-level-1.png'});
   });
 
