@@ -45,7 +45,16 @@ export const APPROVED_GARAGE_PROPS=['heavy-bag','kettlebells','jump-rope','weigh
 export const garagePropKey=(name:string)=>'approved-garage-'+name;
 const garagePropUrls=import.meta.glob('./../art-source/extracted/level1/*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
 
+export const APPROVED_LEVEL2_PROPS=['squat-rack','weight-plates','flat-bench','dumbbell-rack','heavy-bag','speed-bag','double-end-bag','thai-pads','focus-mitts','wall-target','boxing-gloves','plyo-box','battle-ropes','jump-rope','agility-ladder','medicine-ball','water-cooler','mop-bucket','trash-can','towel-rack','storage-closet','supply-shelf','muay-thai-poster','boxing-poster','wai-kru-poster','mma-poster'] as const;
+export const level2PropKey=(name:string)=>'approved-level2-'+name;
+const level2PropUrls=import.meta.glob('./../art-source/extracted/level2/*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
+
 export function preloadHubArt(scene:Phaser.Scene):void {
+  for(const name of APPROVED_LEVEL2_PROPS){
+    const url=level2PropUrls['./../art-source/extracted/level2/'+name+'.png'];
+    const key=level2PropKey(name);
+    if(url&&!scene.textures.exists(key))scene.load.image(key,url);
+  }
   for(const name of APPROVED_GARAGE_PROPS){
     const key=garagePropKey(name);
     const url=garagePropUrls['./../art-source/extracted/level1/'+name+'.png'];
