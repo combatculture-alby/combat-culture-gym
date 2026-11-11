@@ -20,9 +20,11 @@ jobs:
       - name: Install Chromium for headless hub tests
         timeout-minutes: 5
         run: npx playwright install chromium
-      - name: Exercise garage progression in Chromium
+      - name: Exercise full five-level progression in Chromium
+        if: github.head_ref != 'release/levels-1-2' && github.ref_name != 'release/levels-1-2'
         run: npm run test:browser
       - name: Verify the two-level release build
+        if: github.head_ref == 'release/levels-1-2' || github.ref_name == 'release/levels-1-2'
         run: node tests/release-smoke.mjs
       - name: Upload QA screenshots
         if: always()
