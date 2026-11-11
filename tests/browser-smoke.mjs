@@ -2143,6 +2143,35 @@ try{
       assert.ok(!state.includes('gear-'+i),'Wall gear should not occupy the floor');
   });
 
+  await openScenario('equipment-maintenance-controls-student-activities',sampleSave({
+    gymLevel:2,ownedGear:[true,false,false,false,true],
+    gearStored:[false,false,false,false,false],
+    gearPositions:[{x:85,y:115},null,null,null,{x:85,y:175}],
+    gearCondition:[100,100,100,100,100],
+    gearCleanliness:[100,100,100,100,100]
+  }),async page=>{
+    const checks=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const bag=s.stations.find(station=>station.id==='gear-0');
+      const bench=s.stations.find(station=>station.id==='gear-4');
+      if(!bag||!bench)throw Error('Purchased gear stations not rendered');
+      const valid=s.stationUsable(bag)&&s.stationUsable(bench);
+      s.saveData.gearCondition[0]=0;
+      const broken=!s.stationUsable(bag)&&s.stationUsable(bench);
+      s.saveData.gearCondition[0]=100;
+      s.saveData.gearCleanliness[0]=0;
+      const dirty=!s.stationUsable(bag);
+      s.saveData.gearCleanliness[0]=100;
+      s.saveData.gearStored[0]=true;
+      const stored=!s.stationUsable(bag);
+      s.saveData.gearStored[0]=false;
+      const restored=s.stationUsable(bag);
+      return {valid,broken,dirty,stored,restored};
+    });
+    for(const [condition,passed] of Object.entries(checks))
+      assert.ok(passed,'Equipment activity condition failed: '+condition);
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
