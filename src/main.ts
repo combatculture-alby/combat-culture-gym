@@ -2133,7 +2133,7 @@ class GymScene extends Phaser.Scene {
     this.showNewItemChoice(item.name,()=>this.selectFurniture(index),
       ()=>this.openFurniture('shop'));
   }
-  private firstClearPlacement(preferred:Point,rx:number,ry:number,
+  private firstClearPlacement(preferred:Point,
     valid:(x:number,y:number)=>boolean):Point {
     const center={x:roundPlacement(preferred.x),y:roundPlacement(preferred.y)};
     if(valid(center.x,center.y))return center;
@@ -2162,7 +2162,7 @@ class GymScene extends Phaser.Scene {
     if(position){
       const size=this.furnitureSize(position);
       const preferred={x:position.stored?168:position.x,y:position.stored?144:position.y};
-      this.placementCursor=this.firstClearPlacement(preferred,size.rx,size.ry,
+      this.placementCursor=this.firstClearPlacement(preferred,
         (x,y)=>this.validPlacement(x,y,size.rx,size.ry,-1,i));
     }
     this.keyboardPlacement=true;
@@ -2178,7 +2178,7 @@ class GymScene extends Phaser.Scene {
     const preferred=pos&&!this.saveData.decorStored?.[index]?
       {...pos}:{x:168,y:144};
     const rx=index===2?11:25;
-    this.placementCursor=this.firstClearPlacement(preferred,rx,12,
+    this.placementCursor=this.firstClearPlacement(preferred,
       (x,y)=>this.validPlacement(x,y,rx,12,-1,-1,index===2));
     this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
