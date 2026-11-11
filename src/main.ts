@@ -1598,7 +1598,7 @@ class GymScene extends Phaser.Scene {
       this.panelButton(this.furniturePanel,'›',210,y,24,22,
         ()=>this.changeCoachStyle(field,1));
     });
-    const avatar=this.add.image(318,129,this.coach.getTextureKey(),this.coach.getTextureFrame()).setScale(2.1);
+    const avatar=this.add.image(318,129,this.coach.getTextureKey(),this.coach.getTextureFrame()).setDisplaySize(84,84);
     this.furniturePanel.add(avatar);
     this.furniturePanel.add(this.add.text(318,169,'YOUR COACH',{
       fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#f3d5a0'
