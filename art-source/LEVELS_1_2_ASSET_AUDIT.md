@@ -3,7 +3,7 @@
 **Scope:** Only Levels 1 and 2. Preserve functional game code, replace all legacy visuals only after replacements are validated.
 
 ## Source art located and deduplicated
-19 distinct reference PNGs were recovered from the conversation's mounted files (duplicates excluded). A local archive was assembled as `combat-culture-levels-1-2-approved-source-art.zip` (approximately 54 MB) with SHA-256 manifest.
+21 distinct reference PNGs were recovered from the conversation's mounted files (duplicates excluded). A local archive was assembled as `combat-culture-levels-1-2-approved-source-art.zip` (approximately 54 MB) with SHA-256 manifest.
 
 ### Characters (8 distinct reference sheets)
 - Erin Student Pixel Sprite Sheet
@@ -34,13 +34,13 @@
 - `src/characterArt.ts` currently maps sheet columns in the order down, right, left, up, which **differs from atlas-layout.json** (down, left, right, up). This discrepancy needs image-by-image directional QA before changing mappings.
 
 ## Missing / unverified
-- Original approved **male coach** customization sheet was not identifiable among the recovered named reference PNGs.
-- An approved **Holly** original reference sheet was not identifiable among the recovered named reference PNGs, despite a generated atlas in the game.
+- **Resolved:** approved male player coach customization sheet received and included in the updated local source-art archive.
+- **Resolved:** Holly's original student sheet received and included in the updated local source-art archive. The source sheet says **Erin**; in-game character identity must be **Holly**.
 - Full source PNGs in this inventory are **not yet uploaded to GitHub**; this commit records the audit only.
 - No asset should be assumed final until its reference and in-game frame are visually compared.
 
 ## Next actions
-1. Transfer all 19 distinct source PNGs into GitHub, retaining the manifest and marking the unclassified image for review.
+1. Transfer all 21 distinct source PNGs into GitHub, retaining the manifest and marking the unclassified image for review.
 2. Compare each extracted frame against its source board, fix direction and transparency.
 3. Replace all legacy artwork in Level 1 and Level 2, while retaining gameplay logic.
 4. Verify all interactions, persistence, and visual consistency before deploying.
