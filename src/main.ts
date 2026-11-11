@@ -2831,9 +2831,16 @@ class GymScene extends Phaser.Scene {
     // Sitting/resting is reserved for an actual bench or rest station.
     // Rotate rest breaks between sitting on the mat and drinking water.
     // This also works in a new gym before any benches have been purchased.
-    const action:Pose=pose==='stretch'?'stretch':pose==='rest'?(Math.random()<0.5?'rest':'drink'):pose==='lift'?'stretch':pose==='drink'?'stretch':'shadow';
-    for(let i=0;i<6;i++){
-      const x=55+Math.floor(Math.random()*41)*6,y=96+Math.floor(Math.random()*17)*6;
+    // Never mime using a bench, bag or water cooler that isn't present.
+    // Solo routines must remain on the actual training mat at every level.
+    const action:Pose=pose==='stretch'||pose==='lift'||pose==='rest'||pose==='drink'?
+      'stretch':'shadow';
+    const bounds=trainingBounds(this.gymLevel());
+    const left=bounds.left+13,right=bounds.right-13;
+    const top=bounds.top+12,bottom=bounds.bottom-12;
+    for(let i=0;i<12;i++){
+      const x=left+Math.random()*(right-left);
+      const y=top+Math.random()*(bottom-top);
       const routine=plan({x,y},action);
       if(routine)return routine;
     }
