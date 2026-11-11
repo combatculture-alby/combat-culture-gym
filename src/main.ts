@@ -1684,7 +1684,11 @@ class GymScene extends Phaser.Scene {
     this.clearIntent();
     this.placingGear=index;
     this.selectedFurniture=-1;this.placingDecor=-1;this.buildMode=true;
-    const pos=this.saveData.gearPositions?.[index];this.placementCursor=pos&&!this.saveData.gearStored?.[index]?{...pos}:{x:168,y:144};this.keyboardPlacement=true;
+    const pos=this.saveData.gearPositions?.[index];
+    const zone=equipmentPlacementZone(this.gymLevel(),GEAR_ITEMS[index].stat);
+    const center={x:roundPlacement((zone.left+zone.right)/2),y:roundPlacement((zone.top+zone.bottom)/2)};
+    this.placementCursor=pos&&!this.saveData.gearStored?.[index]?{...pos}:center;
+    this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
     this.drawEquipment();
