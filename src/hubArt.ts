@@ -50,11 +50,12 @@ export const level2PropKey=(name:string)=>'approved-level2-'+name;
 const level2PropUrls=import.meta.glob('./../art-source/extracted/level2/*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
 
 export const approvedRoomKey=(level:number)=>'approved-room-level'+level;
+const approvedRoomUrls=import.meta.glob('./assets/approved-room-level*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
 export function preloadHubArt(scene:Phaser.Scene):void {
   for(const level of [1,2]){
     const key=approvedRoomKey(level);
-    if(!scene.textures.exists(key))
-      scene.load.image(key,new URL('./assets/approved-room-level'+level+'.png',import.meta.url).href);
+    const url=Object.entries(approvedRoomUrls).find(([path])=>path.endsWith('/approved-room-level'+level+'.png'))?.[1];
+    if(url&&!scene.textures.exists(key))scene.load.image(key,url);
   }
   for(const name of APPROVED_LEVEL2_PROPS){
     const url=Object.entries(level2PropUrls).find(([path])=>path.endsWith('/'+name+'.png'))?.[1];
