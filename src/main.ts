@@ -2779,6 +2779,16 @@ class GymScene extends Phaser.Scene {
     const point={x,y};
     return !closeFeet(this.player,point)&&this.activeStudents().every(other=>other===student||!closeFeet(other,point));
   }
+  private stationUsable(station:Station):boolean {
+    if(!station.id.startsWith('gear-'))return true;
+    const gear=Number(station.id.slice(5));
+    return Number.isInteger(gear)&&
+      this.saveData.ownedGear?.[gear]===true&&
+      !this.saveData.gearStored?.[gear]&&
+      itemRoom(this.saveData.roomState?.gearRooms,gear,this.gymLevel())==='main'&&
+      (this.saveData.gearCondition?.[gear]??100)>=GEAR_WORKING_THRESHOLD&&
+      (this.saveData.gearCleanliness?.[gear]??100)>=CLEAN_GEAR_THRESHOLD;
+  }
   private planStudent(student:Student,index:number):Routine {
     const preferred:Pose[][]=[
       ['bag','shadow','rest','stretch','drink','rest'],
@@ -2816,14 +2826,8 @@ class GymScene extends Phaser.Scene {
     }
     if(pose==='bag'||pose==='lift'||pose==='rest'||pose==='drink'){
       // Broken or filthy gear cannot be used for student practice.
-      const stations=this.stations.filter(station=>{
-        if(station.pose!==pose)return false;
-        if(!station.id.startsWith('gear-'))return true;
-        const gear=Number(station.id.slice(5));
-        return Number.isInteger(gear)&&
-          (this.saveData.gearCondition?.[gear]??100)>=GEAR_WORKING_THRESHOLD&&
-          (this.saveData.gearCleanliness?.[gear]??100)>=CLEAN_GEAR_THRESHOLD;
-      }).sort((a,b)=>distance(a,student)-distance(b,student));
+      const stations=this.stations.filter(station=>station.pose===pose&&this.stationUsable(station))
+        .sort((a,b)=>distance(a,student)-distance(b,student));
       for(const station of stations){
         const side=station.rx+7,front=station.ry+6;
         const goals=[{x:station.x-side,y:station.y+3},{x:station.x+side,y:station.y+3},{x:station.x,y:station.y+front}];
@@ -2894,7 +2898,8 @@ class GymScene extends Phaser.Scene {
       if(paused||this.running){actor.animate(this.running?(student.routine?.pose||'shadow'):'idle',dt);continue;}
       student.chatCooldown-=dt;
       let routine=student.routine!;
-      if(routine.station&&!this.stations.includes(routine.station))routine=this.idleRoutine(student,0.3+i*0.2);
+      if(routine.station&&(!this.stations.includes(routine.station)||!this.stationUsable(routine.station)))
+        routine=this.idleRoutine(student,0.3+i*0.2);
       if(routine.remaining<=0)routine=this.planStudent(student,i);
       student.routine=routine;
       const waypoint=routine.route[0];
