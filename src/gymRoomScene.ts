@@ -186,8 +186,8 @@ export class GymRoomScene extends Phaser.Scene {
     this.add.rectangle(0,0,480,23,0x152b30).setOrigin(0).setDepth(29);
     this.status=this.add.text(12,11,'',{fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',color:'#f9e0ad'})
       .setOrigin(0,.5).setDepth(30);
-    this.add.rectangle(0,226,480,104,0x152b30).setOrigin(0).setDepth(29);
-    this.message=this.add.text(16,244,'',{fontFamily:'Arial',fontSize:'10px',color:'#f2e8cf',
+    this.add.rectangle(0,226,480,44,0x152b30).setOrigin(0).setDepth(29);
+    this.message=this.add.text(16,254,'',{fontFamily:'Arial',fontSize:'10px',color:'#f2e8cf',
       wordWrap:{width:448}}).setDepth(31);
   }
   private createItemList():RoomFixture[] {
@@ -238,16 +238,14 @@ export class GymRoomScene extends Phaser.Scene {
     }
   }
   private addControls():void {
-    this.control(16,282,135,'INVENTORY  [M]',()=>this.openInventory());
-    this.control(171,282,137,'CLEAN / MOP',()=>this.beginMop());
-    this.control(326,282,137,'MAIN GYM',()=>this.requestExit('main'));
-    this.add.text(240,321,'WASD / ARROWS: MOVE    E: INTERACT    ESC: RETURN',
-      {fontFamily:'Arial',fontSize:'9px',color:'#b5c9c0'}).setOrigin(.5).setDepth(31);
+    this.control(16,230,135,'INVENTORY  [M]',()=>this.openInventory());
+    this.control(171,230,137,'CLEAN / MOP',()=>this.beginMop());
+    this.control(326,230,137,'MAIN GYM',()=>this.requestExit('main'));
   }
   private control(x:number,y:number,w:number,label:string,callback:()=>void):void {
-    const background=this.add.rectangle(x,y,w,30,0x345c60).setOrigin(0)
+    const background=this.add.rectangle(x,y,w,19,0x345c60).setOrigin(0)
       .setStrokeStyle(1,0x6e9d97).setDepth(31).setInteractive({useHandCursor:true});
-    const caption=this.add.text(x+w/2,y+15,label,{fontFamily:'Arial',fontSize:'10px',color:'#f4e8cd'})
+    const caption=this.add.text(x+w/2,y+9,label,{fontFamily:'Arial',fontSize:'9px',color:'#f4e8cd'})
       .setOrigin(.5).setDepth(32);
     background.on('pointerdown',callback);
     caption.setInteractive({useHandCursor:true}).on('pointerdown',callback);
