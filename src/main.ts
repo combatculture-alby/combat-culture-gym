@@ -1242,7 +1242,7 @@ class GymScene extends Phaser.Scene {
       // never creates an activity station or a visible floor prop.
       if(!isWallEquipment(i))this.stations.push({
         x,y,...GEAR_BOUNDS[i],id:'gear-'+i,
-        pose:i===0?'bag':i===3||i===6||i===7?'stretch':i===4||i===5?'lift':'shadow',
+        pose:i===0?'bag':i===4||i===5?'lift':'rest',
         fixture:i===0?g:undefined
       });
       g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
