@@ -27,6 +27,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
 } from './coachStyle';
 import { drawGym } from './gymWorld';
 import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,placeHubArt} from './hubArt';
+import {preloadCharacterArt,registerCharacterArt} from './characterArt';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
 import {makeRoomGateway} from './roomGateways';
@@ -262,9 +263,10 @@ class GymScene extends Phaser.Scene {
     this.speechTimers[index]=this.time.delayedCall(duration,()=>this.hideSpeech(student));
   }
   constructor() { super('Gym'); }
-  preload():void {preloadHubArt(this);}
+  preload():void {preloadHubArt(this);preloadCharacterArt(this);}
   create(data?:{trainingBoard?:boolean;notice?:string}): void {
     registerHubArt(this);
+    registerCharacterArt(this);
     this.saveData=loadSave();
     this.saveData.roomState=normalizeRoomState(this.saveData.roomState,this.gymLevel());
     // Re-enter the room the coach was actually using after a browser reload.
@@ -1587,7 +1589,7 @@ class GymScene extends Phaser.Scene {
       this.panelButton(this.furniturePanel,'›',210,y,24,22,
         ()=>this.changeCoachStyle(field,1));
     });
-    const avatar=this.add.image(318,129,this.coach.getTextureKey(),0).setScale(2.1);
+    const avatar=this.add.image(318,129,this.coach.getTextureKey(),this.coach.getTextureFrame()).setScale(2.1);
     this.furniturePanel.add(avatar);
     this.furniturePanel.add(this.add.text(318,169,'YOUR COACH',{
       fontFamily:UI_FONT,fontSize:'10px',fontStyle:'bold',color:'#f3d5a0'
