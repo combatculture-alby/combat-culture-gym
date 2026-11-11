@@ -1658,7 +1658,7 @@ class GymScene extends Phaser.Scene {
     this.menuShell('TRAINING EQUIPMENT','PURCHASE  /  PLACE  /  UPGRADE',()=>this.openGymUpgrades());
     GEAR_ITEMS.forEach((gear,i)=>{
       const owned=this.saveData.ownedGear?.[i]===true;
-      const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?(isWallEquipment(i)?'[WALL]':this.saveData.gearStored?.[i]?'[PLACE]':'[MOVE]'):',{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
+      const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?(isWallEquipment(i)?'[WALL]':this.saveData.gearStored?.[i]?'[PLACE]':'[MOVE]'):'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
         if(owned){if(isWallEquipment(i)){this.say(gear.name+' is installed in its fixed wall slot.');return;}this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
