@@ -45,7 +45,13 @@ for level in (1,2):
     zones=[(59,99,315,202)] if level==1 else [(55,93,294,140),(55,153,294,200)]
     for x0,y0,x1,y1 in zones:
         draw.rectangle((x0-3,y0-3,x1+3,y1+3),fill=(31,35,38),outline=(146,144,135),width=2)
-        tiled(image,TILES,(257,97,432,274),(x0,y0,x1,y1),(24,24))
+        # Approved seamless dark-gray puzzle-mat layout from the tileset showcase.
+        # The old crop was the labeled Top Edge example, incorrectly repeated
+        # across the entire floor, producing repeated edge teeth everywhere.
+        if level==1:
+            fixture(image,TILES,(32,772,569,1004),(x0,y0,x1,y1))
+        else:
+            tiled(image,TILES,(30,98,215,273),(x0,y0,x1,y1),(24,24))
         draw=ImageDraw.Draw(image)
         draw.rectangle((x0,y0,x1,y1),outline=(109,106,108),width=2)
     # The service lane on the right remains visually clear for the board,
