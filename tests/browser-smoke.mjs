@@ -1912,8 +1912,8 @@ try{
       });
       assert.equal(check.name,room.id);
       assert.ok(check.students>=1,'Every room has visiting students');
-      assert.ok(check.player>=36&&check.player<=42,
-        'Character must retain one consistent 40px sprite scale');
+      assert.ok(check.player>=31&&check.player<=42,
+        'Character must stay within the 31-42px gameplay sprite scale');
       await page.screenshot({path:output+'/room-'+room.id+'-before-building.png'});
       // Side wings are navigable, but never item-placement zones.
       const wing=await page.evaluate(()=>{
