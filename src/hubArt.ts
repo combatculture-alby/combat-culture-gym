@@ -18,12 +18,27 @@ export const HUB_ART_FRAMES={
   'garage-door':{x:92,y:119,w:66,h:36}
 } as const;
 
-export type HubArtName=keyof typeof HUB_ART_FRAMES;
+export const HUB_LEVEL2_ART_KEY='combat-culture-level-2-art';
+export const HUB_LEVEL2_FRAMES={
+  'heavy-bag-l2':{x:0,y:0,w:38,h:77},
+  'speed-bag-l2':{x:42,y:0,w:37,h:65},
+  'thai-pads':{x:84,y:0,w:70,h:69},
+  'jump-rope':{x:0,y:79,w:50,h:43},
+  'water-cooler-l2':{x:54,y:79,w:32,h:55},
+  'bench-l2':{x:90,y:79,w:63,h:45},
+  'agility-ladder':{x:0,y:125,w:54,h:33},
+  'medicine-ball':{x:58,y:125,w:43,h:33},
+  'boxing-poster':{x:106,y:126,w:47,h:32}
+} as const;
+
+export type HubArtName=keyof typeof HUB_ART_FRAMES|keyof typeof HUB_LEVEL2_FRAMES;
 
 export function preloadHubArt(scene:Phaser.Scene):void {
   // new URL is resolved and fingerprinted by Vite, including in Pages previews.
   if(!scene.textures.exists(HUB_ART_KEY))
     scene.load.image(HUB_ART_KEY,new URL('./assets/hub-atlas.png',import.meta.url).href);
+  if(!scene.textures.exists(HUB_LEVEL2_ART_KEY))
+    scene.load.image(HUB_LEVEL2_ART_KEY,new URL('./assets/hub-level2-atlas.png',import.meta.url).href);
 }
 export function registerHubArt(scene:Phaser.Scene):void {
   if(!scene.textures.exists(HUB_ART_KEY))return;
@@ -32,16 +47,29 @@ export function registerHubArt(scene:Phaser.Scene):void {
     if(!texture.has(name))
       texture.add(name,0,area.x,area.y,area.w,area.h);
   }
+  if(scene.textures.exists(HUB_LEVEL2_ART_KEY)){
+    const level2=scene.textures.get(HUB_LEVEL2_ART_KEY);
+    for(const [name,area] of Object.entries(HUB_LEVEL2_FRAMES)){
+      if(!level2.has(name))
+        level2.add(name,0,area.x,area.y,area.w,area.h);
+    }
+  }
 }
 export function hasHubArt(scene:Phaser.Scene):boolean {
   return scene.textures.exists(HUB_ART_KEY)&&
     scene.textures.get(HUB_ART_KEY).has('heavy-bag');
 }
+export function hasLevel2HubArt(scene:Phaser.Scene):boolean {
+  return scene.textures.exists(HUB_LEVEL2_ART_KEY)&&
+    scene.textures.get(HUB_LEVEL2_ART_KEY).has('heavy-bag-l2');
+}
 export function placeHubArt(
   scene:Phaser.Scene,name:HubArtName,x:number,y:number,width:number,height:number,
   depth:number,originX=0.5,originY=0.5
 ):Phaser.GameObjects.Image {
-  return scene.add.image(Math.round(x),Math.round(y),HUB_ART_KEY,name)
+  const atlas=Object.prototype.hasOwnProperty.call(HUB_LEVEL2_FRAMES,name)
+    ?HUB_LEVEL2_ART_KEY:HUB_ART_KEY;
+  return scene.add.image(Math.round(x),Math.round(y),atlas,name)
     .setOrigin(originX,originY).setDisplaySize(Math.round(width),Math.round(height))
     .setDepth(depth);
 }
