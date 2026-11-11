@@ -64,6 +64,7 @@ jobs:
       # Refresh preview after Level 1 white matte cleanup and regenerated art QA at d6da9a11.
       # Rebuild the tested garage day loop with opening prep, staggered attendance and closing carryover.
       # Approved six-NPC atlas integration checked in release/levels-1-2.
+      # Refresh isolated Level 1 folding-table reception desk visual test.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
