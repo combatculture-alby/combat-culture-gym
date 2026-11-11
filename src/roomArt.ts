@@ -127,14 +127,23 @@ export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>
   const garageNames:Record<number,string>={0:'heavy-bag',3:'jump-rope',4:'weight-bench',5:'kettlebells'};
   const garageName=item.kind==='gear'?garageNames[item.index]:undefined;
   const level2Names:Record<number,string>={1:'thai-pads',2:'speed-bag'};
+  const furnitureNames:Record<number,string>={1:'weight-bench',2:'supply-shelf',3:'water-cooler'};
+  const furnitureName=item.kind==='furniture'?furnitureNames[item.typeId??item.index]:undefined;
+  const decorName=item.kind==='decor'&&(item.typeId??item.index)===0?'boxing-poster':undefined;
   const approvedKey=item.kind==='gear'&&level2Names[item.index]
-    ?level2PropKey(level2Names[item.index]):garageName?garagePropKey(garageName):undefined;
+    ?level2PropKey(level2Names[item.index]):garageName?garagePropKey(garageName):
+    furnitureName?garagePropKey(furnitureName):decorName?level2PropKey(decorName):undefined;
   const approvedAvailable=!!approvedKey&&scene.textures.exists(approvedKey);
   const art=item.kind==='gear'?artwork[item.index]:undefined;
   const available=art&&((art.key===HUB_ART_KEY&&hasHubArt(scene))||
     (art.key===HUB_LEVEL2_ART_KEY&&hasLevel2HubArt(scene)));
+  const approvedDimensions:Record<string,[number,number]>={
+    'weight-bench':[42,28],'supply-shelf':[38,39],'water-cooler':[25,37],
+    'boxing-poster':[36,40],'thai-pads':[34,34],'speed-bag':[23,42]
+  };
+  const selectedSize=approvedDimensions[furnitureName||decorName||level2Names[item.index]||''];
   const visual=approvedAvailable
-    ?scene.add.image(0,0,approvedKey!).setOrigin(.5,1).setDisplaySize(art?.w||35,art?.h||35)
+    ?scene.add.image(0,0,approvedKey!).setOrigin(.5,1).setDisplaySize(selectedSize?.[0]||art?.w||35,selectedSize?.[1]||art?.h||35)
     :art&&available
     ?scene.add.image(0,0,art.key,art.frame).setOrigin(.5,1).setDisplaySize(art.w,art.h)
     :scene.add.graphics();
