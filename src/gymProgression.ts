@@ -117,3 +117,15 @@ export const GYM_SERVICE_LAYOUTS=[
 export function gymServiceLayout(level:number){
   return GYM_SERVICE_LAYOUTS[normalizeGymLevel(level)-1];
 }
+
+/** Level 1 has one compact equipment mat. Level 2 separates training and
+ * strength areas while keeping the reception corridor permanently clear. */
+export function equipmentPlacementZone(level:number,stat:number):{left:number;right:number;top:number;bottom:number} {
+  const bounds=trainingBounds(level);
+  if(normalizeGymLevel(level)===1)return bounds;
+  // Striking and speed share the upper training area; strength and
+  // conditioning use the lower area. The gap is a walking corridor.
+  return stat<=1
+    ?{...bounds,bottom:140}
+    :{...bounds,top:153};
+}
