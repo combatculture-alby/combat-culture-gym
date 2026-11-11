@@ -2144,7 +2144,7 @@ try{
   });
 
   await openScenario('equipment-maintenance-controls-student-activities',sampleSave({
-    gymLevel:2,ownedGear:[true,false,false,false,true],
+    gymLevel:2,gymPhase:'open',arrivedCount:1,ownedGear:[true,false,false,false,true],
     gearStored:[false,false,false,false,false],
     gearPositions:[{x:85,y:115},null,null,null,{x:85,y:175}],
     gearCondition:[100,100,100,100,100],
@@ -2167,15 +2167,16 @@ try{
       s.saveData.gearStored[0]=false;
       const restored=s.stationUsable(bag);
       const student=s.activeStudents()[0];
+      if(!student)throw Error('Expected student present for interruption test');
       let interrupted=false;
-      if(student){
+      {
         s.saveData.gearCondition[0]=0;
         student.routine={pose:'bag',goal:{x:bag.x,y:bag.y},route:[],
           remaining:5,elapsed:0,station:bag};
         s.updateStudentLife(0.016);
         interrupted=student.routine.station!==bag;
         s.saveData.gearCondition[0]=100;
-      }else interrupted=true; // Opening prep intentionally has no students.
+      }
       return {valid,broken,dirty,stored,restored,interrupted};
     });
     for(const [condition,passed] of Object.entries(checks))
