@@ -93,9 +93,13 @@ export function placeHubTrainingMat(
 ):Phaser.GameObjects.TileSprite {
   const width=Math.max(1,Math.round(right-left)-4);
   const height=Math.max(1,Math.round(bottom-top)-4);
-  return scene.add.tileSprite(Math.round(left)+2,Math.round(top)+2,
+  const tile=scene.add.tileSprite(Math.round(left)+2,Math.round(top)+2,
     width,height,HUB_ART_KEY,'training-mat-tile')
     .setOrigin(0,0).setDepth(depth);
+  // TileSprite may render via an internal generated canvas texture. Retain
+  // the exact authored source-frame identity for runtime QA and inspection.
+  tile.setData('approvedSourceArt','training-mat-tile');
+  return tile;
 }
 
 export function placeHubArt(
