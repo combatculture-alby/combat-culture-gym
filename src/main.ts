@@ -1961,8 +1961,9 @@ class GymScene extends Phaser.Scene {
     this.saveData.gearCondition??=Array(8).fill(100);
     this.saveData.gearCleanliness??=Array(8).fill(100);
     this.saveData.ownedGear?.forEach((owned,i)=>{
-      if(gearActive(owned,this.saveData.gearStored?.[i]===true,
-        this.saveData.gearCondition![i],this.saveData.gearCleanliness![i])&&
+      if(itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'&&
+        gearActive(owned,this.saveData.gearStored?.[i]===true,
+          this.saveData.gearCondition![i],this.saveData.gearCleanliness![i])&&
         program.stats.includes(GEAR_ITEMS[i].stat)){
         this.saveData.gearCondition![i]=maintenanceWear(
           this.saveData.gearCondition![i],GEAR_HEALTH_PER_CLASS);
@@ -2705,7 +2706,9 @@ class GymScene extends Phaser.Scene {
     });
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
       if(owned&&!isWallEquipment(i)&&!this.saveData.gearStored?.[i]&&i!==excludeGear&&itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'){
-        solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
+        const pos=this.saveData.gearPositions?.[i];
+        if(pos&&Number.isFinite(pos.x)&&Number.isFinite(pos.y))
+          solids.push({...pos,...GEAR_BOUNDS[i]});
       }
     });
     if(!excludePlant&&(this.saveData.decorLevel||0)>=3&&!this.saveData.decorStored?.[2]&&
