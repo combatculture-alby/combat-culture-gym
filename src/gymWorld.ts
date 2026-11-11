@@ -409,11 +409,11 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
     // Level 1: both fixtures must sit inside their assigned service hitboxes.
     // Center the art in the hitbox rather than anchoring it at the left edge.
     addFitted(boardKey,layout.board.x+6,layout.board.y,
-      Math.min(layout.board.w-12,level===1?48:65),
-      Math.min(layout.board.h,level===1?31:39),11.2);
+      Math.min(layout.board.w-12,level===1?53:65),
+      Math.min(layout.board.h,level===1?34:39),11.2);
     addFitted(deskKey,layout.desk.x+3,layout.desk.y,
-      Math.min(layout.desk.w-6,level===1?39:55),
-      Math.min(layout.desk.h,level===1?22:28),12.2);
+      Math.min(layout.desk.w-6,level===1?43:55),
+      Math.min(layout.desk.h,level===1?24:28),12.2);
     return;
   }
   const {board:b,desk:d}=gymServiceLayout(level);
