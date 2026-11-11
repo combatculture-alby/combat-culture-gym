@@ -5,7 +5,7 @@ Source: approved 1536x1024 white-background garage prop board.
 Crops use source pixel coordinates, not scaled thumbnail positions.
 """
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageFilter
 from collections import deque
 
 root=Path(__file__).resolve().parents[1]
@@ -59,6 +59,22 @@ for name,(l,t,r,b) in regions.items():
         if min(red,green,blue)<250 or max(red,green,blue)-min(red,green,blue)>8:continue
         p[x,y]=(0,0,0,0)
         q.extend(((x-1,y),(x+1,y),(x,y-1),(x,y+1)))
+    # Remove the near-white matte halo left by the original white backdrop.
+    # Restrict cleanup to pixels immediately beside transparency so white
+    # lettering, highlights and interior details remain untouched.
+    alpha=crop.getchannel("A")
+    edge=alpha.filter(ImageFilter.MinFilter(3))
+    px=crop.load();inner=edge.load()
+    for yy in range(h):
+        for xx in range(w):
+            rr,gg,bb,aa=px[xx,yy]
+            if aa==0 or inner[xx,yy]==255:continue
+            neutral=max(rr,gg,bb)-min(rr,gg,bb)<24
+            if neutral and min(rr,gg,bb)>=235:
+                px[xx,yy]=(0,0,0,0)
+            elif neutral and min(rr,gg,bb)>=205:
+                # Feather only the light fringe, not the underlying sprite.
+                px[xx,yy]=(rr,gg,bb,min(aa,110))
     bbox=crop.getbbox()
     if not bbox:raise ValueError("Empty crop "+name)
     crop.crop(bbox).save(target/(name+".png"),optimize=True)
