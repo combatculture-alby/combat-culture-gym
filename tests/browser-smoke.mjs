@@ -2227,7 +2227,8 @@ try{
   }),async page=>{
     const frames=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
-      return s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
+      return s.children.list.filter(object=>['combat-culture-hub-art',
+        'combat-culture-level-2-art'].includes(object.texture?.key))
         .map(object=>object.frame?.name);
     });
     for(const name of ['heavy-bag-l2','bench-l2','kettlebell-rack','water-cooler-l2','supply-shelf','gym-banner'])
