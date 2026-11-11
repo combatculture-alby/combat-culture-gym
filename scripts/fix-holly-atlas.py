@@ -25,3 +25,5 @@ for xy in coords:
     image.putpixel(xy,(0,0,0,0))
 image.save(atlas,optimize=True)
 print(f"Corrected {len(coords)} divider pixels in {atlas}")
+
+# The generated runtime atlas is committed by the asset workflow.
