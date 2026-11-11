@@ -62,19 +62,22 @@ for name,(l,t,r,b) in regions.items():
     # Remove the near-white matte halo left by the original white backdrop.
     # Restrict cleanup to pixels immediately beside transparency so white
     # lettering, highlights and interior details remain untouched.
-    alpha=crop.getchannel("A")
-    edge=alpha.filter(ImageFilter.MinFilter(3))
-    px=crop.load();inner=edge.load()
-    for yy in range(h):
-        for xx in range(w):
-            rr,gg,bb,aa=px[xx,yy]
-            if aa==0 or inner[xx,yy]==255:continue
-            neutral=max(rr,gg,bb)-min(rr,gg,bb)<24
-            if neutral and min(rr,gg,bb)>=235:
-                px[xx,yy]=(0,0,0,0)
-            elif neutral and min(rr,gg,bb)>=205:
-                # Feather only the light fringe, not the underlying sprite.
-                px[xx,yy]=(rr,gg,bb,min(aa,110))
+    # Repeat over two edge pixels to eliminate the visible white fringe.
+    # Only neutral, bright pixels on the *outer* silhouette are affected.
+    # Interior white highlights and the dark pixel-art outline stay intact.
+    for pass_no in range(2):
+        alpha=crop.getchannel("A")
+        inner=alpha.filter(ImageFilter.MinFilter(3)).load()
+        px=crop.load()
+        for yy in range(h):
+            for xx in range(w):
+                rr,gg,bb,aa=px[xx,yy]
+                if aa==0 or inner[xx,yy]==255:continue
+                neutral=max(rr,gg,bb)-min(rr,gg,bb)<22
+                if neutral and min(rr,gg,bb)>=232:
+                    px[xx,yy]=(0,0,0,0)
+                elif neutral and min(rr,gg,bb)>=205:
+                    px[xx,yy]=(rr,gg,bb,min(aa,70))
     bbox=crop.getbbox()
     if not bbox:raise ValueError("Empty crop "+name)
     crop.crop(bbox).save(target/(name+".png"),optimize=True)
