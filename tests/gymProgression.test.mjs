@@ -72,8 +72,12 @@ test('reception and community board are progressively upgraded with the room',()
     const smaller=services[i-1],bigger=services[i];
     assert.ok(bigger.board.w>smaller.board.w,'Community board must get physically wider');
     assert.ok(bigger.board.h>smaller.board.h,'Community board must get taller');
-    assert.ok(bigger.desk.w>smaller.desk.w,'Reception desk must physically grow');
-    assert.ok(bigger.desk.h>=smaller.desk.h,'Reception desk must not shrink');
+    // Level 1 uses a wide folding table; Level 2 replaces it with a compact
+    // purpose-built counter. The desk then expands in Levels 3-5.
+    if(i>=2){
+      assert.ok(bigger.desk.w>smaller.desk.w,'Reception desk must physically grow after Level 2');
+      assert.ok(bigger.desk.h>=smaller.desk.h,'Reception desk must not shrink after Level 2');
+    }
     assert.ok(bigger.room.left<=smaller.room.left,'Room must not shrink');
     assert.ok(bigger.room.right>=smaller.room.right,'Room must not shrink');
     if(i>=2)assert.deepEqual(bigger.room,services[1].room,
