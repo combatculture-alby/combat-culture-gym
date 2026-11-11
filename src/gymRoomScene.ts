@@ -12,10 +12,12 @@ import {makeRoomFixture} from './roomArt';
 import {makeRoomGateway} from './roomGateways';
 import {paintCompactRoom} from './compactRoomArt';
 
-const SAVE_KEY=import.meta.env.VITE_GARAGE_PREVIEW==='1'
-  ?'combat-culture-gym-garage-preview-v1'
-  :import.meta.env.VITE_ISOLATE_SAVE==='1'
-    ?'combat-culture-gym-living-preview-v1':'combat-culture-gym-v1';
+const SAVE_KEY=import.meta.env.VITE_LEVELS_PLAYTEST==='1'
+  ?'combat-culture-gym-levels-1-2-playtest-v1'
+  :import.meta.env.VITE_GARAGE_PREVIEW==='1'
+    ?'combat-culture-gym-garage-preview-v1'
+    :import.meta.env.VITE_ISOLATE_SAVE==='1'
+      ?'combat-culture-gym-living-preview-v1':'combat-culture-gym-v1';
 type Furniture={kind:number;x:number;y:number;rotation:number;stored:boolean};
 type ExtraSave={
   gymLevel?:number;day?:number;gymPhase?:string;arrivedCount?:number;enrolledStudents?:number;
