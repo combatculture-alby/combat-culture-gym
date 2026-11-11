@@ -1318,7 +1318,7 @@ try{
       s.cancelPlacement();
       s.beginDecorPlacement(2);
       const plant={...s.placementCursor};
-      const plantValid=s.validPlacement(plant.x,plant.y,11,12,-1,-1,true);
+      const plantValid=s.decorFits(plant.x,plant.y);
       s.cancelPlacement();
       s.beginGearPlacement(0);
       const bag={...s.placementCursor};
