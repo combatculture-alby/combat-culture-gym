@@ -128,7 +128,7 @@ export function placeHubArt(
     'heavy-bag':'heavy-bag','kettlebell-rack':'kettlebells',
     'supply-shelf':'supply-shelf','water-cooler':'water-cooler',
     'weight-bench':'weight-bench','desk-phone':'desk-phone',
-    'mop-bucket':'mop','speed-bag':'heavy-bag'
+    'mop-bucket':'mop'
   };
   const level2Aliases:Record<string,string>={
     'heavy-bag-l2':'heavy-bag','speed-bag-l2':'speed-bag',
