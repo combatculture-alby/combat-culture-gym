@@ -27,7 +27,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
-import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,hasServiceHubArt,placeHubArt} from './hubArt';
+import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,hasServiceHubArt,placeHubArt,garagePropKey} from './hubArt';
 import {preloadCharacterArt,registerCharacterArt} from './characterArt';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
@@ -551,7 +551,23 @@ class GymScene extends Phaser.Scene {
       const photoArt=this.gymLevel()<=2&&(
         (hasHubArt(this)&&(type==='water'||type==='stock'))||
         (hasServiceHubArt(this)&&(type==='phone'||type==='mop')));
-      if(photoArt){
+      // Level 1 uses complete individually extracted approved sprites, not
+      // legacy atlas crops (which can show clipped/partial objects).
+      const approvedName=type==='water'?'water-cooler':type==='stock'?'supply-shelf':
+        type==='phone'?'desk-phone':'mop';
+      const approvedKey=garagePropKey(approvedName);
+      if(this.gymLevel()===1&&this.textures.exists(approvedKey)){
+        frame.setVisible(false);
+        const dims=type==='water'?[27,52]:type==='stock'?[44,58]:
+          type==='phone'?[23,19]:[36,42];
+        const footY=type==='water'?prop.y+22:type==='stock'?prop.y+25:
+          type==='phone'?prop.y+11:prop.y+18;
+        art=this.add.image(prop.x,footY,approvedKey).setOrigin(.5,1)
+          .setDepth(type==='phone'?15:13.6);
+        const source=this.textures.get(approvedKey).getSourceImage() as HTMLImageElement;
+        const scale=Math.min(dims[0]/source.width,dims[1]/source.height);
+        art.setScale(scale);
+      }else if(photoArt){
         frame.setVisible(false);
         if(type==='water'){
           art=placeHubArt(this,this.gymLevel()===2&&hasLevel2HubArt(this)
