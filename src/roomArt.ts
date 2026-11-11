@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type {RoomFixture} from './roomItems';
 import {footprint,itemLabel} from './roomItems';
-import {HUB_ART_KEY,HUB_LEVEL2_ART_KEY,hasHubArt,hasLevel2HubArt,garagePropKey} from './hubArt';
+import {HUB_ART_KEY,HUB_LEVEL2_ART_KEY,hasHubArt,hasLevel2HubArt,garagePropKey,level2PropKey} from './hubArt';
 
 /** One pixel-art scale across equipment and 40px character sprites.
  * The feet/ground contact is always local 0,0.
@@ -126,7 +126,9 @@ export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>
   };
   const garageNames:Record<number,string>={0:'heavy-bag',3:'jump-rope',4:'weight-bench',5:'kettlebells'};
   const garageName=item.kind==='gear'?garageNames[item.index]:undefined;
-  const approvedKey=garageName?garagePropKey(garageName):undefined;
+  const level2Names:Record<number,string>={1:'thai-pads',2:'speed-bag'};
+  const approvedKey=item.kind==='gear'&&level2Names[item.index]
+    ?level2PropKey(level2Names[item.index]):garageName?garagePropKey(garageName):undefined;
   const approvedAvailable=!!approvedKey&&scene.textures.exists(approvedKey);
   const art=item.kind==='gear'?artwork[item.index]:undefined;
   const available=art&&((art.key===HUB_ART_KEY&&hasHubArt(scene))||
