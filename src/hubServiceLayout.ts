@@ -17,7 +17,7 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
   const coolerX=mat.right+21;
   // The stock closet must sit above the desk, not in its footprint.
   // Leave enough clearance for the tallest 55px cabinet and its hit target.
-  const stockY=Math.min(145,desk.y-30);
+  const stockY=level===1?120:Math.min(145,desk.y-30);
   // Wall cabinet is to the right of reception, not across the desk or board.
   const stockX=room.right-20;
   // The mop lives below the cooler, away from the reception desk.
