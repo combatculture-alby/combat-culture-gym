@@ -3,6 +3,9 @@ on:
   push:
     branches: [main, feat/living-gym-ai]
   pull_request:
+concurrency:
+  group: hub-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,4 +15,17 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - run: npm test
       - run: npm run build
+      - name: Install Chromium for headless hub tests
+        timeout-minutes: 5
+        run: npx playwright install chromium
+      - name: Exercise garage progression in Chromium
+        run: npm run test:browser
+      - name: Upload QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garage-browser-qa
+          path: browser-artifacts/
+          if-no-files-found: ignore
