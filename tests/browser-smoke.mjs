@@ -855,9 +855,9 @@ try{
     }),async page=>{
       const info=await page.evaluate(()=>{
         const s=window.__combatGym.scene.getScene('Gym');
-        const props=s.serviceHotspots.map(({type,frame,hit,hint})=>({
+        const props=s.serviceHotspots.map(({type,frame,hit,hint,art})=>({
           type,graphic:frame.type,hit:hit.type,
-          visible:frame.visible,clickable:!!hit.input?.enabled,
+          visible:frame.visible||!!art?.visible,clickable:!!hit.input?.enabled,
           hintHidden:!hint.visible,point:s.servicePosition(type)
         }));
         const blocked=['water','stock','mop'].map(type=>{
@@ -2230,7 +2230,7 @@ try{
       return s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
         .map(object=>object.frame?.name);
     });
-    for(const name of ['heavy-bag','weight-bench','kettlebell-rack','water-cooler','supply-shelf','gym-banner'])
+    for(const name of ['heavy-bag-l2','bench-l2','kettlebell-rack','water-cooler-l2','supply-shelf','gym-banner'])
       assert.ok(frames.includes(name),'Missing Level 2 equipment art: '+name);
     assert.equal(frames.filter(name=>name==='training-mat').length,2,
       'Level 2 uses two independent training mat zones');
