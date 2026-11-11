@@ -2171,7 +2171,6 @@ class GymScene extends Phaser.Scene {
     const pos=this.saveData.decorPositions?.[index];
     const preferred=pos&&!this.saveData.decorStored?.[index]?
       {...pos}:{x:168,y:144};
-    const rx=index===2?11:25;
     this.placementCursor=this.firstClearPlacement(preferred,
       (x,y)=>this.decorFits(x,y));
     this.keyboardPlacement=true;
