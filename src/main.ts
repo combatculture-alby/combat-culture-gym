@@ -26,7 +26,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
-import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,placeHubArt} from './hubArt';
+import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,hasServiceHubArt,placeHubArt} from './hubArt';
 import {preloadCharacterArt,registerCharacterArt} from './characterArt';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
@@ -512,12 +512,21 @@ class GymScene extends Phaser.Scene {
       // Replace the old drawn stand-ins with cropped user-approved fixture
       // sprites. Interaction coordinates and the hidden hit zones stay fixed.
       let art:Phaser.GameObjects.Image|undefined;
-      if(this.gymLevel()<=2&&hasHubArt(this)&&(type==='water'||type==='stock')){
+      const photoArt=this.gymLevel()<=2&&(
+        (hasHubArt(this)&&(type==='water'||type==='stock'))||
+        (hasServiceHubArt(this)&&(type==='phone'||type==='mop')));
+      if(photoArt){
         frame.setVisible(false);
-        art=type==='water'
-          ?placeHubArt(this,this.gymLevel()===2&&hasLevel2HubArt(this)
-            ?'water-cooler-l2':'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1)
-          :placeHubArt(this,'supply-shelf',prop.x,prop.y+25,40,53,13.6,0.5,1);
+        if(type==='water'){
+          art=placeHubArt(this,this.gymLevel()===2&&hasLevel2HubArt(this)
+            ?'water-cooler-l2':'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1);
+        }else if(type==='stock'){
+          art=placeHubArt(this,'supply-shelf',prop.x,prop.y+25,40,53,13.6,0.5,1);
+        }else if(type==='phone'){
+          art=placeHubArt(this,'desk-phone',prop.x,prop.y+2,21,17,15,0.5,0.5);
+        }else if(type==='mop'){
+          art=placeHubArt(this,'mop-bucket',prop.x,prop.y+18,33,38,13.6,0.5,1);
+        }
       }
       // A transparent hit area overlays the prop. No permanent UI tiles.
       const hit=this.add.zone(prop.x,prop.y,prop.hitWidth,prop.hitHeight)
