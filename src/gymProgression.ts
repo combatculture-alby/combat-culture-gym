@@ -129,3 +129,21 @@ export function equipmentPlacementZone(level:number,stat:number):{left:number;ri
     ?{...bounds,bottom:140}
     :{...bounds,top:153};
 }
+
+/** Fixed wall fixtures are installed automatically; they do not consume floor mat space. */
+export const WALL_EQUIPMENT_SLOTS:Readonly<Record<number,{x:number;y:number}>>={
+  1:{x:116,y:94}, // Thai pads
+  2:{x:218,y:94}, // speed bag
+};
+export function isWallEquipment(index:number):boolean {
+  return Object.prototype.hasOwnProperty.call(WALL_EQUIPMENT_SLOTS,index);
+}
+/** Two mats at Level 2: a training area and a strength/conditioning area. */
+export function fitsEquipmentZone(level:number,stat:number,x:number,y:number,rx:number,ry:number):boolean {
+  const z=equipmentPlacementZone(level,stat);
+  return x-rx>=z.left&&x+rx<=z.right&&y-ry>=z.top&&y+ry<=z.bottom;
+}
+/** First usable piece grants 5 XP, second grants 3 additional XP. */
+export function equipmentXpBonus(count:number):number {
+  return count<=0?0:count===1?5:8;
+}
