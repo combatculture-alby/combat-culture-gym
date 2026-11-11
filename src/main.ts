@@ -2908,9 +2908,13 @@ class GymScene extends Phaser.Scene {
     // Physical service props have real footprints: no walking or placing
     // equipment through a water cooler, closet, or mop cart.
     const props=serviceFixtureLayout(this.gymLevel());
-    solids.push({x:props.water.x,y:props.water.y+6,rx:10,ry:13});
-    solids.push({x:props.stock.x,y:props.stock.y+6,rx:13,ry:15});
-    solids.push({x:props.mop.x,y:props.mop.y+7,rx:9,ry:7});
+    solids.push({x:props.water.x,y:props.water.y+15,rx:this.gymLevel()===1?17:10,ry:this.gymLevel()===1?18:13});
+    solids.push({x:props.stock.x,y:props.stock.y+16,rx:this.gymLevel()===1?24:13,ry:this.gymLevel()===1?18:15});
+    solids.push({x:props.mop.x,y:props.mop.y+9,rx:this.gymLevel()===1?17:9,ry:this.gymLevel()===1?15:7});
+    if(this.gymLevel()===1){
+      const desk=gymServiceLayout(1).desk;
+      solids.push({x:desk.x+desk.w/2,y:desk.y+desk.h/2,rx:desk.w/2,ry:desk.h/2});
+    }
     return solids;
   }
   private canStand(x:number,y:number):boolean {
