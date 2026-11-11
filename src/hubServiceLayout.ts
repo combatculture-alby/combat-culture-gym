@@ -20,8 +20,8 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
   const stockY=level===1?120:Math.min(145,desk.y-30);
   // Wall cabinet is to the right of reception, not across the desk or board.
   const stockX=room.right-20;
-  // The mop lives below the cooler, away from the reception desk.
-  const mopX=coolerX+26;
+  // The mop sits against the back wall, clear of reception and the cooler.
+  const mopX=coolerX+38;
   return {
     phone:{
       x:desk.x+Math.min(15,Math.floor(desk.w*.27)),y:desk.y+3,
@@ -39,9 +39,9 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
       approach:{x:stockX-25,y:stockY+9}
     },
     mop:{
-      x:mopX,y:205,
+      x:mopX,y:169,
       hitWidth:31,hitHeight:38,
-      approach:{x:mopX+14,y:193}
+      approach:{x:mopX+14,y:191}
     }
   };
 }
