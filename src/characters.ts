@@ -225,11 +225,20 @@ export class GymCharacter {
     const phase=pose==='idle'?[0,0,0,0,0,0,0,3][Math.floor(this.elapsed*5)%8]:
       Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:2,talk:3,drink:2}[pose]))%4;
     if(this.artActor!==null){
-      const sourceFrame=actorPoseFrame(this.facing,pose);
+      const sourceFrame=actorPoseFrame(this.facing,pose,phase);
       if(sourceFrame!==this.frame){
         this.image.setFrame(this.artActor+'-'+sourceFrame);
         this.frame=sourceFrame;
       }
+      // The original sprite sheet has seven illustrated poses rather than
+      // four frames per action. Add restrained, pixel-aligned movement to
+      // preserve the lively hub without stretching or blurring its artwork.
+      const bob=pose==='walk'?phase%2===1?-1:0:
+        pose==='shadow'||pose==='bag'?phase%2===1?-1:0:
+        pose==='lift'||pose==='stretch'?phase===2?-2:0:0;
+      const lean=pose==='shadow'||pose==='bag'?phase%2===1?1:0:0;
+      this.image.setPosition(Math.round(this.body.x)-this.body.x+lean,
+        Math.round(this.body.y)-this.body.y+bob);
     }else{
       const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
       if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
