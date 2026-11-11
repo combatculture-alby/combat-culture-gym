@@ -56,7 +56,7 @@ for name,(l,t,r,b) in regions.items():
         if seen[i]:continue
         seen[i]=1
         red,green,blue,alpha=p[x,y]
-        if min(red,green,blue)<250 or max(red,green,blue)-min(red,green,blue)>8:continue
+        if min(red,green,blue)<235 or max(red,green,blue)-min(red,green,blue)>18:continue
         p[x,y]=(0,0,0,0)
         q.extend(((x-1,y),(x+1,y),(x,y-1),(x,y+1)))
     # Remove the near-white matte halo left by the original white backdrop.
@@ -65,7 +65,7 @@ for name,(l,t,r,b) in regions.items():
     # Repeat over two edge pixels to eliminate the visible white fringe.
     # Only neutral, bright pixels on the *outer* silhouette are affected.
     # Interior white highlights and the dark pixel-art outline stay intact.
-    for pass_no in range(2):
+    for pass_no in range(3):
         alpha=crop.getchannel("A")
         inner=alpha.filter(ImageFilter.MinFilter(3)).load()
         px=crop.load()
@@ -74,10 +74,10 @@ for name,(l,t,r,b) in regions.items():
                 rr,gg,bb,aa=px[xx,yy]
                 if aa==0 or inner[xx,yy]==255:continue
                 neutral=max(rr,gg,bb)-min(rr,gg,bb)<22
-                if neutral and min(rr,gg,bb)>=232:
+                if neutral and min(rr,gg,bb)>=220:
                     px[xx,yy]=(0,0,0,0)
-                elif neutral and min(rr,gg,bb)>=205:
-                    px[xx,yy]=(rr,gg,bb,min(aa,70))
+                elif neutral and min(rr,gg,bb)>=190:
+                    px[xx,yy]=(rr,gg,bb,min(aa,45))
     bbox=crop.getbbox()
     if not bbox:raise ValueError("Empty crop "+name)
     crop.crop(bbox).save(target/(name+".png"),optimize=True)
