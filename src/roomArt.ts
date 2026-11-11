@@ -127,7 +127,7 @@ export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>
   const art=item.kind==='gear'?artwork[item.index]:undefined;
   const available=art&&((art.key===HUB_ART_KEY&&hasHubArt(scene))||
     (art.key===HUB_LEVEL2_ART_KEY&&hasLevel2HubArt(scene)));
-  const visual=available
+  const visual=art&&available
     ?scene.add.image(0,0,art.key,art.frame).setOrigin(.5,1).setDisplaySize(art.w,art.h)
     :scene.add.graphics();
   if(visual instanceof Phaser.GameObjects.Graphics)paintRoomFixture(visual,item);
