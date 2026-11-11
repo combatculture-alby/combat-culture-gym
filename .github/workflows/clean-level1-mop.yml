@@ -1,0 +1,30 @@
+name: Clean Level 1 mop PNG
+on:
+  push:
+    branches: [release/levels-1-2]
+    paths:
+      - scripts/clean_level1_mop.py
+      - .github/workflows/clean-level1-mop.yml
+permissions:
+  contents: write
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/levels-1-2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pillow numpy
+      - run: python scripts/clean_level1_mop.py
+      - name: Commit cleaned mop asset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add art-source/extracted/level1/mop.png
+          if ! git diff --cached --quiet; then
+            git commit -m "art: remove white matte from original Level 1 mop"
+            git push
+          fi
