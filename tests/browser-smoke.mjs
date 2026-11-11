@@ -2290,7 +2290,7 @@ try{
         {left:55,right:294,top:93,bottom:200};
       for(const student of visual.students){
         assert.ok(student.x>=bounds.left+8&&student.x<=bounds.right-8&&
-          student.y>=bounds.top+8&&student.y<=bounds.bottom-8&&student.canStand,
+          student.y>=bounds.top+35&&student.y<=bounds.bottom-8&&student.canStand,
           student.name+' must start on a navigable training mat, not inside the garage door');
       }
     });
