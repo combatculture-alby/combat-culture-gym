@@ -1,26 +1,48 @@
-# Approved art audit: Levels 1 and 2
+# Level 1–2 approved artwork: verified local inventory
 
-Scope: Levels 1 and 2 only. Preserve working gameplay code. **Do not use previous-build artwork as the final visual source.**
+**Scope:** Only Levels 1 and 2. Preserve functional game code, replace all legacy visuals only after replacements are validated.
 
-## Approved references recovered
-- 12 curated reference boards: 4 environment/equipment, 6 NPC, 2 coaches.
-- 216 extracted NPC animation frames: 36 each for Frank, Radish, Marshall, Pudge, Holly and Gao.
-- Extracted frames are provisional and must pass visual QA; the source sheets are authoritative.
+## Source art located and deduplicated
+19 distinct reference PNGs were recovered from the conversation's mounted files (duplicates excluded). A local archive was assembled as `combat-culture-levels-1-2-approved-source-art.zip` (approximately 54 MB) with SHA-256 manifest.
 
-## Currently verified in this branch
-- Six PNG NPC atlases and `atlas-layout.json`.
-- Compact environment atlases and an older actor fallback.
+### Characters (8 distinct reference sheets)
+- Erin Student Pixel Sprite Sheet
+- Female Coach Chibi Sprite Customization Sheet
+- Frank_ Combat Culture Gym Sprite Sheet
+- Frank’s Combat Gym Sprite Sheet (1)
+- Frank’s Combat Gym Sprite Sheet (3)
+- Gao’s Combat Gym Character Sheet
+- Marshall Chibi Combat Character Sheet
+- Pudge Student Sprite Sheet
+- Radish Student Sprite Sheet
 
-## Not yet verified as uploaded game assets
-- Full-resolution environment reference boards.
-- Coach customization sheets and final in-game coach sprites.
-- Equipment condition states, maintenance and trash/garbage-can variants.
-- Country flags and Combat Culture banner.
+### Environment, objects, decoration (10)
+- Combat Culture Gym Asset Board
+- Combat Culture Gym Asset Sheet
+- Combat Culture Gym Pixel Asset Sheet
+- Combat Culture Gym Tileset Showcase
+- Gym Equipment States Pixel Art Sprite Sheet
+- Gym Maintenance Pixel Art Asset Sheet
+- Level 1 Garage Gym Asset Sheet
+- Pixel Art Country Flags Wall Chart
+- Pixel-Art Combat Culture Gym Banner
+- ChatGPT Image Nov 10, 2026, 11_04_58 PM (unclassified: inspect visually before approval)
 
-## Integration gate
-1. Transfer original approved source boards into `art-source/level-1/`, `art-source/level-2/`, `art-source/npcs/`, `art-source/coaches/` without mixing rejected revisions.
-2. Convert and QA all sprites (transparent background, proper foot anchors, directional facing and scale).
-3. Map every approved sprite to its in-game usage; remove legacy procedural drawing/fallbacks **only after** verified replacement.
-4. Test complete Level 1 and Level 2 gameplay and visual regression before release.
+## Already present in the game branch
+- Six extracted student atlases: Frank, Radish, Marshall, Pudge, Holly, Gao.
+- `src/assets/atlas-layout.json` states frame size 48×64 and 12 columns × 3 rows.
+- `src/characterArt.ts` currently maps sheet columns in the order down, right, left, up, which **differs from atlas-layout.json** (down, left, right, up). This discrepancy needs image-by-image directional QA before changing mappings.
 
-This audit does not claim the full art has been uploaded or deployed.
+## Missing / unverified
+- Original approved **male coach** customization sheet was not identifiable among the recovered named reference PNGs.
+- An approved **Holly** original reference sheet was not identifiable among the recovered named reference PNGs, despite a generated atlas in the game.
+- Full source PNGs in this inventory are **not yet uploaded to GitHub**; this commit records the audit only.
+- No asset should be assumed final until its reference and in-game frame are visually compared.
+
+## Next actions
+1. Transfer all 19 distinct source PNGs into GitHub, retaining the manifest and marking the unclassified image for review.
+2. Compare each extracted frame against its source board, fix direction and transparency.
+3. Replace all legacy artwork in Level 1 and Level 2, while retaining gameplay logic.
+4. Verify all interactions, persistence, and visual consistency before deploying.
+
+**Status:** inventory complete; GitHub binary transfer pending; no game deployment claimed.
