@@ -90,6 +90,24 @@ jobs:
           test -n "$(find dist/garage/assets -name '*.png' -print -quit)"
           grep -q '/combat-culture-gym/garage/assets/' dist/garage/index.html
           test -n "$(find dist/garage/assets -name '*.js' -print -quit)"
+      # Build the isolated Levels 1–2 release candidate for player testing.
+      # Production and existing previews remain untouched.
+      - uses: actions/checkout@v4
+        with:
+          ref: release/levels-1-2
+          path: levels-source
+      - name: Build Levels 1–2 playtest
+        working-directory: levels-source
+        env:
+          VITE_LEVELS_PLAYTEST: '1'
+          VITE_ISOLATE_SAVE: '1'
+        run: |
+          npm install --no-audit --no-fund
+          npm run build -- --base=/combat-culture-gym/levels-1-2/
+      - name: Add Levels 1–2 playtest alongside production
+        run: |
+          mkdir -p dist/levels-1-2
+          cp -R levels-source/dist/. dist/levels-1-2/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
