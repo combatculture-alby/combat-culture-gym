@@ -41,7 +41,13 @@ const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
 type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'|'drink'; fixture?:Phaser.GameObjects.Graphics; sprite?:Phaser.GameObjects.Image };
 type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
 type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
-const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183},{x:164,y:111},{x:220,y:185},{x:164,y:188},{x:78,y:151}];
+// Student home positions are feet coordinates, not sprite top-lefts.
+// Keep them inside the actual Level 1 mat so arrivals never appear to
+// stand on the roll-up door, window, wall or mat border.
+const STUDENT_HOMES:Point[]=[
+  {x:94,y:139},{x:250,y:139},{x:107,y:177},{x:243,y:177},
+  {x:170,y:116},{x:205,y:181},{x:165,y:184},{x:82,y:158}
+];
 const GEAR_BOUNDS=[{rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},{rx:14,ry:11},{rx:14,ry:10},{rx:13,ry:13},{rx:16,ry:12}];
 const NEAR=42;
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.y-b.y);
