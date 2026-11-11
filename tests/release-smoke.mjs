@@ -31,6 +31,20 @@ try {
   },level);
   await page.goto(url);
   await ready(1);
+  // The approved source sheets must be actual loaded game textures, not
+  // files merely present in the repository.
+  const art=await page.evaluate(()=>{
+    const textures=window.__combatGym.textures;
+    return {
+      coach:textures.exists('combat-culture-approved-coach'),
+      garage:['heavy-bag','water-cooler','supply-shelf','weight-bench','mop','desk-phone']
+        .every(name=>textures.exists('approved-garage-'+name)),
+      level2:['heavy-bag','speed-bag','thai-pads','water-cooler','boxing-poster']
+        .every(name=>textures.exists('approved-level2-'+name))
+    };
+  });
+  assert.deepEqual(art,{coach:true,garage:true,level2:true},
+    'Approved coach and both room asset batches must be loaded');
   await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openExpansion());
   const canvas=await page.locator('#game canvas').boundingBox();
   await page.touchscreen.tap(canvas.x+(229+84)/480*canvas.width,canvas.y+216/330*canvas.height);
