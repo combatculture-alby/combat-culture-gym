@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {normalizeGymLevel,trainingBounds,equipmentPlacementZone,gymServiceLayout} from './gymProgression';
-import {hasHubArt,placeHubArt,placeHubTrainingMat} from './hubArt';
+import {hasHubArt,placeHubArt,approvedRoomKey} from './hubArt';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
 // The floor plan expands within the 480px stage; mat, navigation and placement
@@ -330,8 +330,10 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
 export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   const level=normalizeGymLevel(requestedLevel);
   const key='gym-room-'+level;
-  if(!scene.textures.exists(key))bakeRoom(scene,level);
-  scene.add.image(0,0,key).setOrigin(0);
+  const approvedKey=approvedRoomKey(level);
+  const approved=level<=2&&scene.textures.exists(approvedKey);
+  if(!approved&&!scene.textures.exists(key))bakeRoom(scene,level);
+  scene.add.image(0,0,approved?approvedKey:key).setOrigin(0);
   // The source sprites are layered onto the collision-accurate room layout.
   // These are visual only: trainingBounds remains the single navigation and
   // placement authority, and no unpurchased equipment appears in the room.
@@ -339,15 +341,14 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   if(customArt){
     const mat=trainingBounds(level);
     if(level===1){
-      placeHubArt(scene,'garage-door',47,25,242,63,0.25,0,0);
-      placeHubTrainingMat(scene,mat.left,mat.top,mat.right,mat.bottom);
+      if(!approved)placeHubArt(scene,'garage-door',47,25,242,63,0.25,0,0);
       placeHubArt(scene,'gym-banner',299,29,91,30,0.4,0,0);
     }else{
       for(const area of [
         {top:mat.top,bottom:140},
         {top:153,bottom:mat.bottom}
       ]){
-        placeHubTrainingMat(scene,mat.left,area.top,mat.right,area.bottom);
+        // The approved room image already contains its correctly sized mats.
       }
       placeHubArt(scene,'gym-banner',140,29,121,32,0.4,0,0);
     }
