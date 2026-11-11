@@ -1248,18 +1248,17 @@ try{
     assert.equal(gear.bonus,1,'Placed heavy bag activates class training bonus');
     assert.deepEqual(gear.pos,{x:120,y:150});
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openGearShop());
-    await clickGame(page,300,80); // Thai Pads $90.
-    await clickGame(page,317,194); // Store For Later.
-    const stored=await page.evaluate(()=>{
+    await clickGame(page,300,80); // Thai pads install in their fixed wall slot.
+    const installed=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {stored:s.saveData.gearStored?.[1],cash:s.saveData.money,
         active:s.matchingClassGear([0]),
         shop:s.furniturePanel.list.some(o=>typeof o.text==='string'&&o.text.includes('TRAINING EQUIPMENT'))};
     });
-    assert.equal(stored.stored,true);
-    assert.equal(stored.cash,345);
-    assert.equal(stored.active,1,'Stored Thai Pads do not add another training bonus');
-    assert.equal(stored.shop,true,'Store choice should return to the shop');
+    assert.equal(installed.stored,false);
+    assert.equal(installed.cash,345);
+    assert.equal(installed.active,2,'Installed Thai Pads add a second striking bonus');
+    assert.equal(installed.shop,true,'Fixed-slot purchase returns to the shop');
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       s.beginGearPlacement(0);
@@ -1269,14 +1268,14 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       return {stored:s.saveData.gearStored[0],bonus:s.matchingClassGear([0])};
     });
-    assert.deepEqual(gear,{stored:true,bonus:0},
-      'Moving active gear back to storage removes its bonus immediately');
+    assert.deepEqual(gear,{stored:true,bonus:1},
+      'Storing the heavy bag leaves only the wall-mounted Thai pads active');
     await page.reload({waitUntil:'networkidle'});
     await page.waitForFunction(()=>window.__combatGym?.scene.getScene('Gym')?.sys.isActive());
     assert.deepEqual(await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return [s.saveData.gearStored[0],s.saveData.gearStored[1],s.matchingClassGear([0])];
-    }),[true,true,0],'Stored-state and inactive bonuses persist across reload');
+    }),[true,false,1],'Stored floor gear and installed wall gear persist across reload');
   });
 
   await openScenario('furniture-and-decor-purchase-choice',sampleSave({
