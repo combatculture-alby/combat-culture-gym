@@ -19,6 +19,7 @@ import {DAILY_HELP_LIMIT,DAILY_CLEAN_TARGET,DAILY_SHIFT_CASH,DAILY_SHIFT_REP,
   GEAR_WEAR_PER_DRILL,dailyHelpStudents,dailyShiftHelpTarget,dailyShiftReady,workingGear,
   wornCondition,servicedCondition} from './hubActivities';
 import {SeminarScene} from './seminarScene';
+import {PHONE_QUIZ,PHONE_RECRUITS,PHONE_RECRUIT_THRESHOLD,phoneQuizFor,recruitmentPoints} from './phoneRecruitment';
 import {SEMINAR_COACHES,SEMINAR_STATS,seminarAvailable,seminarNextVisit,
   seminarBook,type SeminarPending} from './seminars';
 import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
@@ -55,7 +56,7 @@ const closeFeet=(a:Point,b:Point)=>Math.abs(a.x-b.x)<17&&Math.abs(a.y-b.y)<9;
 const roundPlacement=(n:number)=>Math.round(n/6)*6;
 type Furniture = { kind: number; x: number; y: number; rotation: number; stored: boolean };
 const FURNITURE = [{name:'Floor Lamp',price:35,rep:0},{name:'Bench',price:60,rep:3},{name:'Trophy Case',price:90,rep:8},{name:'Water Cooler',price:45,rep:0},{name:'Punching Dummy',price:120,rep:12}];
-type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number; dayStartMoney?:number; dayStartRep?:number; roomState?:RoomState };
+type Save = { version: 1; day: number; money: number; reputation: number; completed: boolean; friendships: number[]; skills: number[]; equipment?: number; classesTaught?: number; classType?: number; lastTalkDays?: number[]; decorLevel?: number; lifetimeEarnings?: number; decorPositions?: Point[]; furniture?: Furniture[]; playedActivities?: Partial<Record<TrainingMode,number>>; studentStats?: number[][]; studentXP?: number[][]; classesToday?: number; ownedGear?: boolean[]; materials?: number[]; gatheredToday?: number[]; studentGoals?: number[][]; completedGoals?: number[]; gearPositions?: Point[]; gearStored?: boolean[]; gymLevel?:number; enrolledStudents?:number; classPlan?:number[]; coachAppearance?:CoachAppearance; wardrobeOwned?:number[]; seminarPending?:SeminarPending; seminarLastDay?:number; trashSpawnedToday?:number; decorStored?:boolean[]; coachedToday?:number[]; dailyShiftClaimed?:boolean; gearCondition?:number[]; gearDrillsToday?:number[]; gearServicedToday?:number[]; gearCleanliness?:number[]; gearWipedToday?:number[]; supplies?:number[]; pendingSupplies?:number[]; waterLevel?:number; matCleanliness?:number; mopSpotsToday?:number[]; mopDoneToday?:boolean; phoneCallsSpawned?:number; phoneCallsAnswered?:number; phoneLeads?:number; phoneRecruitProgress?:number[];phoneRecruits?:string[];phoneCaller?:number; waterRefillsToday?:number; towelRestockedToday?:boolean; paperRestockedToday?:boolean; towelLevel?:number; paperLevel?:number; gymPhase?:GymPhase; arrivedCount?:number; dayStartMoney?:number; dayStartRep?:number; roomState?:RoomState };
 const GEAR_ITEMS=[{name:'Heavy Bag',stat:0,cost:65},{name:'Thai Pads',stat:0,cost:90},{name:'Speed Bag',stat:1,cost:70},{name:'Jump Rope',stat:1,cost:35},{name:'Weight Bench',stat:2,cost:95},{name:'Kettlebells',stat:2,cost:75},{name:'Treadmill',stat:3,cost:120},{name:'Assault Bike',stat:3,cost:135}];
 const MATERIAL_NAMES=['Scrap','Wood','Fabric'];
 const MAX_DAILY_TRASH=12,INITIAL_DAILY_TRASH=4,TRASH_INTERVAL=14;
@@ -88,7 +89,7 @@ const walkable = (x:number,y:number,level:number):boolean => {
   return x>=room.left&&x<=room.right&&y>=room.top&&y<=room.bottom&&
     ![desk,boardBase].some(b=>x+9>b.x&&x-9<b.x+b.w&&y+8>b.y&&y-8<b.y+b.h);
 };
-const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0,dayStartMoney:100,dayStartRep:0,roomState:defaultRoomState() };
+const defaults: Save = { version: 1, day: 1, money: 100, reputation: 0, completed: false, friendships: [0,0,0,0], skills: [0,0,0,0], equipment: 0, classesTaught: 0, classType: 0, lastTalkDays: [0,0,0,0], decorLevel: 0, lifetimeEarnings: 0, decorPositions: [{x:148,y:48},{x:240,y:48},{x:302,y:184}], furniture: [], gymLevel:1, enrolledStudents:4, classPlan:[0,1], coachAppearance:{...DEFAULT_COACH}, wardrobeOwned:[], trashSpawnedToday:INITIAL_DAILY_TRASH, decorStored:[false,false,false], coachedToday:[],dailyShiftClaimed:false,gearCondition:Array(8).fill(100),gearDrillsToday:[],gearServicedToday:[],gearCleanliness:Array(8).fill(100),gearWipedToday:[],supplies:Array.from(INITIAL_SUPPLIES),pendingSupplies:[0,0,0,0],waterLevel:55,matCleanliness:70,mopSpotsToday:[],mopDoneToday:false,phoneCallsSpawned:0,phoneCallsAnswered:0,phoneLeads:0,phoneRecruitProgress:[0,0],phoneRecruits:[],phoneCaller:-1,waterRefillsToday:0,towelRestockedToday:false,paperRestockedToday:false,towelLevel:65,paperLevel:65,gymPhase:'opening',arrivedCount:0,dayStartMoney:100,dayStartRep:0,roomState:defaultRoomState() };
 function newSave():Save {
   // A new player now starts in a genuine empty garage, including in previews.
   // Existing saves are read unchanged by loadSave().
@@ -133,7 +134,15 @@ function loadSave(): Save {
       mopDoneToday:s.mopDoneToday===true,
       phoneCallsSpawned:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsSpawned??(phase==='opening'?0:1))))),
       phoneCallsAnswered:Math.max(0,Math.min(PHONE_CALL_LIMIT,Math.floor(Number(s.phoneCallsAnswered)||0))),
-      phoneLeads:Math.max(0,Math.min(5,Math.floor(Number(s.phoneLeads)||0))),
+      phoneLeads:0,
+      phoneRecruitProgress:Array.from({length:2},(_,i)=>
+        recruitmentPoints(s.phoneRecruitProgress?.[i]??0,0)),
+      phoneRecruits:Array.isArray(s.phoneRecruits)?
+        s.phoneRecruits.filter((name):name is string=>
+          PHONE_RECRUITS.includes(name as typeof PHONE_RECRUITS[number])).filter((name,i,a)=>a.indexOf(name)===i)
+        :PHONE_RECRUITS.slice(0,Math.max(0,enrolled-4)),
+      phoneCaller:Number.isInteger(s.phoneCaller)&&s.phoneCaller!>=0&&s.phoneCaller!<2?
+        s.phoneCaller:-1,
       waterRefillsToday:Math.max(0,Math.min(3,Math.floor(Number(s.waterRefillsToday)||0))),
       towelRestockedToday:s.towelRestockedToday===true,
       paperRestockedToday:s.paperRestockedToday===true,
@@ -297,7 +306,8 @@ class GymScene extends Phaser.Scene {
     this.phoneRingSoundClock=0;this.complaintClock=0;
     this.mopActive=false;this.mopMarks=[];this.serviceHotspots=[];
     this.cleaningShift=false;this.cleaningAt=null;this.cleaningTotal=0;
-    this.students=STUDENT_NAMES.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
+    const rosterNames=[...STUDENT_NAMES.slice(0,4),...(this.saveData.phoneRecruits||[])];
+    this.students=rosterNames.slice(0,enrolledCount(this.saveData.enrolledStudents,this.gymLevel())).map((name,i)=>({
       ...STUDENT_HOMES[i%STUDENT_HOMES.length],name,friendship:0,skill:0,chatCooldown:12+i*5
     }));
     // Changing gym tier redistributes the same roster over unlocked rooms.
@@ -322,7 +332,7 @@ class GymScene extends Phaser.Scene {
       const floorIndex=attending.indexOf(student);
       if(floorIndex<0)return;
       Object.assign(student,STUDENT_HOMES[floorIndex]);
-      student.actor=new GymCharacter(this,student.x,student.y,1+(i%4),i);
+      student.actor=new GymCharacter(this,student.x,student.y,1+(i%4),Math.max(0,STUDENT_NAMES.indexOf(student.name as typeof STUDENT_NAMES[number])));
       student.routine=this.idleRoutine(student,1+i);
       student.actor.body.setVisible(this.activeStudents().includes(student));
       // NPCs are discoverable with a hand cursor and a name on hover.
@@ -645,43 +655,84 @@ class GymScene extends Phaser.Scene {
     if(type==='stock')this.openSupplyOrders();
     if(type==='mop')this.openMopStation();
   }
+  private phoneTarget():number {
+    const enrolled=this.saveData.phoneRecruits??[];
+    const unlocked=PHONE_RECRUITS.map((name,i)=>!enrolled.includes(name)?i:-1).filter(i=>i>=0);
+    if(!unlocked.length)return -1;
+    const current=this.saveData.phoneCaller??-1;
+    return unlocked.includes(current)?current:unlocked[0];
+  }
   private openPhone():void {
     if(this.running)return;
-    const available=availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
+    const available=availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
       this.saveData.phoneCallsAnswered??0);
-    this.menuShell('FRONT DESK PHONE',
-      available?'RING RING! A NEW MEMBER IS CALLING.':'NO CALLS RIGHT NOW. THE PHONE RINGS AT RANDOM TIMES.');
-    this.furniturePanel.add(this.add.text(86,86,
-      'PHONE INQUIRIES  '+(this.saveData.phoneCallsAnswered??0)+' / '+
-      PHONE_CALL_LIMIT+'   |   MEMBER LEADS '+(this.saveData.phoneLeads??0),{
+    const target=this.phoneTarget();
+    const progress=this.saveData.phoneRecruitProgress??[0,0];
+    this.menuShell('FRONT DESK PHONE',this.gymLevel()<2?
+      'RECRUITMENT INQUIRIES UNLOCK AT LEVEL 2.':
+      available&&target>=0?'INCOMING STUDENT INQUIRY: ANSWER THE QUESTION.':
+      'NO INCOMING CALL. CHECK BACK AFTER MORE CLASSES.');
+    this.furniturePanel.add(this.add.text(84,75,
+      'HOLLY '+progress[0]+'/'+PHONE_RECRUIT_THRESHOLD+
+      '  |  GAO '+progress[1]+'/'+PHONE_RECRUIT_THRESHOLD,{
         fontFamily:UI_FONT,fontSize:'11px',color:'#f1d398'
       }));
-    this.furniturePanel.add(this.add.text(86,117,
-      available?'A prospective student asks about joining Combat Culture.\n'+
-        'How do you handle the inquiry?':
-        'Keep teaching classes to attract more enquiries. Leads discount the next recruitment by 25%.',{
-        fontFamily:UI_FONT,fontSize:'11px',color:'#dfebe3',
-        wordWrap:{width:303},lineSpacing:4
+    if(!available||target<0||this.gymLevel()<2){
+      this.furniturePanel.add(this.add.text(85,115,target<0&&this.gymLevel()>=2?
+        'Both students have joined your gym.':
+        this.gymLevel()<2?'Expand to Level 2 to attract Holly and Gao.':
+        'The phone rings at random times while the gym is open.',{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#dfebe3',wordWrap:{width:305}
       }));
-    this.panelButton(this.furniturePanel,'OFFER INTRO TRIAL   +1 LEAD / +1 REP',
-      84,174,310,28,()=>this.answerPhone('trial'),available<=0,0x39735f);
-    this.panelButton(this.furniturePanel,'ANSWER QUESTIONS   +2 REP',
-      84,206,310,28,()=>this.answerPhone('info'),available<=0,0x355b5d);
+      return;
+    }
+    const questionIndex=phoneQuizFor(this.saveData.day,this.saveData.phoneCallsSpawned??0);
+    const question=PHONE_QUIZ[questionIndex];
+    this.furniturePanel.add(this.add.text(84,98,
+      'CALL FROM '+PHONE_RECRUITS[target].toUpperCase()+'  |  '+question.question,{
+        fontFamily:UI_FONT,fontSize:'11px',color:'#e9eee3',
+        wordWrap:{width:308},lineSpacing:2
+      }));
+    question.choices.forEach((choice,i)=>
+      this.panelButton(this.furniturePanel,String(i+1)+'. '+choice,
+        84,161+i*28,310,25,()=>this.answerPhone(i,questionIndex,target),false,0x355b5d));
   }
-  private answerPhone(kind:'trial'|'info'):void {
-    if(!availablePhoneCalls(this.saveData.phoneCallsSpawned??1,
-      this.saveData.phoneCallsAnswered??0))return;
+  private answerPhone(choice:number,questionIndex:number,target:number):void {
+    if(this.gymLevel()<2||!availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
+      this.saveData.phoneCallsAnswered??0)||this.phoneTarget()!==target)return;
+    // Every call is consumed. Incorrect answers earn nothing.
+    const correct=PHONE_QUIZ[questionIndex]?.correct===choice;
     this.saveData.phoneCallsAnswered=(this.saveData.phoneCallsAnswered??0)+1;
+    this.saveData.phoneCaller=-1;
     this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(28,72);
     this.phoneRingSoundClock=0;
-    if(kind==='trial'){
-      this.saveData.phoneLeads=Math.min(5,(this.saveData.phoneLeads??0)+1);
-      this.saveData.reputation++;
-    }else this.saveData.reputation+=2;
+    if(!correct){
+      this.persist();this.refresh();this.openPhone();
+      this.showFeedback('NO RECRUITMENT POINTS');
+      this.say('Incorrect answer. No points earned from this call.');
+      return;
+    }
+    const award=Phaser.Math.Between(1,3);
+    this.saveData.phoneRecruitProgress??=[0,0];
+    const before=this.saveData.phoneRecruitProgress[target]??0;
+    this.saveData.phoneRecruitProgress[target]=recruitmentPoints(before,award);
+    const name=PHONE_RECRUITS[target];
+    const complete=this.saveData.phoneRecruitProgress[target]>=PHONE_RECRUIT_THRESHOLD;
+    const slots=this.saveData.phoneRecruits??[];
+    if(complete&&!slots.includes(name)&&
+      (this.saveData.enrolledStudents??4)<studentCapacity(this.gymLevel())){
+      this.saveData.phoneRecruits=[...slots,name];
+      this.saveData.enrolledStudents=4+this.saveData.phoneRecruits.length;
+      this.saveData.friendships.push(0);this.saveData.skills.push(0);
+      this.persist();
+      this.scene.restart({notice:name+' reached '+PHONE_RECRUIT_THRESHOLD+
+        ' recruitment points and joined the gym!'});
+      return;
+    }
     this.persist();this.refresh();this.openPhone();
-    this.showFeedback(kind==='trial'?'NEW MEMBER LEAD':'PHONE +2 REP');
-    this.say(kind==='trial'?'Booked an intro-trial inquiry. Next student recruitment costs 25% less.':
-      'Handled the gym inquiry professionally. Reputation +2.');
+    this.showFeedback(name.toUpperCase()+' +'+award+' POINTS');
+    this.say(name+' earned '+award+' recruitment points ('+
+      this.saveData.phoneRecruitProgress[target]+'/'+PHONE_RECRUIT_THRESHOLD+').');
   }
   private openWaterStation():void {
     const stock=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
@@ -1455,11 +1506,11 @@ class GymScene extends Phaser.Scene {
   }
   private recruitStudent():void {
     const count=this.students.length;
-    const capacity=studentCapacity(this.gymLevel()),cost=discountRecruitment(recruitmentCost(count),this.saveData.phoneLeads??0);
+    if(this.gymLevel()<=2){this.openPhone();return;}
+    const capacity=studentCapacity(this.gymLevel()),cost=recruitmentCost(count);
     if(count>=capacity){this.say('Gym is at capacity. Expand before recruiting.');return;}
     if(this.saveData.money<cost){this.say('Need $'+cost+' to recruit another student.');return;}
     this.saveData.money-=cost;
-    if(this.saveData.phoneLeads)this.saveData.phoneLeads--;
     this.saveData.enrolledStudents=count+1;
     this.students.push({...STUDENT_HOMES[count%STUDENT_HOMES.length],
       name:STUDENT_NAMES[count],friendship:0,skill:0,chatCooldown:12+count*5});
@@ -2371,8 +2422,9 @@ class GymScene extends Phaser.Scene {
       ));
     });
     this.panelButton(panel,'PREV',83,211,75,26,()=>{this.rosterPage--;this.showRosterPage();},this.rosterPage===0);
-    const price=discountRecruitment(recruitmentCost(count),this.saveData.phoneLeads??0),full=count>=capacity;
-    this.panelButton(panel,full?'AT CAPACITY':'RECRUIT $'+price,169,211,138,26,()=>this.recruitStudent(),full||this.saveData.money<price,0x39735f);
+    const full=count>=capacity;
+    this.panelButton(panel,full?'AT CAPACITY':'PHONE RECRUITMENT',169,211,138,26,
+      ()=>{panel.setVisible(false);this.openPhone();},full,0x39735f);
     this.panelButton(panel,'NEXT',318,211,75,26,()=>{this.rosterPage++;this.showRosterPage();},this.rosterPage>=pages-1);
   }
   private showStudentCard(student:Student):void {
@@ -2704,6 +2756,7 @@ class GymScene extends Phaser.Scene {
     this.saveData.supplies=overnightSupplies(this.saveData.supplies,delivery);
     this.saveData.pendingSupplies=[0,0,0,0];
     this.saveData.phoneCallsAnswered=0;this.saveData.phoneCallsSpawned=0;
+    this.saveData.phoneCaller=-1;
     this.phoneClock=0;this.phoneRingAt=Phaser.Math.Between(18,43);
     this.phoneRingSoundClock=0;
     this.saveData.coachedToday=[];
@@ -3141,11 +3194,15 @@ class GymScene extends Phaser.Scene {
       }
       const queued=availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
         this.saveData.phoneCallsAnswered??0);
-      if(!queued&&(this.saveData.phoneCallsSpawned??0)<PHONE_CALL_LIMIT){
+      if(this.gymLevel()>=2&&this.phoneTarget()>=0&&
+        !queued&&(this.saveData.phoneCallsSpawned??0)<PHONE_CALL_LIMIT){
         this.phoneClock+=dt;
         if(this.phoneClock>=this.phoneRingAt){
           this.phoneClock=0;this.phoneRingSoundClock=0;
           this.saveData.phoneCallsSpawned=(this.saveData.phoneCallsSpawned??0)+1;
+          const eligible=PHONE_RECRUITS.map((name,i)=>
+            !(this.saveData.phoneRecruits??[]).includes(name)?i:-1).filter(i=>i>=0);
+          this.saveData.phoneCaller=eligible[Phaser.Math.Between(0,eligible.length-1)]??-1;
           this.phoneRingAt=Phaser.Math.Between(28,72);
           this.persist();this.refresh();
           this.say('The desk phone is ringing! Walk to reception to answer.');
