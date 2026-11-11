@@ -40,3 +40,5 @@ for level in (1,2):
     target=base/f'src/assets/approved-room-level{level}.png'
     im.save(target,optimize=True)
     print(target)
+
+# Generated textures are tracked in the release branch.
