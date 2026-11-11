@@ -1227,28 +1227,8 @@ class GymScene extends Phaser.Scene {
       });
       this.worldFixtures.push(hotspot,caption);
     });
-    const level=this.saveData.equipment||0;
-    if(level>=1) {
-      layer(95);
-      this.stations.push({x:308,y:82,rx:9,ry:13,id:'legacy-bag',pose:'bag',fixture:this.decor});
-      this.decor.fillStyle(0x8e3834).fillRoundedRect(302,63,13,38,3);
-      this.decor.fillStyle(0x242a2b).fillRect(305,60,7,4);
-      this.decor.lineStyle(1,0xd5b88a).lineBetween(308,53,308,60);
-    }
-    if(level>=2) {
-      layer(150);
-      this.stations.push({x:310,y:150,rx:15,ry:9,id:'legacy-weights',pose:'lift'});
-      this.decor.fillStyle(0x343b40).fillRect(302,147,17,6);
-      this.decor.fillStyle(0xd2ae6e).fillRect(298,143,5,14);
-      this.decor.fillStyle(0xd2ae6e).fillRect(318,143,5,14);
-    }
-    if(level>=3) {
-      layer(60);
-      this.decor.fillStyle(0x733e36).fillRect(45,43,45,5);
-      this.decor.fillStyle(0xe5d1a0).fillRect(49,44,37,2);
-      this.decor.fillStyle(0xd9bd80).fillRect(46,48,3,13);
-      this.decor.fillStyle(0xd9bd80).fillRect(86,48,3,13);
-    }
+    // Legacy gym-upgrade levels affect progression, but must not spawn
+    // free purchasable bags or weights on the training floor.
     // New equipment purchases appear as compact floor fixtures.
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
       if(itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())!=='main')return;
@@ -1258,8 +1238,12 @@ class GymScene extends Phaser.Scene {
       layer(y+GEAR_BOUNDS[i].ry*0.6);
       // Distinct, readable pixel silhouettes instead of eight identical boxes.
       const g=this.decor;
-      if([0,2,4,5].includes(i))this.stations.push({
-        x,y,...GEAR_BOUNDS[i],id:'gear-'+i,pose:i<4?'bag':'lift',fixture:i<4?g:undefined
+      // Every installed floor item is usable by students. Stored equipment
+      // never creates an activity station or a visible floor prop.
+      if(!isWallEquipment(i))this.stations.push({
+        x,y,...GEAR_BOUNDS[i],id:'gear-'+i,
+        pose:i===0?'bag':i===3||i===6||i===7?'stretch':i===4||i===5?'lift':'shadow',
+        fixture:i===0?g:undefined
       });
       g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
       if(i===0){ // Heavy bag
