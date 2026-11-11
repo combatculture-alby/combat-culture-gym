@@ -114,9 +114,8 @@ test('each gym has twelve daily piles on its own mat without overlapping indices
       assert.ok(point.y>=b.top&&point.y<=b.bottom);
     }
   }
-  const small=dailySupplyPositions(1),large=dailySupplyPositions(5);
-  assert.ok(large[5].x>small[5].x,'Higher levels spread supplies across the larger room');
-  assert.ok(large[0].x<small[0].x);
+  assert.deepEqual(dailySupplyPositions(5),dailySupplyPositions(2),
+    'Later levels share the Level 2 training room footprint');
 });
 
 
