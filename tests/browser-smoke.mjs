@@ -1779,7 +1779,9 @@ try{
     assert.equal(initial.level,5);
     assert.ok(initial.npcs>0,'Outdoor room must show assigned students');
     assert.ok(initial.coachTexture.startsWith('coach-custom-')||
-      initial.coachTexture.startsWith('gym-character-'));
+      initial.coachTexture.startsWith('gym-character-')||
+      initial.coachTexture==='combat-culture-actor-art',
+      'Room coach must retain a real sprite texture');
     assert.deepEqual(initial.litter,[0,1,2]);
     await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('GymRoom');
