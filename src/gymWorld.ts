@@ -412,8 +412,8 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
       Math.min(layout.board.w-12,level===1?53:65),
       Math.min(layout.board.h,level===1?34:39),11.2);
     addFitted(deskKey,layout.desk.x+3,layout.desk.y,
-      Math.min(layout.desk.w-6,level===1?43:55),
-      Math.min(layout.desk.h,level===1?24:28),12.2);
+      Math.min(layout.desk.w-6,level===1?85:55),
+      Math.min(layout.desk.h,level===1?45:28),12.2);
     return;
   }
   const {board:b,desk:d}=gymServiceLayout(level);
