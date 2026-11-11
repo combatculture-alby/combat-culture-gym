@@ -1147,7 +1147,13 @@ class GymScene extends Phaser.Scene {
         id:'water-cooler',pose:'drink'});
     }
     this.worldFixtures.forEach(g=>g.destroy());this.worldFixtures=[];
-    if(this.buildMode&&this.gymLevel()===2){
+    if(this.buildMode&&this.placingGear>=0){
+      const overlay=this.add.graphics().setDepth(4);
+      const z=equipmentPlacementZone(this.gymLevel(),GEAR_ITEMS[this.placingGear].stat);
+      overlay.fillStyle(0x6bd1b3,0.10).fillRect(z.left,z.top,z.right-z.left,z.bottom-z.top);
+      overlay.lineStyle(2,0x6bd1b3,0.8).strokeRect(z.left,z.top,z.right-z.left,z.bottom-z.top);
+      this.worldFixtures.push(overlay);
+    }else if(this.buildMode&&this.gymLevel()===2){
       const overlay=this.add.graphics().setDepth(4);
       [0,2].forEach((stat,i)=>{
         const z=equipmentPlacementZone(2,stat);
@@ -2667,8 +2673,15 @@ class GymScene extends Phaser.Scene {
   private movePlacement(dx:number,dy:number):void {
     if(!this.isPlacing()||this.furniturePanel.visible)return;
     this.keyboardPlacement=true;
-    this.placementCursor.x=Phaser.Math.Clamp(this.placementCursor.x+dx,38,310);
-    this.placementCursor.y=Phaser.Math.Clamp(this.placementCursor.y+dy,83,207);
+    if(this.placingGear>=0){
+      const zone=equipmentPlacementZone(this.gymLevel(),GEAR_ITEMS[this.placingGear].stat);
+      const {rx,ry}=GEAR_BOUNDS[this.placingGear];
+      this.placementCursor.x=Phaser.Math.Clamp(this.placementCursor.x+dx,zone.left+rx,zone.right-rx);
+      this.placementCursor.y=Phaser.Math.Clamp(this.placementCursor.y+dy,zone.top+ry,zone.bottom-ry);
+    }else{
+      this.placementCursor.x=Phaser.Math.Clamp(this.placementCursor.x+dx,38,310);
+      this.placementCursor.y=Phaser.Math.Clamp(this.placementCursor.y+dy,83,207);
+    }
   }
   private confirmPlacement():void {
     if(!this.isPlacing()||this.furniturePanel.visible)return;
