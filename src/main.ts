@@ -1834,12 +1834,16 @@ class GymScene extends Phaser.Scene {
     return p?this.collectNodeAt(p.x,p.y):false;
   }
   private selectedSlot=0;
-  private matchingClassGear(stats:number[]):number {
-    return GEAR_ITEMS.filter((item,i)=>stats.includes(item.stat)&&
+  private installedGearForStat(stat:number):number {
+    return GEAR_ITEMS.filter((item,i)=>item.stat===stat&&
+      itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'&&
       gearActive(this.saveData.ownedGear?.[i]===true,
         this.saveData.gearStored?.[i]===true,
         this.saveData.gearCondition?.[i]??100,
         this.saveData.gearCleanliness?.[i]??100)).length;
+  }
+  private matchingClassGear(stats:number[]):number {
+    return stats.reduce((total,stat)=>total+this.installedGearForStat(stat),0);
   }
   private openClassSchedule():void {
     const finished=this.saveData.classesToday||0;
@@ -1898,12 +1902,9 @@ class GymScene extends Phaser.Scene {
     const performance=Math.max(0,Math.min(1,quality));
     for(const student of attendance){
       for(const stat of program.stats){
-        const matching=GEAR_ITEMS.filter((item,i)=>item.stat===stat&&
-          gearActive(this.saveData.ownedGear?.[i]===true,
-            this.saveData.gearStored?.[i]===true,
-            this.saveData.gearCondition?.[i]??100,
-            this.saveData.gearCleanliness?.[i]??100)).length;
-        const gearBonus=matching>0?5:0;
+        const matching=this.installedGearForStat(stat);
+        // Each additional installed item helps, but less than the first.
+        const gearBonus=matching===0?0:matching===1?5:8;
         let xp=(this.saveData.studentXP[student][stat]||0)+6+Math.round(performance*8)+gearBonus;
         let value=this.saveData.studentStats[student][stat]||10;
         while(value<100 && xp>=statThreshold(value)){xp-=statThreshold(value);value++;}
