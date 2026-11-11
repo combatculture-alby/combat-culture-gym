@@ -17,11 +17,11 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
   const coolerX=mat.right+21;
   // The stock closet must sit above the desk, not in its footprint.
   // Leave enough clearance for the tallest 55px cabinet and its hit target.
-  const stockY=level===1?110:Math.min(145,desk.y-30);
+  const stockY=level===1?105:Math.min(145,desk.y-30);
   // Wall cabinet is to the right of reception, not across the desk or board.
   const stockX=room.right-20;
   // The mop sits against the back wall, clear of reception and the cooler.
-  const mopX=level===1?coolerX+12:coolerX+38;
+  const mopX=level===1?coolerX+41:coolerX+38;
   return {
     phone:{
       x:desk.x+Math.min(15,Math.floor(desk.w*.27)),y:desk.y+3,
@@ -29,9 +29,9 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
       approach:{...deskApproach}
     },
     water:{
-      x:coolerX,y:level===1?132:169,
+      x:coolerX,y:level===1?108:169,
       hitWidth:32,hitHeight:57,
-      approach:{x:coolerX+27,y:level===1?163:174}
+      approach:{x:coolerX+27,y:level===1?151:174}
     },
     stock:{
       x:stockX,y:stockY,
@@ -39,9 +39,9 @@ export function serviceFixtureLayout(requestedLevel:number):Record<HubService,Se
       approach:{x:stockX-25,y:stockY+9}
     },
     mop:{
-      x:mopX,y:level===1?112:169,
+      x:mopX,y:level===1?108:169,
       hitWidth:31,hitHeight:38,
-      approach:{x:mopX+14,y:level===1?153:191}
+      approach:{x:mopX+14,y:level===1?150:191}
     }
   };
 }
