@@ -1248,7 +1248,15 @@ try{
     assert.equal(gear.bonus,1,'Placed heavy bag activates class training bonus');
     assert.deepEqual(gear.pos,{x:120,y:150});
     await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').openGearShop());
-    await clickGame(page,300,80); // Thai pads install in their fixed wall slot.
+    // Click the actual named shop item rather than a pixel coordinate that
+    // may overlap the close/reopen transition on slower CI browsers.
+    await page.evaluate(()=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const pad=scene.furniturePanel.list.find(o=>typeof o.text==='string'&&
+        o.text.startsWith('Thai Pads'));
+      if(!pad)throw Error('Thai Pads shop entry is missing');
+      pad.emit('pointerdown');
+    }); // Thai pads install in their fixed wall slot.
     const installed=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {stored:s.saveData.gearStored?.[1],cash:s.saveData.money,
