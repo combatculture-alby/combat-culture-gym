@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {normalizeGymLevel,trainingBounds,equipmentPlacementZone,gymServiceLayout} from './gymProgression';
+import {hasHubArt,placeHubArt} from './hubArt';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
 // The floor plan expands within the 480px stage; mat, navigation and placement
@@ -331,9 +332,31 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   const key='gym-room-'+level;
   if(!scene.textures.exists(key))bakeRoom(scene,level);
   scene.add.image(0,0,key).setOrigin(0);
+  // The source sprites are layered onto the collision-accurate room layout.
+  // These are visual only: trainingBounds remains the single navigation and
+  // placement authority, and no unpurchased equipment appears in the room.
+  const customArt=level<=2&&hasHubArt(scene);
+  if(customArt){
+    const mat=trainingBounds(level);
+    if(level===1){
+      placeHubArt(scene,'garage-door',47,25,242,63,0.25,0,0);
+      placeHubArt(scene,'training-mat',mat.left,mat.top,
+        mat.right-mat.left,mat.bottom-mat.top,0.3,0,0);
+      placeHubArt(scene,'gym-banner',299,29,91,30,0.4,0,0);
+    }else{
+      for(const area of [
+        {top:mat.top,bottom:140},
+        {top:153,bottom:mat.bottom}
+      ]){
+        placeHubArt(scene,'training-mat',mat.left,area.top,
+          mat.right-mat.left,area.bottom-area.top,0.3,0,0);
+      }
+      placeHubArt(scene,'gym-banner',140,29,121,32,0.4,0,0);
+    }
+  }
   const label=level===3?'COMBAT CULTURE':
     ['COMBAT GARAGE','NEIGHBORHOOD GYM','','PRO FACILITY','COMBAT ACADEMY'][level-1];
-  scene.add.text(174,49,label,{fontFamily:'monospace',
+  if(!customArt)scene.add.text(174,49,label,{fontFamily:'monospace',
     fontSize:'7px',fontStyle:'bold',color:'#f8ddb1'}).setOrigin(0.5);
 
   if(level===3){
