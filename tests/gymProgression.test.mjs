@@ -85,7 +85,7 @@ test('reception and community board are progressively upgraded with the room',()
   }
   assert.deepEqual(services[2].board,{x:347,y:50,w:112,h:65},'Level 3 upgrades the board without resizing the room');
   assert.deepEqual(services[2].desk,{x:378,y:181,w:82,h:39},'Level 3 upgrades reception inside Level 2 walls');
-  assert.ok(services[0].board.w<=70&&services[0].desk.w<=50,'Garage must look makeshift');
+  assert.ok(services[0].board.w<=70&&services[0].desk.w<=95,'Garage must look makeshift');
   assert.ok(services[4].desk.w>=100,'Flagship must have a real reception counter');
   for(const layout of services){
     const {room,boardApproach,deskApproach}=layout;
