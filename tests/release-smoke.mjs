@@ -31,6 +31,23 @@ try {
   },level);
   await page.goto(url);
   await ready(1);
+  const checkRoom=async level=>{
+    const room=await page.evaluate(level=>{
+      const scene=window.__combatGym.scene.getScene('Gym');
+      const key='approved-room-level'+level;
+      const texture=scene.textures.get(key);
+      const image=scene.children.list.find(child=>child.texture?.key===key);
+      return {
+        loaded:scene.textures.exists(key),
+        width:texture?.getSourceImage()?.width,
+        height:texture?.getSourceImage()?.height,
+        displayed:!!image&&image.visible&&image.x===0&&image.y===0
+      };
+    },level);
+    assert.deepEqual(room,{loaded:true,width:480,height:330,displayed:true},
+      'Level '+level+' must render its complete approved room background');
+  };
+  await checkRoom(1);
   // The approved source sheets must be actual loaded game textures, not
   // files merely present in the repository.
   const art=await page.evaluate(()=>{
@@ -49,6 +66,7 @@ try {
   const canvas=await page.locator('#game canvas').boundingBox();
   await page.touchscreen.tap(canvas.x+(229+84)/480*canvas.width,canvas.y+216/330*canvas.height);
   await ready(2);
+  await checkRoom(2);
   const inspect=()=>page.evaluate(()=>{
     const scene=window.__combatGym.scene.getScene('Gym');
     scene.openExpansion();
