@@ -119,3 +119,5 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
+
+# Publish user-cleaned Level 1 desk and broom assets.
