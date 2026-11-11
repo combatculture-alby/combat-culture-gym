@@ -1687,7 +1687,20 @@ class GymScene extends Phaser.Scene {
     const pos=this.saveData.gearPositions?.[index];
     const zone=equipmentPlacementZone(this.gymLevel(),GEAR_ITEMS[index].stat);
     const center={x:roundPlacement((zone.left+zone.right)/2),y:roundPlacement((zone.top+zone.bottom)/2)};
-    this.placementCursor=pos&&!this.saveData.gearStored?.[index]?{...pos}:center;
+    // Find a free grid point before showing the placement preview. A zone's
+    // center can be blocked by existing furniture or another training item.
+    const {rx,ry}=GEAR_BOUNDS[index];
+    const candidate=pos&&!this.saveData.gearStored?.[index]?{...pos}:center;
+    const candidates=[candidate,center];
+    for(let radius=6;radius<=150;radius+=6){
+      for(let dx=-radius;dx<=radius;dx+=6){
+        candidates.push({x:center.x+dx,y:center.y-radius},{x:center.x+dx,y:center.y+radius});
+      }
+      for(let dy=-radius+6;dy<radius;dy+=6){
+        candidates.push({x:center.x-radius,y:center.y+dy},{x:center.x+radius,y:center.y+dy});
+      }
+    }
+    this.placementCursor=candidates.find(p=>this.validGearPlacement(p.x,p.y,rx,ry,index))??candidate;
     this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();
