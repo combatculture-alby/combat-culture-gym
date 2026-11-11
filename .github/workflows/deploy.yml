@@ -61,6 +61,7 @@ jobs:
           cp -R test-source/dist/. dist/test/
       # The isolated Level 1-2 garage preview now includes the supplied pixel-art
       # atlases and character sprites. Production root remains unchanged.
+      # Refresh preview after Level 1-2 browser regression suite passed on f5fa629.
       # Rebuild the tested garage day loop with opening prep, staggered attendance and closing carryover.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
