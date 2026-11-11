@@ -2815,7 +2815,15 @@ class GymScene extends Phaser.Scene {
       student.chatCooldown=4+index;
     }
     if(pose==='bag'||pose==='lift'||pose==='rest'||pose==='drink'){
-      const stations=this.stations.filter(s=>s.pose===pose).sort((a,b)=>distance(a,student)-distance(b,student));
+      // Broken or filthy gear cannot be used for student practice.
+      const stations=this.stations.filter(station=>{
+        if(station.pose!==pose)return false;
+        if(!station.id.startsWith('gear-'))return true;
+        const gear=Number(station.id.slice(5));
+        return Number.isInteger(gear)&&
+          (this.saveData.gearCondition?.[gear]??100)>=GEAR_WORKING_THRESHOLD&&
+          (this.saveData.gearCleanliness?.[gear]??100)>=CLEAN_GEAR_THRESHOLD;
+      }).sort((a,b)=>distance(a,student)-distance(b,student));
       for(const station of stations){
         const side=station.rx+7,front=station.ry+6;
         const goals=[{x:station.x-side,y:station.y+3},{x:station.x+side,y:station.y+3},{x:station.x,y:station.y+front}];
