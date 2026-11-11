@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {dailyHelpStudents,DAILY_SHIFT_CASH,dailyShiftHelpTarget,dailyShiftReady} from '../src/hubActivities.ts';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions} from '../src/gymProgression.ts';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,CLASS_REPUTATION,classEarnings,dailySupplyPositions,equipmentPlacementZone,fitsEquipmentZone,WALL_EQUIPMENT_SLOTS,isWallEquipment,equipmentXpBonus} from '../src/gymProgression.ts';
 
 test('all five levels have increasing capacity and an on-floor crowd limit',()=>{
   assert.equal(GYM_LEVELS.length,5);
@@ -195,4 +195,25 @@ test('corrupted day and economy values cannot create invalid gym state',()=>{
     assert.equal(canExpandGym(1,1000,100,value,100),false);
     assert.equal(canExpandGym(1,1000,100,100,value),false);
   }
+});
+
+test('garage uses one mat and Level 2 equipment stays in its designated zone',()=>{
+  assert.deepEqual(equipmentPlacementZone(1,0),equipmentPlacementZone(1,3));
+  const striking=equipmentPlacementZone(2,0),strength=equipmentPlacementZone(2,2);
+  assert.ok(striking.bottom<strength.top,'Keep a walkable corridor between Level 2 zones');
+  assert.deepEqual(equipmentPlacementZone(2,1),striking);
+  assert.deepEqual(equipmentPlacementZone(2,3),strength);
+  assert.equal(fitsEquipmentZone(2,0,100,120,8,8),true);
+  assert.equal(fitsEquipmentZone(2,0,100,170,8,8),false);
+  assert.equal(fitsEquipmentZone(2,2,100,170,8,8),true);
+  assert.equal(fitsEquipmentZone(2,2,100,120,8,8),false);
+  assert.equal(fitsEquipmentZone(2,0,striking.left+2,120,8,8),false);
+});
+test('wall fixtures have fixed slots and equipment XP has diminishing returns',()=>{
+  assert.equal(isWallEquipment(1),true);
+  assert.equal(isWallEquipment(2),true);
+  assert.equal(isWallEquipment(0),false);
+  assert.deepEqual(WALL_EQUIPMENT_SLOTS[1],{x:116,y:94});
+  assert.deepEqual(WALL_EQUIPMENT_SLOTS[2],{x:218,y:94});
+  assert.deepEqual([0,1,2,3,10].map(equipmentXpBonus),[0,5,8,8,8]);
 });
