@@ -51,13 +51,13 @@ const level2PropUrls=import.meta.glob('./../art-source/extracted/level2/*.png',{
 
 export function preloadHubArt(scene:Phaser.Scene):void {
   for(const name of APPROVED_LEVEL2_PROPS){
-    const url=level2PropUrls['./../art-source/extracted/level2/'+name+'.png'];
+    const url=Object.entries(level2PropUrls).find(([path])=>path.endsWith('/'+name+'.png'))?.[1];
     const key=level2PropKey(name);
     if(url&&!scene.textures.exists(key))scene.load.image(key,url);
   }
   for(const name of APPROVED_GARAGE_PROPS){
     const key=garagePropKey(name);
-    const url=garagePropUrls['./../art-source/extracted/level1/'+name+'.png'];
+    const url=Object.entries(garagePropUrls).find(([path])=>path.endsWith('/'+name+'.png'))?.[1];
     if(url&&!scene.textures.exists(key))scene.load.image(key,url);
   }
   // new URL is resolved and fingerprinted by Vite, including in Pages previews.
