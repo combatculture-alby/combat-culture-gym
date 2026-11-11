@@ -2350,12 +2350,13 @@ try{
     assert.ok(actors.atlas,'Approved character atlas failed to load');
     assert.equal(actors.coach,'combat-culture-actor-art');
     assert.equal(actors.coachFrame,'0-0');
-    for(const name of ['Frank','Radish','Pudge'])
-      assert.equal(actors.students.find(s=>s.name===name)?.texture,
-        'combat-culture-actor-art','Missing original chibi for '+name);
-    assert.notEqual(actors.students.find(s=>s.name==='Marshall')?.texture,
-      'combat-culture-actor-art',
-      'Marshall has no supplied art; should retain the existing fallback');
+    for(const name of ['Frank','Radish','Marshall','Pudge']){
+      const student=actors.students.find(s=>s.name===name);
+      assert.equal(student?.texture,'combat-culture-student-'+name.toLowerCase(),
+        'Missing approved directional atlas for '+name);
+      assert.equal(student?.frame,'idle-down-0',
+        'NPC default should use the approved front-facing idle pose: '+name);
+    }
     const motion=await page.evaluate(()=>{
       const coach=window.__combatGym.scene.getScene('Gym').coach;
       coach.face(1,0);
@@ -2375,6 +2376,32 @@ try{
     assert.notEqual(motion.bottleDown,motion.bottleUp,
       'Imported chibi must lift the bottle while drinking');
     await page.screenshot({path:output+'/original-chibis-level-1.png'});
+  });
+
+  // Both Level 2 recruits must also have their own approved directional art.
+  await openScenario('all-six-approved-npc-atlases',sampleSave({
+    gymLevel:2,enrolledStudents:6
+  }),async page=>{
+    const result=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {
+        names:s.students.slice(0,6).map(student=>student.name),
+        textures:['frank','radish','marshall','pudge','holly','gao'].map(id=>{
+          const texture=s.textures.get('combat-culture-student-'+id);
+          return {id,available:s.textures.exists('combat-culture-student-'+id),
+            frames:texture?.getFrameNames()||[]};
+        })
+      };
+    });
+    assert.deepEqual(result.names,['Frank','Radish','Marshall','Pudge','Holly','Gao']);
+    for(const atlas of result.textures){
+      assert.ok(atlas.available,'Student atlas unavailable: '+atlas.id);
+      assert.ok(atlas.frames.includes('idle-down-0')&&
+        atlas.frames.includes('walk-left-1')&&
+        atlas.frames.includes('walk-right-1')&&
+        atlas.frames.includes('run-up-2'),
+        'Student atlas is missing one of its 36 directional frames: '+atlas.id);
+    }
   });
 
   // Real mobile touch input, not a mouse click masquerading as a tap.
