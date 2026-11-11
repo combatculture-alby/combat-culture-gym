@@ -50,17 +50,16 @@ test('class schedules default safely and only accept four valid programs',()=>{
   assert.deepEqual(normalizeClassPlan([0,'1']),[0,1]);
 });
 
-test('main room expands once at Level 2, then new levels unlock rooms',()=>{
+test('garage mat is bounded and higher levels retain the Level 2 training footprint',()=>{
   const spaces=Array.from({length:5},(_,i)=>trainingBounds(i+1));
   const areas=spaces.map(s=>(s.right-s.left)*(s.bottom-s.top));
   for(let i=0;i<spaces.length;i++){
     const b=spaces[i];
     assert.ok(b.left>=25&&b.right<=330,'Mat must not overlap the training board corridor');
     assert.ok(b.top>=75&&b.bottom<=215,'Mat must stay inside the playable gym');
-    if(i>0){
-      assert.equal(areas[i]>areas[i-1],i===1,'Only Level 2 expands the main floor');
-      assert.ok(b.left<=spaces[i-1].left&&b.right>=spaces[i-1].right);
-      assert.ok(b.top<=spaces[i-1].top&&b.bottom>=spaces[i-1].bottom);
+    if(i>1){
+      assert.equal(areas[i],areas[1],'Levels 3-5 keep the Level 2 training footprint');
+      assert.deepEqual(b,spaces[1]);
     }
   }
   assert.deepEqual(trainingBounds(0),trainingBounds(1));
