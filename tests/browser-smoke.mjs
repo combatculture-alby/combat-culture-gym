@@ -1569,7 +1569,7 @@ try{
     const valid=await page.evaluate(()=>{
       const scene=window.__combatGym.scene.getScene('Gym');
       return {edge:scene.validPlacement(48,120,8,8),
-        inner:scene.validPlacement(80,132,8,8),
+        inner:scene.validPlacement(180,125,8,8),
         outside:scene.validPlacement(310,132,8,8)};
     });
     assert.equal(valid.edge,false,'Garage must reject equipment outside its smaller mat');
