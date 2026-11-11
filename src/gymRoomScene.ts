@@ -601,7 +601,7 @@ export class GymRoomScene extends Phaser.Scene {
       const point={x:f.left+(seed%3+1)*(f.right-f.left)/4,
         y:f.top+(Math.floor(seed/3)+1)*(f.bottom-f.top)/3};
       const spawn=this.navigation.recover(point);
-      const actor=new GymCharacter(this,spawn.x,spawn.y,1+(id%4));
+      const actor=new GymCharacter(this,spawn.x,spawn.y,1+(id%4),id);
       const chat=this.add.text(spawn.x,spawn.y-43,'',{fontFamily:'Arial',fontSize:'9px',color:'#233d42',
         backgroundColor:'#f8ebd6',padding:{x:5,y:2}}).setOrigin(.5,1).setVisible(false).setDepth(34);
       const indicator=this.add.text(spawn.x,spawn.y-40,'?',{fontFamily:'Arial',fontSize:'12px',
