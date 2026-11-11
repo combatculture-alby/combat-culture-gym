@@ -27,7 +27,7 @@ for level in (1,2):
             d.rectangle((x+40,33,x+43,69),fill=(191,190,164))
             d.line((x,51,x+85,51),fill=(185,186,169),width=2)
         d.rectangle((138,26,219,65),fill=(35,39,41),outline=(181,146,101),width=3)
-    bounds=(68,95,286,198) if level==1 else (42,88,313,204)
+    bounds=(70,103,278,190) if level==1 else (55,93,294,200)
     x0,y0,x1,y1=bounds
     d.rectangle((x0-4,y0-4,x1+4,y1+4),fill=(29,32,37),outline=(152,149,140),width=3)
     tile(im,tiles,(257,97,432,274),(x0,y0,x1,y1),32,26)
