@@ -77,7 +77,7 @@ export function normalizeClassPlan(value:unknown):number[] {
 /** Visible training area, also enforced for equipment footprint placement.
  * The right-hand board and reception corridor stay accessible at every level. */
 export const GYM_TRAINING_BOUNDS=[
-  {left:70,right:278,top:103,bottom:190}, // compact garage
+  {left:59,right:315,top:99,bottom:202}, // compact garage: matches approved mat texture
   {left:55,right:294,top:93,bottom:200},  // neighborhood
   {left:55,right:294,top:93,bottom:200},  // level 3: new outdoor area, main room unchanged
   {left:55,right:294,top:93,bottom:200},  // level 4: upstairs unlocked, main room unchanged
