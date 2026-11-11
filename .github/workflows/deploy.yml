@@ -61,7 +61,7 @@ jobs:
           cp -R test-source/dist/. dist/test/
       # The isolated Level 1-2 garage preview now includes the supplied pixel-art
       # atlases and character sprites. Production root remains unchanged.
-      # Refresh preview after corrected approved puzzle mats and enlarged sprites passed QA at 10977b9d.
+      # Refresh preview after all six Level 1 fixture assets use approved extracted artwork at 22ef43f7.
       # Rebuild the tested garage day loop with opening prep, staggered attendance and closing carryover.
       # Approved six-NPC atlas integration checked in release/levels-1-2.
       # Unmerged garage progression is published as a separate playable build.
