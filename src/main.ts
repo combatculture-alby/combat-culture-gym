@@ -556,7 +556,12 @@ class GymScene extends Phaser.Scene {
       const approvedName=type==='water'?'water-cooler':type==='stock'?'supply-shelf':
         type==='phone'?'desk-phone':'mop';
       const approvedKey=garagePropKey(approvedName);
-      if(this.gymLevel()===1&&this.textures.exists(approvedKey)){
+      // The approved Level 1 reception desk already includes its phone.
+      // Keep the invisible interactive phone hotspot, but do not overlay a
+      // second cropped phone (the crop also contains pieces of the desk).
+      if(this.gymLevel()===1&&type==='phone'){
+        frame.setVisible(false);
+      }else if(this.gymLevel()===1&&this.textures.exists(approvedKey)){
         frame.setVisible(false);
         const dims=type==='water'?[27,52]:type==='stock'?[44,58]:
           type==='phone'?[23,19]:[36,42];
