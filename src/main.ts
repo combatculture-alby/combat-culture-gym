@@ -326,8 +326,11 @@ class GymScene extends Phaser.Scene {
       student.routine=this.idleRoutine(student,1+i);
       student.actor.body.setVisible(this.activeStudents().includes(student));
       // NPCs are discoverable with a hand cursor and a name on hover.
+      // Container hit areas are measured from the display origin. The old
+      // negative coordinates shifted the clickable region 15px left and
+      // 19px up, making a tap on Frank select Marshall behind him.
       student.actor.body.setSize(30,38).setInteractive(
-        new Phaser.Geom.Rectangle(-15,-36,30,38),Phaser.Geom.Rectangle.Contains
+        new Phaser.Geom.Rectangle(0,-16,30,38),Phaser.Geom.Rectangle.Contains
       );
       student.actor.body.input!.cursor='pointer';
       student.actor.body.on('pointerover',()=>{
@@ -343,13 +346,6 @@ class GymScene extends Phaser.Scene {
         _pointer:Phaser.Input.Pointer,_localX:number,_localY:number,
         event:Phaser.Types.Input.EventData
       )=>{
-        // QA instrumentation for hit-testing class coaching.
-        (this as unknown as {studentTapDebug?:unknown}).studentTapDebug={
-          name:student.name,active:this.activeStudents().includes(student),
-          build:this.buildMode,placing:this.isPlacing(),panel:this.furniturePanel.visible,
-          roster:this.rosterPanel.visible,dist:distance(this.player,student),
-          requests:[...this.requests],running:this.running
-        };
         event.stopPropagation();
         if(!this.activeStudents().includes(student)||this.buildMode||
           this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
