@@ -7,7 +7,9 @@ def tile(dst,src,rect,area,tw,th):
     patch=src.crop(rect).resize((tw,th),Image.Resampling.NEAREST)
     for y in range(area[1],area[3],th):
         for x in range(area[0],area[2],tw):
-            dst.paste(patch,(x,y))
+            w=min(tw,area[2]-x)
+            h=min(th,area[3]-y)
+            dst.paste(patch.crop((0,0,w,h)),(x,y))
 for level in (1,2):
     im=Image.new('RGBA',(480,330),(32,39,41,255))
     d=ImageDraw.Draw(im)
@@ -31,12 +33,6 @@ for level in (1,2):
     x0,y0,x1,y1=bounds
     d.rectangle((x0-4,y0-4,x1+4,y1+4),fill=(29,32,37),outline=(152,149,140),width=3)
     tile(im,tiles,(257,97,432,274),(x0,y0,x1,y1),32,26)
-    # Tile helper draws complete cells: crop any overflow outside the mat.
-    # Restore the perimeter from the pre-mat floor texture.
-    for x in range(x1+1,min(480,x1+33)):
-        for y in range(y0,min(225,y1+26)):
-            if y<=y1: continue
-            im.putpixel((x,y),board.getpixel((24+((x-0)%48)*95//48,233+((y-79)%48)*61//48)))
     d=ImageDraw.Draw(im)
     d.rectangle((x0,y0,x1,y1),outline=(109,106,108),width=2)
     light=board.crop((1091,142,1255,205)).resize((102,25),Image.Resampling.NEAREST)
