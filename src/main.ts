@@ -555,13 +555,13 @@ class GymScene extends Phaser.Scene {
         frame.setVisible(false);
         if(type==='water'){
           art=placeHubArt(this,this.gymLevel()===2&&hasLevel2HubArt(this)
-            ?'water-cooler-l2':'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1);
+            ?'water-cooler-l2':'water-cooler',prop.x,prop.y+22,26,52,13.6,0.5,1);
         }else if(type==='stock'){
-          art=placeHubArt(this,'supply-shelf',prop.x,prop.y+25,40,53,13.6,0.5,1);
+          art=placeHubArt(this,'supply-shelf',prop.x,prop.y+25,44,58,13.6,0.5,1);
         }else if(type==='phone'){
-          art=placeHubArt(this,'desk-phone',prop.x,prop.y+2,21,17,15,0.5,0.5);
+          art=placeHubArt(this,'desk-phone',prop.x,prop.y+2,23,19,15,0.5,0.5);
         }else if(type==='mop'){
-          art=placeHubArt(this,'mop-bucket',prop.x,prop.y+18,33,38,13.6,0.5,1);
+          art=placeHubArt(this,'mop-bucket',prop.x,prop.y+18,36,42,13.6,0.5,1);
         }
       }
       // A transparent hit area overlays the prop. No permanent UI tiles.
