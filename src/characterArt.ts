@@ -41,11 +41,15 @@ export function actorArtIndex(look:number):number|null {
     default:return null;
   }
 }
-export function actorPoseFrame(facing:'down'|'up'|'side',pose:string):number {
-  if(pose==='shadow'||pose==='bag'||pose==='lift')return 4;
-  if(pose==='stretch')return 4;
+export function actorPoseFrame(
+  facing:'down'|'up'|'side',pose:string,phase=0
+):number {
+  const standing=facing==='up'?1:facing==='side'?2:0;
+  if(pose==='walk')return facing==='side'&&phase%2===1?3:standing;
+  if(pose==='shadow'||pose==='bag'||pose==='lift'||pose==='stretch')return 4;
   if(pose==='rest')return 5;
-  if(pose==='drink')return 6;
-  if(pose==='walk'&&facing==='side')return 3;
-  return facing==='up'?1:facing==='side'?2:0;
+  // A bottle comes up to the face and lowers; dialogue gestures alternate.
+  if(pose==='drink')return phase===1||phase===2?6:standing;
+  if(pose==='talk')return phase%2===1?4:standing;
+  return standing;
 }
