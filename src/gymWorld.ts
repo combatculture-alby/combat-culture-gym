@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import {normalizeGymLevel,trainingBounds,gymServiceLayout} from './gymProgression';
+import {normalizeGymLevel,trainingBounds,equipmentPlacementZone,gymServiceLayout} from './gymProgression';
 
 // All art is drawn into Phaser textures so it ships without external image assets.
 // The floor plan expands within the 480px stage; mat, navigation and placement
@@ -223,11 +223,23 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
     g.lineStyle(1,theme.edge,0.24).strokeCircle(cx,cy,23);
     rect(theme.accent,cx-18,cy+1,36,1,0.18);
   }else if(level===2){
-    // One central training square and paired warmup strips.
-    g.lineStyle(2,theme.edge,0.3).strokeCircle(cx,cy,30);
-    for(const x of [b.left+19,b.right-24])
-      rect(theme.accent,x,b.top+15,3,height-30,0.19);
-    rect(theme.accent,cx-20,cy+2,40,1,0.32);
+    // Level 2's floor art must match the actual two equipment-placement
+    // zones. The contrasting center aisle stays walkable but cannot hold gear.
+    const striking=equipmentPlacementZone(2,0);
+    const strength=equipmentPlacementZone(2,2);
+    rect(theme.floorLine,b.left,striking.bottom,width,strength.top-striking.bottom,0.94);
+    rect(theme.accent,b.left,striking.bottom,width,1,0.6);
+    rect(theme.accent,b.left,strength.top-1,width,1,0.6);
+    const outline=(z:typeof striking,color:number)=>{
+      border(color,z.left+2,z.top+2,z.right-z.left-4,z.bottom-z.top-4,1);
+      for(let x=z.left+8;x<z.right-8;x+=24)
+        rect(color,x,z.top+5,12,1,0.32);
+    };
+    outline(striking,0x83bdb2);
+    outline(strength,0xc8b28a);
+    // Small pixel-style floor markings distinguish striking from weights.
+    rect(0x83bdb2,striking.left+9,striking.top+9,26,3,0.66);
+    rect(0xc8b28a,strength.left+9,strength.bottom-12,26,3,0.66);
   }else if(level===3){
     // Sparring-circle markings, not rope obstacles.
     g.lineStyle(3,theme.edge,0.69).strokeCircle(cx,cy,45);
