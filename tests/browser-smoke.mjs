@@ -2166,7 +2166,17 @@ try{
       const stored=!s.stationUsable(bag);
       s.saveData.gearStored[0]=false;
       const restored=s.stationUsable(bag);
-      return {valid,broken,dirty,stored,restored};
+      const student=s.activeStudents()[0];
+      let interrupted=false;
+      if(student){
+        s.saveData.gearCondition[0]=0;
+        student.routine={pose:'bag',goal:{x:bag.x,y:bag.y},route:[],
+          remaining:5,elapsed:0,station:bag};
+        s.updateStudentLife(0.016);
+        interrupted=student.routine.station!==bag;
+        s.saveData.gearCondition[0]=100;
+      }else interrupted=true; // Opening prep intentionally has no students.
+      return {valid,broken,dirty,stored,restored,interrupted};
     });
     for(const [condition,passed] of Object.entries(checks))
       assert.ok(passed,'Equipment activity condition failed: '+condition);
