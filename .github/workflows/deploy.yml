@@ -67,6 +67,7 @@ jobs:
       # Refresh isolated Level 1 folding-table reception desk visual test.
       # Enlarge approved folding desk for Level 1 visual review.
       # Raise folding desk away from lower screen edge.
+      # Deploy approved clean replacement desk sprite to isolated garage preview.
       # Unmerged garage progression is published as a separate playable build.
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
