@@ -26,7 +26,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
-import {preloadHubArt,registerHubArt,hasHubArt,placeHubArt} from './hubArt';
+import {preloadHubArt,registerHubArt,hasHubArt,hasLevel2HubArt,placeHubArt} from './hubArt';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
 import {makeRoomGateway} from './roomGateways';
@@ -513,7 +513,8 @@ class GymScene extends Phaser.Scene {
       if(this.gymLevel()<=2&&hasHubArt(this)&&(type==='water'||type==='stock')){
         frame.setVisible(false);
         art=type==='water'
-          ?placeHubArt(this,'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1)
+          ?placeHubArt(this,this.gymLevel()===2&&hasLevel2HubArt(this)
+            ?'water-cooler-l2':'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1)
           :placeHubArt(this,'supply-shelf',prop.x,prop.y+25,40,53,13.6,0.5,1);
       }
       // A transparent hit area overlays the prop. No permanent UI tiles.
@@ -1262,11 +1263,19 @@ class GymScene extends Phaser.Scene {
         fixture:i===0?g:undefined
       });
       g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
-      const artName=i===0?'heavy-bag':i===4?'weight-bench':
+      const upgradedArt=this.gymLevel()===2&&hasLevel2HubArt(this);
+      const artName=i===0?(upgradedArt?'heavy-bag-l2':'heavy-bag'):
+        i===1&&upgradedArt?'thai-pads':
+        i===2&&upgradedArt?'speed-bag-l2':
+        i===3&&upgradedArt?'jump-rope':
+        i===4?(upgradedArt?'bench-l2':'weight-bench'):
         i===5?'kettlebell-rack':null;
       if(artName&&this.gymLevel()<=2&&hasHubArt(this)){
-        const dimensions=i===0?{w:34,h:54}:i===4?{w:34,h:32}:{w:33,h:26};
-        const image=placeHubArt(this,artName,x,y+10,dimensions.w,dimensions.h,
+        const dimensions=i===0?(upgradedArt?{w:24,h:48}:{w:34,h:54}):
+          i===1?{w:28,h:24}:i===2?{w:18,h:27}:i===3?{w:24,h:18}:
+          i===4?(upgradedArt?{w:34,h:20}:{w:34,h:32}):{w:33,h:26};
+        const baseY=isWallEquipment(i)?y+4:y+10;
+        const image=placeHubArt(this,artName,x,baseY,dimensions.w,dimensions.h,
           10+(y+GEAR_BOUNDS[i].ry*0.6)/100-0.04,0.5,1);
         this.worldFixtures.push(image);
         const station=this.stations.find(station=>station.id==='gear-'+i);
