@@ -25,5 +25,6 @@ jobs:
           git add art-source/extracted/level2/
           if ! git diff --cached --quiet; then
             git commit -m "art: add 26 approved transparent Level 2 gym props"
+            git pull --rebase origin release/levels-1-2
             git push origin HEAD:release/levels-1-2
           fi
