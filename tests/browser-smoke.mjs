@@ -80,9 +80,29 @@ async function finishScheduledClass(page){
     scene.coach.place(student.x,student.y);
     return {x:student.x,y:student.y};
   });
+  await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    window.__classTapDebug={};
+    s.input.once('pointerdown',(p,targets)=>{
+      window.__classTapDebug.pointer={x:p.worldX,y:p.worldY,
+        targets:targets.map(o=>o.type)};
+    });
+    s.students[s.requests[0]].actor.body.once('pointerdown',()=>{
+      window.__classTapDebug.actor=true;
+    });
+  });
   await clickGame(page,initial.x,initial.y-10);
-  const first=await page.evaluate(()=>window.__combatGym.scene.getScene('Gym').classHelped);
-  assert.equal(first,1,'Tapping a student should fulfill a live class request');
+  const first=await page.evaluate(()=>{
+    const s=window.__combatGym.scene.getScene('Gym');
+    const student=s.students[s.requests[0]];
+    const input=student?.actor?.body?.input;
+    return {helped:s.classHelped,debug:window.__classTapDebug,
+      student:student&&{x:student.x,y:student.y},
+      hitArea:input?.hitArea&&{x:input.hitArea.x,y:input.hitArea.y,
+        width:input.hitArea.width,height:input.hitArea.height},
+      actorSize:student?.actor&&{w:student.actor.body.width,h:student.actor.body.height}};
+  });
+  assert.equal(first.helped,1,'Tapping a student should fulfill a live class request: '+JSON.stringify(first));
   return page.evaluate(()=>{
     const scene=window.__combatGym.scene.getScene('Gym');
     while(scene.running&&scene.pendingRequests.length){
