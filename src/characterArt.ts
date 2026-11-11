@@ -7,13 +7,64 @@ export const ACTOR_FRAME_SIZE={width:24,height:32} as const;
 const ACTOR_COUNT=4;
 const FRAME_COUNT=7;
 
+
+/** Approved 48×64 transparent student sheets. Each is 12 columns × 3 rows:
+ * poses idle, walk, run; 3 frames per direction (down, left, right, up).
+ * Use the student ID rather than the old four-palette character rotation.
+ */
+export const STUDENT_ART_NAMES=['frank','radish','marshall','pudge','holly','gao'] as const;
+export const STUDENT_FRAME_WIDTH=48;
+export const STUDENT_FRAME_HEIGHT=64;
+export function studentArtKey(index:number):string {
+  return 'combat-culture-student-'+STUDENT_ART_NAMES[index];
+}
+export function studentArtAvailable(scene:Phaser.Scene,index:number):boolean {
+  return index>=0&&index<STUDENT_ART_NAMES.length&&
+    scene.textures.exists(studentArtKey(index))&&
+    scene.textures.get(studentArtKey(index)).has('idle-down-0');
+}
+export function studentArtFrame(facing:'down'|'up'|'side',left:boolean,
+  pose:string,phase:number):string {
+  const dir=facing==='side'?(left?'left':'right'):facing;
+  const row=pose==='walk'?'walk':'idle';
+  return row+'-'+dir+'-'+Math.floor(phase%3);
+}
+
 export function preloadCharacterArt(scene:Phaser.Scene):void {
   if(!scene.textures.exists(CHARACTER_ART_KEY)){
     scene.load.image(CHARACTER_ART_KEY,
       new URL('./assets/hub-actors.png',import.meta.url).href);
   }
+  const sources=[
+    new URL('./assets/frank.png',import.meta.url).href,
+    new URL('./assets/radish.png',import.meta.url).href,
+    new URL('./assets/marshall.png',import.meta.url).href,
+    new URL('./assets/pudge.png',import.meta.url).href,
+    new URL('./assets/holly.png',import.meta.url).href,
+    new URL('./assets/gao.png',import.meta.url).href
+  ];
+  sources.forEach((url,index)=>{
+    if(!scene.textures.exists(studentArtKey(index)))
+      scene.load.image(studentArtKey(index),url);
+  });
 }
 export function registerCharacterArt(scene:Phaser.Scene):void {
+  STUDENT_ART_NAMES.forEach((_,index)=>{
+    const key=studentArtKey(index);
+    if(!scene.textures.exists(key))return;
+    const texture=scene.textures.get(key);
+    const dirs=['down','left','right','up'] as const;
+    const actions=['idle','walk','run'] as const;
+    for(let row=0;row<3;row++)
+      for(let direction=0;direction<4;direction++)
+        for(let frame=0;frame<3;frame++){
+          const name=actions[row]+'-'+dirs[direction]+'-'+frame;
+          if(!texture.has(name))texture.add(name,0,
+            (direction*3+frame)*STUDENT_FRAME_WIDTH,
+            row*STUDENT_FRAME_HEIGHT,
+            STUDENT_FRAME_WIDTH,STUDENT_FRAME_HEIGHT);
+        }
+  });
   if(!scene.textures.exists(CHARACTER_ART_KEY))return;
   const texture=scene.textures.get(CHARACTER_ART_KEY);
   for(let actor=0;actor<ACTOR_COUNT;actor++){
