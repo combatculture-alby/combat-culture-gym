@@ -2133,10 +2133,39 @@ class GymScene extends Phaser.Scene {
     this.showNewItemChoice(item.name,()=>this.selectFurniture(index),
       ()=>this.openFurniture('shop'));
   }
+  private firstClearPlacement(preferred:Point,rx:number,ry:number,
+    valid:(x:number,y:number)=>boolean):Point {
+    const center={x:roundPlacement(preferred.x),y:roundPlacement(preferred.y)};
+    if(valid(center.x,center.y))return center;
+    // Search the mat in expanding rings. Preserve the nearest usable tile
+    // rather than making newly bought furniture start on an occupied square.
+    for(let radius=6;radius<=180;radius+=6){
+      for(let dx=-radius;dx<=radius;dx+=6){
+        for(const dy of [-radius,radius]){
+          const x=center.x+dx,y=center.y+dy;
+          if(valid(x,y))return {x,y};
+        }
+      }
+      for(let dy=-radius+6;dy<radius;dy+=6){
+        for(const dx of [-radius,radius]){
+          const x=center.x+dx,y=center.y+dy;
+          if(valid(x,y))return {x,y};
+        }
+      }
+    }
+    return center;
+  }
   private selectFurniture(i:number):void {
     this.clearIntent();
     this.selectedFurniture=i;this.placingDecor=-1;this.placingGear=-1;this.buildMode=true;this.furniturePanel.setVisible(false);
-    const position=this.saveData.furniture?.[i];if(position)this.placementCursor={x:position.stored?168:position.x,y:position.stored?144:position.y};this.keyboardPlacement=true;
+    const position=this.saveData.furniture?.[i];
+    if(position){
+      const size=this.furnitureSize(position);
+      const preferred={x:position.stored?168:position.x,y:position.stored?144:position.y};
+      this.placementCursor=this.firstClearPlacement(preferred,size.rx,size.ry,
+        (x,y)=>this.validPlacement(x,y,size.rx,size.ry,-1,i));
+    }
+    this.keyboardPlacement=true;
     this.updateFurnitureActions();this.drawEquipment();
     const item=this.saveData.furniture?.[i];
     if(item) this.say('Moving '+FURNITURE[item.kind].name+'. Arrows move, Enter place, Q rotate, X store, Esc cancel.');
@@ -2146,8 +2175,11 @@ class GymScene extends Phaser.Scene {
     this.placingDecor=index;this.selectedFurniture=-1;this.placingGear=-1;
     this.buildMode=true;
     const pos=this.saveData.decorPositions?.[index];
-    this.placementCursor=pos&&!this.saveData.decorStored?.[index]?
+    const preferred=pos&&!this.saveData.decorStored?.[index]?
       {...pos}:{x:168,y:144};
+    const rx=index===2?11:25;
+    this.placementCursor=this.firstClearPlacement(preferred,rx,12,
+      (x,y)=>this.validPlacement(x,y,rx,12,-1,-1,index===2));
     this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();this.drawEquipment();
