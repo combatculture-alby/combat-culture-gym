@@ -53,3 +53,5 @@ atlas.save(dst,optimize=True)
 print('Generated',dst,atlas.size)
 
 # GitHub Actions commits the generated atlas directly to the release branch.
+
+# Regenerate reviewed art after CI push synchronization.
