@@ -200,7 +200,7 @@ class GymScene extends Phaser.Scene {
   private mopMarks:Phaser.GameObjects.Graphics[]=[];
   private serviceTarget:HubService|null=null;
   private gearTarget=-1;
-  private serviceHotspots:{type:HubService;frame:Phaser.GameObjects.Graphics;hit:Phaser.GameObjects.Zone;hint:Phaser.GameObjects.Text;ring?:Phaser.GameObjects.Text}[]=[];
+  private serviceHotspots:{type:HubService;frame:Phaser.GameObjects.Graphics;hit:Phaser.GameObjects.Zone;hint:Phaser.GameObjects.Text;ring?:Phaser.GameObjects.Text;art?:Phaser.GameObjects.Image}[]=[];
   private cleaningShift=false;
   private cleaningAt:Point|null=null;
   private cleaningCountdown=0;
@@ -507,6 +507,15 @@ class GymScene extends Phaser.Scene {
       const frame=this.add.graphics().setPosition(prop.x,prop.y)
         .setDepth(type==='phone'?15:13.6);
       paintHubFixture(frame,type,this.gymLevel());
+      // Replace the old drawn stand-ins with cropped user-approved fixture
+      // sprites. Interaction coordinates and the hidden hit zones stay fixed.
+      let art:Phaser.GameObjects.Image|undefined;
+      if(this.gymLevel()<=2&&hasHubArt(this)&&(type==='water'||type==='stock')){
+        frame.setVisible(false);
+        art=type==='water'
+          ?placeHubArt(this,'water-cooler',prop.x,prop.y+22,24,47,13.6,0.5,1)
+          :placeHubArt(this,'supply-shelf',prop.x,prop.y+25,40,53,13.6,0.5,1);
+      }
       // A transparent hit area overlays the prop. No permanent UI tiles.
       const hit=this.add.zone(prop.x,prop.y,prop.hitWidth,prop.hitHeight)
         .setDepth(19).setInteractive({useHandCursor:true});
@@ -544,11 +553,11 @@ class GymScene extends Phaser.Scene {
           this.running||this.isPlacing()||this.buildMode)return;
         this.useService(type);
       });
-      this.serviceHotspots.push({type,frame,hit,hint,ring});
+      this.serviceHotspots.push({type,frame,hit,hint,ring,art});
     }
   }
   private refreshServiceHotspots():void {
-    for(const {type,frame,ring} of this.serviceHotspots){
+    for(const {type,frame,ring,art} of this.serviceHotspots){
       const supply=this.saveData.supplies??Array.from(INITIAL_SUPPLIES);
       const ringing=this.dayPhase()==='open'&&
         availablePhoneCalls(this.saveData.phoneCallsSpawned??0,
@@ -558,6 +567,7 @@ class GymScene extends Phaser.Scene {
         type==='stock'?supply.some((n,i)=>n<(i===0?1:2)):
         (this.saveData.matCleanliness??70)<50&&!this.saveData.mopDoneToday;
       paintHubFixture(frame,type,this.gymLevel(),urgent);
+      art?.setTint(urgent?0xffd7af:0xffffff);
       ring?.setVisible(ringing);
     }
   }
