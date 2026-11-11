@@ -40,6 +40,8 @@ type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'|'drink'; fixtur
 type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
 type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
 const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183},{x:164,y:111},{x:220,y:185},{x:164,y:188},{x:78,y:151}];
+const WALL_GEAR_SLOTS:Record<number,Point>={1:{x:116,y:94},2:{x:218,y:94}};
+const isWallGear=(index:number):boolean=>index===1||index===2;
 const GEAR_BOUNDS=[{rx:9,ry:12},{rx:13,ry:10},{rx:8,ry:11},{rx:14,ry:8},{rx:14,ry:11},{rx:14,ry:10},{rx:13,ry:13},{rx:16,ry:12}];
 const NEAR=42;
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -1147,6 +1149,15 @@ class GymScene extends Phaser.Scene {
         id:'water-cooler',pose:'drink'});
     }
     this.worldFixtures.forEach(g=>g.destroy());this.worldFixtures=[];
+    if(this.buildMode&&this.gymLevel()===2){
+      const overlay=this.add.graphics().setDepth(4);
+      [0,2].forEach((stat,i)=>{
+        const z=equipmentPlacementZone(2,stat);
+        overlay.fillStyle(i===0?0x428b7e:0x7b719b,0.13).fillRect(z.left,z.top,z.right-z.left,z.bottom-z.top);
+        overlay.lineStyle(1,i===0?0x6bd1b3:0xc3a4ed,0.6).strokeRect(z.left,z.top,z.right-z.left,z.bottom-z.top);
+      });
+      this.worldFixtures.push(overlay);
+    }
     const layer=(y:number):void=>{
       const g=this.add.graphics().setDepth(10+y/100-0.05);
       this.worldFixtures.push(g);this.decor=g;
@@ -1238,7 +1249,7 @@ class GymScene extends Phaser.Scene {
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
       if(itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())!=='main')return;
       if(!owned||this.saveData.gearStored?.[i])return;
-      const pos=this.saveData.gearPositions?.[i];
+      const pos=isWallGear(i)?WALL_GEAR_SLOTS[i]:this.saveData.gearPositions?.[i];
       const x=pos?.x||65+(i%4)*57,y=pos?.y||(i<4?80:180);
       layer(y+GEAR_BOUNDS[i].ry*0.6);
       // Distinct, readable pixel silhouettes instead of eight identical boxes.
@@ -1651,7 +1662,7 @@ class GymScene extends Phaser.Scene {
       const owned=this.saveData.ownedGear?.[i]===true;
       const line=this.add.text(84+(i%2)*161,69+Math.floor(i/2)*30,gear.name+'  '+(owned?(this.saveData.gearStored?.[i]?'[PLACE]':'[MOVE]'):'$'+gear.cost),{fontFamily:UI_FONT,fontSize:'9px',color:owned?'#8ec4a8':'#ffffff',backgroundColor:'#34575b',padding:{x:5,y:6}}).setInteractive({useHandCursor:true});
       line.on('pointerdown',()=>{
-        if(owned){this.beginGearPlacement(i);return;}
+        if(owned){if(isWallGear(i)){this.say(gear.name+' is installed in its fixed wall slot.');return;}this.beginGearPlacement(i);return;}
         if(this.saveData.money<gear.cost){this.say('Not enough money for '+gear.name+'.');return;}
         if(!hasMaterials(this.saveData.materials,GEAR_MATERIALS[i])){this.say('Need '+materialCost(GEAR_MATERIALS[i])+' for '+gear.name+'.');return;}
         this.saveData.money-=gear.cost;
@@ -1659,9 +1670,10 @@ class GymScene extends Phaser.Scene {
         if(!this.saveData.ownedGear)this.saveData.ownedGear=Array(8).fill(false);
         this.saveData.ownedGear[i]=true;
         if(!this.saveData.gearStored)this.saveData.gearStored=Array(8).fill(false);
-        this.saveData.gearStored[i]=true;
+        this.saveData.gearStored[i]=!isWallGear(i);
         this.persist();this.refresh();
-        this.showNewItemChoice(gear.name,()=>this.beginGearPlacement(i),
+        if(isWallGear(i)){this.openGearShop();this.say(gear.name+' installed in its fixed wall slot.');}
+        else this.showNewItemChoice(gear.name,()=>this.beginGearPlacement(i),
           ()=>this.openGearShop());
       });this.furniturePanel.add(line);
     });
@@ -1670,6 +1682,7 @@ class GymScene extends Phaser.Scene {
     this.furniturePanel.setVisible(true);
   }
   private beginGearPlacement(index:number):void {
+    if(isWallGear(index)){this.say(GEAR_ITEMS[index].name+' uses a fixed wall slot.');return;}
     this.clearIntent();
     this.placingGear=index;
     this.selectedFurniture=-1;this.placingDecor=-1;this.buildMode=true;
@@ -2678,7 +2691,7 @@ class GymScene extends Phaser.Scene {
       if(!item.stored&&i!==excludeFurniture&&itemRoom(this.saveData.roomState?.furnitureRooms,i,this.gymLevel())==='main')solids.push({...item,...this.furnitureSize(item)});
     });
     (this.saveData.ownedGear||[]).forEach((owned,i)=>{
-      if(owned&&!this.saveData.gearStored?.[i]&&i!==excludeGear&&itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'){
+      if(owned&&!isWallGear(i)&&!this.saveData.gearStored?.[i]&&i!==excludeGear&&itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())==='main'){
         solids.push({...this.saveData.gearPositions![i],...GEAR_BOUNDS[i]});
       }
     });
