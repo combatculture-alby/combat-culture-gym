@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type {RoomFixture} from './roomItems';
 import {footprint,itemLabel} from './roomItems';
-import {HUB_ART_KEY,HUB_LEVEL2_ART_KEY,hasHubArt,hasLevel2HubArt} from './hubArt';
+import {HUB_ART_KEY,HUB_LEVEL2_ART_KEY,hasHubArt,hasLevel2HubArt,garagePropKey} from './hubArt';
 
 /** One pixel-art scale across equipment and 40px character sprites.
  * The feet/ground contact is always local 0,0.
@@ -124,10 +124,16 @@ export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>
     4:{key:HUB_ART_KEY,frame:'weight-bench',w:40,h:36},
     5:{key:HUB_ART_KEY,frame:'kettlebell-rack',w:42,h:30}
   };
+  const garageNames:Record<number,string>={0:'heavy-bag',3:'jump-rope',4:'weight-bench',5:'kettlebells'};
+  const garageName=item.kind==='gear'?garageNames[item.index]:undefined;
+  const approvedKey=garageName?garagePropKey(garageName):undefined;
+  const approvedAvailable=!!approvedKey&&scene.textures.exists(approvedKey);
   const art=item.kind==='gear'?artwork[item.index]:undefined;
   const available=art&&((art.key===HUB_ART_KEY&&hasHubArt(scene))||
     (art.key===HUB_LEVEL2_ART_KEY&&hasLevel2HubArt(scene)));
-  const visual=art&&available
+  const visual=approvedAvailable
+    ?scene.add.image(0,0,approvedKey!).setOrigin(.5,1).setDisplaySize(art?.w||35,art?.h||35)
+    :art&&available
     ?scene.add.image(0,0,art.key,art.frame).setOrigin(.5,1).setDisplaySize(art.w,art.h)
     :scene.add.graphics();
   if(visual instanceof Phaser.GameObjects.Graphics)paintRoomFixture(visual,item);
