@@ -124,6 +124,26 @@ export function placeHubArt(
   scene:Phaser.Scene,name:HubArtName,x:number,y:number,width:number,height:number,
   depth:number,originX=0.5,originY=0.5
 ):Phaser.GameObjects.Image {
+  const level1Aliases:Record<string,string>={
+    'heavy-bag':'heavy-bag','kettlebell-rack':'kettlebells',
+    'supply-shelf':'supply-shelf','water-cooler':'water-cooler',
+    'weight-bench':'weight-bench','desk-phone':'desk-phone',
+    'mop-bucket':'mop','speed-bag':'heavy-bag'
+  };
+  const level2Aliases:Record<string,string>={
+    'heavy-bag-l2':'heavy-bag','speed-bag-l2':'speed-bag',
+    'thai-pads':'thai-pads','jump-rope':'jump-rope',
+    'water-cooler-l2':'water-cooler','bench-l2':'flat-bench',
+    'agility-ladder':'agility-ladder','medicine-ball':'medicine-ball',
+    'boxing-poster':'boxing-poster'
+  };
+  const preferred=Object.prototype.hasOwnProperty.call(level2Aliases,name)
+    ?level2PropKey(level2Aliases[name]):level1Aliases[name]
+    ?garagePropKey(level1Aliases[name]):null;
+  if(preferred&&scene.textures.exists(preferred))
+    return scene.add.image(Math.round(x),Math.round(y),preferred)
+      .setOrigin(originX,originY).setDisplaySize(Math.round(width),Math.round(height))
+      .setDepth(depth);
   const atlas=Object.prototype.hasOwnProperty.call(HUB_SERVICE_FRAMES,name)
     ?HUB_SERVICE_ART_KEY:
     Object.prototype.hasOwnProperty.call(HUB_LEVEL2_FRAMES,name)
