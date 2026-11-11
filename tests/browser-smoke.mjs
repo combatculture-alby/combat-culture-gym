@@ -2211,6 +2211,10 @@ try{
     const art=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return {
+        services:s.serviceHotspots.map(s=>({
+          type:s.type,texture:s.art?.texture?.key,frame:s.art?.frame?.name,
+          visible:s.art?.visible,hit:!!s.hit?.input?.enabled
+        })),
         loaded:s.textures.exists('combat-culture-hub-art'),
         frames:s.textures.get('combat-culture-hub-art').getFrameNames(),
         placed:s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
@@ -2221,6 +2225,11 @@ try{
     for(const name of ['garage-door','training-mat','gym-banner','water-cooler','supply-shelf'])
       assert.ok(art.placed.includes(name),'Missing Level 1 imported art: '+name);
     assert.ok(art.frames.includes('heavy-bag'),'Gear artwork was not registered');
+    for(const type of ['phone','water','stock','mop']){
+      const item=art.services.find(s=>s.type===type);
+      assert.ok(item?.visible&&item?.hit&&item.texture?.startsWith('combat-culture-'),
+        'Approved service artwork should have a working physical hotspot: '+type);
+    }
   });
   await openScenario('level-two-purchased-gear-art',sampleSave({
     gymLevel:2,ownedGear:[true,false,false,false,true,true],
