@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const directory = new URL('../art-source/approved-originals/', import.meta.url);
@@ -45,8 +44,13 @@ test('uploaded artwork matches the supplied source manifest where listed', () =>
   const manifest = JSON.parse(readFileSync(new URL('manifest.json', directory), 'utf8'));
   assert.ok(Array.isArray(manifest));
   const entries = new Map(manifest.map(item => [item.filename, item]));
+  // Approved aliases were added after the original source manifest.
+  const aliases = new Map([
+    ['Player Coach Approved.png', 'ChatGPT Image Nov 10, 2026, 11_04_58 PM.png'],
+    ['Holly Approved (sheet says Erin).png', 'Erin Student Pixel Sprite Sheet(1).png'],
+  ]);
   for (const name of expected) {
-    const entry = entries.get(name);
+    const entry = entries.get(name) ?? entries.get(aliases.get(name));
     assert.ok(entry, name + ': missing from manifest');
     const bytes = readFileSync(new URL(encodeURIComponent(name), directory));
     assert.equal(bytes.length, entry.bytes, name + ': byte count differs');
