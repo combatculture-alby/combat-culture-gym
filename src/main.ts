@@ -322,7 +322,7 @@ class GymScene extends Phaser.Scene {
       const floorIndex=attending.indexOf(student);
       if(floorIndex<0)return;
       Object.assign(student,STUDENT_HOMES[floorIndex]);
-      student.actor=new GymCharacter(this,student.x,student.y,1+(i%4));
+      student.actor=new GymCharacter(this,student.x,student.y,1+(i%4),i);
       student.routine=this.idleRoutine(student,1+i);
       student.actor.body.setVisible(this.activeStudents().includes(student));
       // NPCs are discoverable with a hand cursor and a name on hover.
@@ -2356,7 +2356,12 @@ class GymScene extends Phaser.Scene {
       const rank=student.skill>=10?'Advanced':student.skill>=5?'Intermediate':'Beginner';
       panel.add([
         this.add.rectangle(x,y,155,63,0x28494d).setOrigin(0).setStrokeStyle(1,0x698780),
-        this.add.image(x+22,y+23,'gym-character-'+(1+i%4),0),
+        this.add.image(x+22,y+23,
+          i<6&&this.textures.exists('combat-culture-student-'+
+            ['frank','radish','marshall','pudge','holly','gao'][i])
+            ?'combat-culture-student-'+['frank','radish','marshall','pudge','holly','gao'][i]
+            :'gym-character-'+(1+i%4),
+          i<6?'idle-down-0':0).setDisplaySize(25,34),
         this.add.text(x+44,y+6,student.name,{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#fff1d5'}),
         this.add.text(x+44,y+23,rank+'  |  Bond '+student.friendship,{fontFamily:UI_FONT,fontSize:'9px',color:'#c5ded4'}),
       ]);
