@@ -2259,8 +2259,10 @@ try{
         })),
         loaded:s.textures.exists('combat-culture-hub-art'),
         frames:s.textures.get('combat-culture-hub-art').getFrameNames(),
-        placed:s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
-          .map(object=>object.frame?.name)
+        placed:s.children.list.filter(object=>
+          object.texture?.key==='combat-culture-hub-art'||
+          (object.type==='TileSprite'&&object.getData('approvedSourceArt')==='training-mat-tile'))
+          .map(object=>object.type==='TileSprite'?object.getData('approvedSourceArt'):object.frame?.name)
       };
     });
     assert.ok(art.loaded,'Approved hub art atlas failed to load');
@@ -2303,8 +2305,8 @@ try{
       const visual=await page.evaluate(()=>{
         const s=window.__combatGym.scene.getScene('Gym');
         return {
-          mats:s.children.list.filter(o=>o.texture?.key==='combat-culture-hub-art'&&
-            o.frame?.name==='training-mat-tile').map(o=>({
+          mats:s.children.list.filter(o=>o.type==='TileSprite'&&
+            o.getData('approvedSourceArt')==='training-mat-tile').map(o=>({
               x:o.x,y:o.y,w:o.width,h:o.height,type:o.type
             })).sort((a,b)=>a.y-b.y),
           students:s.activeStudents().map(student=>({
