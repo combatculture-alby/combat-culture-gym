@@ -2853,7 +2853,8 @@ class GymScene extends Phaser.Scene {
     if((this.saveData.paperLevel??65)<25)concerns.push('The bathroom needs paper!');
     if((this.saveData.matCleanliness??70)<30)concerns.push('The mat needs mopping!');
     this.saveData.ownedGear?.forEach((owned,i)=>{
-      if(!owned||this.saveData.gearStored?.[i])return;
+      if(!owned||this.saveData.gearStored?.[i]||
+        itemRoom(this.saveData.roomState?.gearRooms,i,this.gymLevel())!=='main')return;
       if((this.saveData.gearCondition?.[i]??100)<GEAR_WORKING_THRESHOLD)
         concerns.push(GEAR_ITEMS[i].name+' is broken!');
       else if((this.saveData.gearCleanliness?.[i]??100)<CLEAN_GEAR_THRESHOLD)
