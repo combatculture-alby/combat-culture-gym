@@ -1302,6 +1302,38 @@ try{
     assert.equal(result.strengthWrong,false,'Weight gear cannot be placed in striking area');
   });
 
+  await openScenario('build-placement-collision-recovery',sampleSave({
+    gymLevel:1,money:500,materials:[20,20,20],
+    furniture:[{kind:1,x:168,y:144,rotation:0,stored:false},
+      {kind:0,x:168,y:144,rotation:0,stored:true}],
+    decorLevel:3,decorStored:[true,true,true],
+    ownedGear:[true,true,false,false,false,false,false,false],
+    gearStored:[true,false,false,false,false,false,false,false]
+  }),async page=>{
+    const result=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.selectFurniture(1);
+      const furniture={...s.placementCursor};
+      const furnitureValid=s.validPlacement(furniture.x,furniture.y,12,11,-1,1);
+      s.cancelPlacement();
+      s.beginDecorPlacement(2);
+      const plant={...s.placementCursor};
+      const plantValid=s.validPlacement(plant.x,plant.y,11,12,-1,-1,true);
+      s.cancelPlacement();
+      s.beginGearPlacement(0);
+      const bag={...s.placementCursor};
+      const bagValid=s.validGearPlacement(bag.x,bag.y,9,12,0);
+      s.cancelPlacement();
+      s.beginGearPlacement(1);
+      const wallBlocked=s.placingGear===-1;
+      return {furniture,furnitureValid,plant,plantValid,bag,bagValid,wallBlocked};
+    });
+    assert.equal(result.furnitureValid,true,'Stored furniture starts at a free placement point');
+    assert.equal(result.plantValid,true,'Stored plant starts at a free placement point');
+    assert.equal(result.bagValid,true,'Stored training gear starts at a free placement point');
+    assert.equal(result.wallBlocked,true,'Fixed wall gear never enters floor placement mode');
+  });
+
   await openScenario('furniture-and-decor-purchase-choice',sampleSave({
     money:600,reputation:20,materials:[20,20,20],furniture:[],decorLevel:0
   }),async page=>{
