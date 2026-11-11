@@ -41,7 +41,16 @@ export const HUB_SERVICE_FRAMES={
 export type HubArtName=keyof typeof HUB_ART_FRAMES|
   keyof typeof HUB_LEVEL2_FRAMES|keyof typeof HUB_SERVICE_FRAMES;
 
+export const APPROVED_GARAGE_PROPS=['heavy-bag','kettlebells','jump-rope','weight-bench','water-cooler','supply-shelf','desk-phone','mop','trash-can','reception-desk','dumbbell-rack','storage-closet','fan','gym-mats','bulletin-board','toolbox','towels','cardboard-boxes','foam-roller','cleaner','dustpan','paper-roll','clock','bands'] as const;
+export const garagePropKey=(name:string)=>'approved-garage-'+name;
+const garagePropUrls=import.meta.glob('./../art-source/extracted/level1/*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
+
 export function preloadHubArt(scene:Phaser.Scene):void {
+  for(const name of APPROVED_GARAGE_PROPS){
+    const key=garagePropKey(name);
+    const url=garagePropUrls['./../art-source/extracted/level1/'+name+'.png'];
+    if(url&&!scene.textures.exists(key))scene.load.image(key,url);
+  }
   // new URL is resolved and fingerprinted by Vite, including in Pages previews.
   if(!scene.textures.exists(HUB_ART_KEY))
     scene.load.image(HUB_ART_KEY,new URL('./assets/hub-atlas.png',import.meta.url).href);
