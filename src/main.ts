@@ -31,7 +31,7 @@ import {GymRoomScene} from './gymRoomScene';
 import {makeRoomGateway} from './roomGateways';
 import {unlockedRooms,type RoomId} from './gymRooms';
 import {distributeStudents} from './roomPopulation';
-import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
+import {GYM_LEVELS,STUDENT_NAMES,normalizeGymLevel,studentCapacity,enrolledCount,activeStudentCount,recruitmentCost,canExpandGym,attendingIndices,normalizeClassPlan,trainingBounds,equipmentPlacementZone,gymServiceLayout,classEarnings,CLASS_REPUTATION,dailySupplyPositions} from './gymProgression';
 import { GymNavigation, clearSegment, type Footprint, type Point } from './navigation';
 
 const W = 480, H = 270;
@@ -1683,7 +1683,7 @@ class GymScene extends Phaser.Scene {
     if(this.placingGear<0)return;
     x=roundPlacement(x);y=roundPlacement(y);
     const {rx,ry}=GEAR_BOUNDS[this.placingGear];
-    if(!this.validPlacement(x,y,rx,ry,this.placingGear)){this.say('Choose a clear spot inside the mat.');return;}
+    if(!this.validGearPlacement(x,y,rx,ry,this.placingGear)){this.say('Choose a clear spot in the designated equipment zone.');return;}
     if(!this.saveData.gearPositions)this.saveData.gearPositions=Array.from({length:8},(_,i)=>({x:65+(i%4)*57,y:i<4?80:180}));
     this.saveData.gearPositions[this.placingGear]={x,y};
     this.saveData.roomState??=defaultRoomState();
@@ -2606,6 +2606,12 @@ class GymScene extends Phaser.Scene {
     if(item.kind===4)return {rx:10,ry:13};
     return {rx:9,ry:9};
   }
+  private validGearPlacement(x:number,y:number,rx:number,ry:number,index:number):boolean {
+    const zone=equipmentPlacementZone(this.gymLevel(),GEAR_ITEMS[index].stat);
+    return x-rx>=zone.left&&x+rx<=zone.right&&
+      y-ry>=zone.top&&y+ry<=zone.bottom&&
+      this.validPlacement(x,y,rx,ry,index);
+  }
   private validPlacement(x:number,y:number,rx:number,ry:number,excludeGear=-1,excludeFurniture=-1,excludePlant=false):boolean {
     // Check the full footprint, including margins, rather than only its center.
     const {left,right,top,bottom}=trainingBounds(this.gymLevel());
@@ -2656,7 +2662,7 @@ class GymScene extends Phaser.Scene {
       valid=this.validPlacement(x,y,rx,ry,-1,this.selectedFurniture);
     }else if(this.placingGear>=0){
       ({rx,ry}=GEAR_BOUNDS[this.placingGear]);
-      valid=this.validPlacement(x,y,rx,ry,this.placingGear);
+      valid=this.validGearPlacement(x,y,rx,ry,this.placingGear);
     }else{
       rx=this.placingDecor===2?11:25;ry=12;
       valid=this.decorFits(x,y);
