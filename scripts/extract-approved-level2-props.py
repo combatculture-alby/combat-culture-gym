@@ -61,3 +61,5 @@ for name,rect in rects.items():
     if not bbox:raise ValueError(name)
     crop.crop(bbox).save(dest/(name+'.png'),optimize=True)
 print('Extracted',len(rects),'approved Level 2 sprites')
+
+# Trigger automatic generation and commit of all Level 2 props.
