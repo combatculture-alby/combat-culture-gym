@@ -53,7 +53,9 @@ export function registerCharacterArt(scene:Phaser.Scene):void {
     const key=studentArtKey(index);
     if(!scene.textures.exists(key))return;
     const texture=scene.textures.get(key);
-    const dirs=['down','left','right','up'] as const;
+    // The original sheets place the right-facing profile before left-facing.
+    // Labels must follow the visible nose direction, not the concept-board headings.
+    const dirs=['down','right','left','up'] as const;
     const actions=['idle','walk','run'] as const;
     for(let row=0;row<3;row++)
       for(let direction=0;direction<4;direction++)
