@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 /** Transparent character graphics cropped from the original Combat Culture
  * coach, Frank, Radish and Pudge pixel-art sheets. 4 rows x 7 poses. */
 export const CHARACTER_ART_KEY='combat-culture-actor-art';
+export const COACH_APPROVED_KEY='combat-culture-approved-coach';
 export const ACTOR_FRAME_SIZE={width:24,height:32} as const;
 const ACTOR_COUNT=4;
 const FRAME_COUNT=7;
@@ -32,6 +33,7 @@ export function studentArtFrame(facing:'down'|'up'|'side',left:boolean,
 }
 
 export function preloadCharacterArt(scene:Phaser.Scene):void {
+  if(!scene.textures.exists(COACH_APPROVED_KEY))scene.load.image(COACH_APPROVED_KEY,new URL('./assets/coach-approved.png',import.meta.url).href);
   if(!scene.textures.exists(CHARACTER_ART_KEY)){
     scene.load.image(CHARACTER_ART_KEY,
       new URL('./assets/hub-actors.png',import.meta.url).href);
@@ -50,6 +52,15 @@ export function preloadCharacterArt(scene:Phaser.Scene):void {
   });
 }
 export function registerCharacterArt(scene:Phaser.Scene):void {
+  if(scene.textures.exists(COACH_APPROVED_KEY)){
+    const coach=scene.textures.get(COACH_APPROVED_KEY);
+    const dirs=['down','right','left','up'];
+    const actions=['idle','walk','run'];
+    for(let row=0;row<3;row++)for(let dir=0;dir<4;dir++)for(let frame=0;frame<3;frame++){
+      const name=actions[row]+'-'+dirs[dir]+'-'+frame;
+      if(!coach.has(name))coach.add(name,0,(dir*3+frame)*48,row*64,48,64);
+    }
+  }
   STUDENT_ART_NAMES.forEach((_,index)=>{
     const key=studentArtKey(index);
     if(!scene.textures.exists(key))return;
