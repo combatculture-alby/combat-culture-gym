@@ -2780,6 +2780,9 @@ class GymScene extends Phaser.Scene {
     return !closeFeet(this.player,point)&&this.activeStudents().every(other=>other===student||!closeFeet(other,point));
   }
   private stationUsable(station:Station):boolean {
+    // A student already walking to the cooler must abandon that plan if
+    // another student empties it before they arrive.
+    if(station.id==='water-cooler')return (this.saveData.waterLevel??55)>10;
     if(!station.id.startsWith('gear-'))return true;
     const gear=Number(station.id.slice(5));
     return Number.isInteger(gear)&&
