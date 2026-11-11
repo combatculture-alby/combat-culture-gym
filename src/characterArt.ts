@@ -9,7 +9,7 @@ const FRAME_COUNT=7;
 
 
 /** Approved 48×64 transparent student sheets. Each is 12 columns × 3 rows:
- * poses idle, walk, run; 3 frames per direction (down, left, right, up).
+ * poses idle, walk, run; 3 frames per direction (down, right, left, up).
  * Use the student ID rather than the old four-palette character rotation.
  */
 export const STUDENT_ART_NAMES=['frank','radish','marshall','pudge','holly','gao'] as const;
@@ -26,8 +26,9 @@ export function studentArtAvailable(scene:Phaser.Scene,index:number):boolean {
 export function studentArtFrame(facing:'down'|'up'|'side',left:boolean,
   pose:string,phase:number):string {
   const dir=facing==='side'?(left?'left':'right'):facing;
-  const row=pose==='walk'?'walk':'idle';
-  return row+'-'+dir+'-'+Math.floor(phase%3);
+  const row=pose==='run'?'run':pose==='walk'?'walk':'idle';
+  const frame=((Math.floor(phase)%3)+3)%3;
+  return row+'-'+dir+'-'+frame;
 }
 
 export function preloadCharacterArt(scene:Phaser.Scene):void {
@@ -83,8 +84,7 @@ export function actorArtAvailable(scene:Phaser.Scene):boolean {
     scene.textures.get(CHARACTER_ART_KEY).has('0-0');
 }
 
-/** Number 3 is Marshall, whose dedicated artwork is not available yet.
- * Keep his existing animated custom character rather than mislabel an asset. */
+/** Legacy actor fallback for scenes that do not use dedicated student atlases. */
 export function actorArtIndex(look:number):number|null {
   switch(look){
     case 0:return 0;
