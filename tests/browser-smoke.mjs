@@ -2114,6 +2114,35 @@ try{
       'Ordered supplies arrive next morning');
   });
 
+  await openScenario('no-phantom-training-gear',sampleSave({
+    gymLevel:2,equipment:3,ownedGear:Array(8).fill(false),
+    gearStored:Array(8).fill(false)
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.stations.map(station=>station.id);
+    });
+    assert.ok(!state.includes('legacy-bag'),'Legacy upgrade cannot create a free bag');
+    assert.ok(!state.includes('legacy-weights'),'Legacy upgrade cannot create free weights');
+    assert.ok(!state.some(id=>id.startsWith('gear-')),'No purchased equipment means no gear stations');
+  });
+  await openScenario('installed-equipment-npc-stations',sampleSave({
+    gymLevel:2,ownedGear:[true,true,true,true,true,true,true,true],
+    gearStored:[false,false,false,false,false,false,false,false],
+    gearPositions:[{x:85,y:115},{x:116,y:94},{x:218,y:94},
+      {x:175,y:115},{x:85,y:175},{x:130,y:175},
+      {x:195,y:175},{x:260,y:175}]
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.stations.map(station=>station.id);
+    });
+    for(const i of [0,3,4,5,6,7])
+      assert.ok(state.includes('gear-'+i),'Installed floor gear '+i+' needs a student station');
+    for(const i of [1,2])
+      assert.ok(!state.includes('gear-'+i),'Wall gear should not occupy the floor');
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
