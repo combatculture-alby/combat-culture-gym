@@ -31,12 +31,30 @@ for level in (1,2):
     x0,y0,x1,y1=bounds
     d.rectangle((x0-4,y0-4,x1+4,y1+4),fill=(29,32,37),outline=(152,149,140),width=3)
     tile(im,tiles,(257,97,432,274),(x0,y0,x1,y1),32,26)
+    # Tile helper draws complete cells: crop any overflow outside the mat.
+    # Restore the perimeter from the pre-mat floor texture.
+    for x in range(x1+1,min(480,x1+33)):
+        for y in range(y0,min(225,y1+26)):
+            if y<=y1: continue
+            im.putpixel((x,y),board.getpixel((24+((x-0)%48)*95//48,233+((y-79)%48)*61//48)))
     d=ImageDraw.Draw(im)
     d.rectangle((x0,y0,x1,y1),outline=(109,106,108),width=2)
     light=board.crop((1091,142,1255,205)).resize((102,25),Image.Resampling.NEAREST)
     im.paste(light,(109 if level==1 else 181,9),light)
-    d.rectangle((0,225,479,329),fill=(27,43,46))
-    d.rectangle((0,225,479,228),fill=(84,94,87))
+    # Keep the full gameplay stage covered by the same room materials.
+    # The floor ends at 225, while the near wall/foundation sits below it.
+    d.rectangle((0,225,479,329),fill=(65,72,69) if level==1 else (72,85,78))
+    for x in range(0,480,48):
+        d.line((x,231,x,328),fill=(49,57,55),width=1)
+    for y in range(240,330,24):
+        d.line((0,y,479,y),fill=(55,62,59),width=1)
+    d.rectangle((0,224,479,230),fill=(38,49,49))
+    d.line((0,225,479,225),fill=(145,142,123),width=2)
+    # Edge-mounted columns and the room perimeter establish one coherent bay.
+    d.rectangle((0,23,13,225),fill=(48,58,56))
+    d.rectangle((466,23,479,225),fill=(48,58,56))
+    d.rectangle((13,75,466,79),fill=(38,48,47))
+    d.line((13,78,466,78),fill=(168,150,119),width=2)
     target=base/f'src/assets/approved-room-level{level}.png'
     im.save(target,optimize=True)
     print(target)
