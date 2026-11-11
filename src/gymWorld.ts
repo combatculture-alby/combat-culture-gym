@@ -341,9 +341,9 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   if(customArt){
     if(level===1){
       if(!approved)placeHubArt(scene,'garage-door',47,25,242,63,0.25,0,0);
-      placeHubArt(scene,'gym-banner',299,29,91,30,0.4,0,0);
+      if(!approved)placeHubArt(scene,'gym-banner',299,29,91,30,0.4,0,0);
     }else{
-      placeHubArt(scene,'gym-banner',140,29,121,32,0.4,0,0);
+      if(!approved)placeHubArt(scene,'gym-banner',140,29,121,32,0.4,0,0);
     }
   }
   const label=level===3?'COMBAT CULTURE':
