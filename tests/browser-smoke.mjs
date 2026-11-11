@@ -2283,8 +2283,9 @@ try{
     const frames=await page.evaluate(()=>{
       const s=window.__combatGym.scene.getScene('Gym');
       return s.children.list.filter(object=>['combat-culture-hub-art',
-        'combat-culture-level-2-art'].includes(object.texture?.key))
-        .map(object=>object.frame?.name);
+        'combat-culture-level-2-art'].includes(object.texture?.key)||
+        (object.type==='TileSprite'&&object.getData('approvedSourceArt')==='training-mat-tile'))
+        .map(object=>object.type==='TileSprite'?object.getData('approvedSourceArt'):object.frame?.name);
     });
     for(const name of ['heavy-bag-l2','bench-l2','kettlebell-rack','water-cooler-l2','supply-shelf','gym-banner'])
       assert.ok(frames.includes(name),'Missing Level 2 equipment art: '+name);
