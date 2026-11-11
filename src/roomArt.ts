@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type {RoomFixture} from './roomItems';
 import {footprint,itemLabel} from './roomItems';
+import {HUB_ART_KEY,HUB_LEVEL2_ART_KEY,hasHubArt,hasLevel2HubArt} from './hubArt';
 
 /** One pixel-art scale across equipment and 40px character sprites.
  * The feet/ground contact is always local 0,0.
@@ -113,9 +114,24 @@ export function paintRoomFixture(g:Phaser.GameObjects.Graphics,item:RoomFixture)
   }
 }
 export function makeRoomFixture(scene:Phaser.Scene,item:RoomFixture,onClick:()=>void):Phaser.GameObjects.Container {
-  const g=scene.add.graphics();
-  paintRoomFixture(g,item);
-  const display=scene.add.container(item.x,item.y,[g]);
+  // Use the same authored equipment atlases in every room, not the old
+  // procedural substitutes. Unillustrated equipment keeps a fallback.
+  const artwork:Record<number,{key:string;frame:string;w:number;h:number}>= {
+    0:{key:HUB_ART_KEY,frame:'heavy-bag',w:28,h:45},
+    1:{key:HUB_LEVEL2_ART_KEY,frame:'thai-pads',w:34,h:34},
+    2:{key:HUB_ART_KEY,frame:'speed-bag',w:23,h:42},
+    3:{key:HUB_LEVEL2_ART_KEY,frame:'jump-rope',w:29,h:24},
+    4:{key:HUB_ART_KEY,frame:'weight-bench',w:40,h:36},
+    5:{key:HUB_ART_KEY,frame:'kettlebell-rack',w:42,h:30}
+  };
+  const art=item.kind==='gear'?artwork[item.index]:undefined;
+  const available=art&&((art.key===HUB_ART_KEY&&hasHubArt(scene))||
+    (art.key===HUB_LEVEL2_ART_KEY&&hasLevel2HubArt(scene)));
+  const visual=available
+    ?scene.add.image(0,0,art.key,art.frame).setOrigin(.5,1).setDisplaySize(art.w,art.h)
+    :scene.add.graphics();
+  if(visual instanceof Phaser.GameObjects.Graphics)paintRoomFixture(visual,item);
+  const display=scene.add.container(item.x,item.y,[visual]);
   display.setDepth(10+item.y/100);
   const fp=footprint(item);
   const hit=scene.add.zone(0,-20,Math.max(30,fp.rx*2+8),item.kind==='decor'?52:45)
