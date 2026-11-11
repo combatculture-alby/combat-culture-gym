@@ -31,7 +31,13 @@ export const HUB_LEVEL2_FRAMES={
   'boxing-poster':{x:106,y:126,w:47,h:32}
 } as const;
 
-export type HubArtName=keyof typeof HUB_ART_FRAMES|keyof typeof HUB_LEVEL2_FRAMES;
+export const HUB_SERVICE_ART_KEY='combat-culture-service-art';
+export const HUB_SERVICE_FRAMES={
+  'desk-phone':{x:0,y:0,w:32,h:28},
+  'mop-bucket':{x:36,y:0,w:44,h:57}
+} as const;
+export type HubArtName=keyof typeof HUB_ART_FRAMES|
+  keyof typeof HUB_LEVEL2_FRAMES|keyof typeof HUB_SERVICE_FRAMES;
 
 export function preloadHubArt(scene:Phaser.Scene):void {
   // new URL is resolved and fingerprinted by Vite, including in Pages previews.
@@ -39,6 +45,8 @@ export function preloadHubArt(scene:Phaser.Scene):void {
     scene.load.image(HUB_ART_KEY,new URL('./assets/hub-atlas.png',import.meta.url).href);
   if(!scene.textures.exists(HUB_LEVEL2_ART_KEY))
     scene.load.image(HUB_LEVEL2_ART_KEY,new URL('./assets/hub-level2-atlas.png',import.meta.url).href);
+  if(!scene.textures.exists(HUB_SERVICE_ART_KEY))
+    scene.load.image(HUB_SERVICE_ART_KEY,new URL('./assets/hub-services.png',import.meta.url).href);
 }
 export function registerHubArt(scene:Phaser.Scene):void {
   if(!scene.textures.exists(HUB_ART_KEY))return;
@@ -54,6 +62,13 @@ export function registerHubArt(scene:Phaser.Scene):void {
         level2.add(name,0,area.x,area.y,area.w,area.h);
     }
   }
+  if(scene.textures.exists(HUB_SERVICE_ART_KEY)){
+    const services=scene.textures.get(HUB_SERVICE_ART_KEY);
+    for(const [name,area] of Object.entries(HUB_SERVICE_FRAMES)){
+      if(!services.has(name))
+        services.add(name,0,area.x,area.y,area.w,area.h);
+    }
+  }
 }
 export function hasHubArt(scene:Phaser.Scene):boolean {
   return scene.textures.exists(HUB_ART_KEY)&&
@@ -63,11 +78,17 @@ export function hasLevel2HubArt(scene:Phaser.Scene):boolean {
   return scene.textures.exists(HUB_LEVEL2_ART_KEY)&&
     scene.textures.get(HUB_LEVEL2_ART_KEY).has('heavy-bag-l2');
 }
+export function hasServiceHubArt(scene:Phaser.Scene):boolean {
+  return scene.textures.exists(HUB_SERVICE_ART_KEY)&&
+    scene.textures.get(HUB_SERVICE_ART_KEY).has('desk-phone');
+}
 export function placeHubArt(
   scene:Phaser.Scene,name:HubArtName,x:number,y:number,width:number,height:number,
   depth:number,originX=0.5,originY=0.5
 ):Phaser.GameObjects.Image {
-  const atlas=Object.prototype.hasOwnProperty.call(HUB_LEVEL2_FRAMES,name)
+  const atlas=Object.prototype.hasOwnProperty.call(HUB_SERVICE_FRAMES,name)
+    ?HUB_SERVICE_ART_KEY:
+    Object.prototype.hasOwnProperty.call(HUB_LEVEL2_FRAMES,name)
     ?HUB_LEVEL2_ART_KEY:HUB_ART_KEY;
   return scene.add.image(Math.round(x),Math.round(y),atlas,name)
     .setOrigin(originX,originY).setDisplaySize(Math.round(width),Math.round(height))
