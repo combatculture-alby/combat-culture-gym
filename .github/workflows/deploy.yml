@@ -64,9 +64,9 @@ jobs:
       # It never replaces the production root or the existing preview/test builds.
       - uses: actions/checkout@v4
         with:
-          ref: feat/garage-level-one
+          ref: release/levels-1-2
           path: garage-source
-      - name: Build five-level garage preview
+      - name: Build Level 1-2 development playtest
         working-directory: garage-source
         env:
           VITE_ISOLATE_SAVE: '1'
