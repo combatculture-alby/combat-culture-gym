@@ -52,6 +52,8 @@ const level2PropUrls=import.meta.glob('./../art-source/extracted/level2/*.png',{
 export const approvedRoomKey=(level:number)=>'approved-room-level'+level;
 const approvedRoomUrls=import.meta.glob('./assets/approved-room-level*.png',{eager:true,query:'?url',import:'default'}) as Record<string,string>;
 export function preloadHubArt(scene:Phaser.Scene):void {
+  if(!scene.textures.exists('approved-level1-folding-desk'))
+    scene.load.image('approved-level1-folding-desk',new URL('./assets/approved-level1-folding-desk.png',import.meta.url).href);
   for(const level of [1,2]){
     const key=approvedRoomKey(level);
     const url=Object.entries(approvedRoomUrls).find(([path])=>path.endsWith('/approved-room-level'+level+'.png'))?.[1];
