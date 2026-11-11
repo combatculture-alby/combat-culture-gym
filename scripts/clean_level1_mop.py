@@ -11,7 +11,7 @@ rgb=a[:,:,:3].astype(np.int16)
 alpha=a[:,:,3]
 h,w=alpha.shape
 # Near-neutral, nearly white matte; leave colored mop strands and shaded handle alone.
-white=(rgb.min(axis=2)>=231)&((rgb.max(axis=2)-rgb.min(axis=2))<=15)&(alpha>=180)
+white=(rgb.min(axis=2)>=205)&((rgb.max(axis=2)-rgb.min(axis=2))<=40)&(alpha>=160)
 seen=np.zeros((h,w),dtype=bool)
 removed=0
 for y in range(h):
@@ -28,7 +28,7 @@ for y in range(h):
                     seen[ny,nx]=True;q.append((ny,nx))
         # Matte patches adjacent to clear background, including interior openings.
         # Ignore tiny white glints to avoid destroying genuine highlights.
-        if touches_clear and len(component)>=5:
+        if touches_clear and len(component)>=3:
             for cy,cx in component:a[cy,cx,3]=0
             removed+=len(component)
 Image.fromarray(a,"RGBA").save(path,optimize=True)
