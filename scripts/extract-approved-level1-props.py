@@ -62,3 +62,5 @@ for name,(l,t,r,b) in regions.items():
     if not bbox:raise ValueError("Empty crop "+name)
     crop.crop(bbox).save(target/(name+".png"),optimize=True)
 print("Extracted",len(regions),"approved Level 1 props")
+
+# Asset extraction is run by GitHub Actions and committed as binary sprites.
