@@ -1278,6 +1278,30 @@ try{
     }),[true,false,1],'Stored floor gear and installed wall gear persist across reload');
   });
 
+  await openScenario('level-2-equipment-zone-and-preview',sampleSave({
+    gymLevel:2,money:500,materials:[20,20,20],
+    ownedGear:[true,false,false,false,true,false,false,false],
+    gearStored:[true,false,false,false,true,false,false,false]
+  }),async page=>{
+    const result=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      s.beginGearPlacement(0);
+      const striking={...s.placementCursor};
+      const strikingValid=s.validGearPlacement(striking.x,striking.y,9,12,0);
+      const strikingWrong=s.validGearPlacement(120,175,9,12,0);
+      s.cancelPlacement();
+      s.beginGearPlacement(4);
+      const strength={...s.placementCursor};
+      const strengthValid=s.validGearPlacement(strength.x,strength.y,14,11,4);
+      const strengthWrong=s.validGearPlacement(120,115,14,11,4);
+      return {striking,strikingValid,strikingWrong,strength,strengthValid,strengthWrong};
+    });
+    assert.equal(result.strikingValid,true,'Striking gear begins in an available training zone');
+    assert.equal(result.strikingWrong,false,'Striking gear cannot be placed in strength area');
+    assert.equal(result.strengthValid,true,'Weight gear begins in an available strength zone');
+    assert.equal(result.strengthWrong,false,'Weight gear cannot be placed in striking area');
+  });
+
   await openScenario('furniture-and-decor-purchase-choice',sampleSave({
     money:600,reputation:20,materials:[20,20,20],furniture:[],decorLevel:0
   }),async page=>{
