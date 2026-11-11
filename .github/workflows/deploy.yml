@@ -119,3 +119,4 @@ jobs:
         uses: actions/deploy-pages@v4
 
 # Publish user-cleaned Level 1 desk and broom assets.
+# Refresh Level 1 desk scale and wall-side mop interaction.
