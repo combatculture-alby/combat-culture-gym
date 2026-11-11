@@ -563,9 +563,9 @@ class GymScene extends Phaser.Scene {
         frame.setVisible(false);
       }else if(this.gymLevel()===1&&this.textures.exists(approvedKey)){
         frame.setVisible(false);
-        const dims=type==='water'?[27,52]:type==='stock'?[44,58]:
+        const dims=type==='water'?[35,62]:type==='stock'?[52,66]:
           type==='phone'?[23,19]:[36,42];
-        const footY=type==='water'?prop.y+22:type==='stock'?prop.y+25:
+        const footY=type==='water'?prop.y+(this.gymLevel()===1?29:22):type==='stock'?prop.y+(this.gymLevel()===1?30:25):
           type==='phone'?prop.y+11:prop.y+18;
         art=this.add.image(prop.x,footY,approvedKey).setOrigin(.5,1)
           .setDepth(type==='phone'?15:13.6);
