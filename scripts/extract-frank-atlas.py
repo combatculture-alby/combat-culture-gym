@@ -65,7 +65,7 @@ def main():
                 x = (direction * 3 + frame) * FRAME_W + (FRAME_W-crop.width)//2
                 y = row * FRAME_H + FRAME_H-crop.height
                 atlas.alpha_composite(crop, (x, y))
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    # Remove the white separator inadvertently captured at the boundary of\n    # the right-facing animation group. Restrict cleanup to this exact\n    # narrow column range so the character's white clothing is preserved.\n    pixels = atlas.load()\n    for y in range(atlas.height):\n        for x in (423, 424, 425):\n            r, g, b, a = pixels[x, y]\n            if a and min(r, g, b) > 225:\n                pixels[x, y] = (0, 0, 0, 0)\n    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     atlas.save(OUTPUT)
     print(f'Wrote review-only atlas: {OUTPUT}')
     print('Inspect edge artifacts and facing directions before runtime integration.')
