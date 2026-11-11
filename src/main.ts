@@ -2173,11 +2173,13 @@ class GymScene extends Phaser.Scene {
       {...pos}:{x:168,y:144};
     const rx=index===2?11:25;
     this.placementCursor=this.firstClearPlacement(preferred,
-      (x,y)=>this.validPlacement(x,y,rx,12,-1,-1,index===2));
+      (x,y)=>this.decorFits(x,y));
     this.keyboardPlacement=true;
     this.furniturePanel.setVisible(false);
     this.updateFurnitureActions();this.drawEquipment();
-    this.say('Tap a clear spot to place the decoration, or Store for later.');
+    this.say(this.decorFits(this.placementCursor.x,this.placementCursor.y)?
+      'Tap a clear spot to place the decoration, or Store for later.':
+      'No clear space for this decoration. Move or store another item first.');
   }
   private updateFurnitureActions():void {
     this.hubControls.forEach(button=>button.setVisible(!this.isPlacing()));
