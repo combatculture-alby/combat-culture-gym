@@ -33,8 +33,8 @@ for level in (1,2):
     draw.line((13,78,466,78),fill=(169,150,119),width=2)
     if level==1:
         # Garage shutter belongs on the wall, not on the floor.
-        fixture(image,BOARD,(321,128,520,296),(43,18,204,75))
-        fixture(image,BOARD,(529,140,598,295),(238,20,271,75))
+        fixture(image,BOARD,(321,128,520,296),(35,14,225,76))
+        fixture(image,BOARD,(529,140,598,295),(247,16,286,77))
     else:
         for x in (42,238):
             draw.rectangle((x,21,x+101,73),fill=(29,38,42),outline=(164,144,113),width=3)
@@ -42,7 +42,7 @@ for level in (1,2):
             draw.rectangle((x+49,25,x+52,69),fill=(190,186,163))
             draw.line((x+4,47,x+97,47),fill=(190,186,163),width=2)
     # Training zones match gymProgression.ts; Level 2 has a clear corridor.
-    zones=[(70,103,278,190)] if level==1 else [(55,93,294,140),(55,153,294,200)]
+    zones=[(59,99,315,202)] if level==1 else [(55,93,294,140),(55,153,294,200)]
     for x0,y0,x1,y1 in zones:
         draw.rectangle((x0-3,y0-3,x1+3,y1+3),fill=(31,35,38),outline=(146,144,135),width=2)
         tiled(image,TILES,(257,97,432,274),(x0,y0,x1,y1),(24,24))
