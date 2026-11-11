@@ -33,8 +33,8 @@ for level in (1,2):
     draw.line((13,78,466,78),fill=(169,150,119),width=2)
     if level==1:
         # Garage shutter belongs on the wall, not on the floor.
-        fixture(image,BOARD,(321,128,520,296),(57,14,247,76))
-        fixture(image,BOARD,(529,140,598,295),(286,16,325,77))
+        fixture(image,BOARD,(321,128,520,296),(65,14,255,76))
+        fixture(image,BOARD,(529,140,598,295),(294,16,333,77))
     else:
         for x in (42,238):
             draw.rectangle((x,21,x+101,73),fill=(29,38,42),outline=(164,144,113),width=3)
