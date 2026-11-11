@@ -2237,6 +2237,33 @@ try{
       'Level 2 uses two independent training mat zones');
   });
 
+  await openScenario('original-coach-and-student-chibis',sampleSave({
+    gymLevel:1
+  }),async page=>{
+    const actors=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {
+        atlas:s.textures.exists('combat-culture-actor-art'),
+        coach:s.coach.getTextureKey(),
+        coachFrame:s.coach.getTextureFrame(),
+        students:s.students.slice(0,4).map(x=>({
+          name:x.name,texture:x.actor.getTextureKey(),
+          frame:x.actor.getTextureFrame()
+        }))
+      };
+    });
+    assert.ok(actors.atlas,'Approved character atlas failed to load');
+    assert.equal(actors.coach,'combat-culture-actor-art');
+    assert.equal(actors.coachFrame,'0-0');
+    for(const name of ['Frank','Radish','Pudge'])
+      assert.equal(actors.students.find(s=>s.name===name)?.texture,
+        'combat-culture-actor-art','Missing original chibi for '+name);
+    assert.notEqual(actors.students.find(s=>s.name==='Marshall')?.texture,
+      'combat-culture-actor-art',
+      'Marshall has no supplied art; should retain the existing fallback');
+    await page.screenshot({path:output+'/original-chibis-level-1.png'});
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
