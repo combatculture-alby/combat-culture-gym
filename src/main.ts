@@ -1262,6 +1262,16 @@ class GymScene extends Phaser.Scene {
         fixture:i===0?g:undefined
       });
       g.fillStyle(0x203b42,0.28).fillEllipse(x,y+5,28,9);
+      const artName=i===0?'heavy-bag':i===4?'weight-bench':
+        i===5?'kettlebell-rack':null;
+      if(artName&&this.gymLevel()<=2&&hasHubArt(this)){
+        const dimensions=i===0?{w:34,h:54}:i===4?{w:34,h:32}:{w:33,h:26};
+        const image=placeHubArt(this,artName,x,y+10,dimensions.w,dimensions.h,
+          10+(y+GEAR_BOUNDS[i].ry*0.6)/100-0.04,0.5,1);
+        this.worldFixtures.push(image);
+        const station=this.stations.find(station=>station.id==='gear-'+i);
+        if(station)station.sprite=image;
+      }else{
       if(i===0){ // Heavy bag
         g.fillStyle(0x2c3335).fillRect(x-2,y-25,4,8);
         g.fillStyle(0x493339).fillRect(x-8,y-19,16,28).fillRect(x-10,y-16,20,21);
@@ -1312,6 +1322,7 @@ class GymScene extends Phaser.Scene {
         g.lineBetween(x+1,y-11,x+9,y+3);
         g.fillStyle(0x364f50).fillRect(x-3,y-14,13,4);
         g.fillStyle(0xb99d6f).fillRect(x-13,y-17,12,3);
+      }
       }
       if(!gearActive(true,false,this.saveData.gearCondition?.[i]??100,
         this.saveData.gearCleanliness?.[i]??100)){
@@ -2911,7 +2922,10 @@ class GymScene extends Phaser.Scene {
       else bubble.setPosition(student.x,student.y-48);
     }
     const paused=this.buildMode||this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible;
-    for(const station of this.stations)station.fixture?.setX(0);
+    for(const station of this.stations){
+      station.fixture?.setX(0);
+      station.sprite?.setX(station.x);
+    }
     for(const [i,student] of this.activeStudents().entries()){
       const actor=student.actor!;
       if(paused||this.running){actor.animate(this.running?(student.routine?.pose||'shadow'):'idle',dt);continue;}
@@ -2957,7 +2971,9 @@ class GymScene extends Phaser.Scene {
         actor.animate(routine.pose,dt);
         if(routine.pose==='bag'&&routine.station?.fixture){
           const impact=Math.floor(routine.elapsed*7)%2;
-          routine.station.fixture.setX(impact*Math.sign(routine.station.x-student.x)*2);
+          const sway=impact*Math.sign(routine.station.x-student.x)*2;
+          routine.station.fixture.setX(sway);
+          routine.station.sprite?.setX(routine.station.x+sway);
         }
       }
       actor.place(student.x,student.y);
