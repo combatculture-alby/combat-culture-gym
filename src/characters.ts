@@ -160,7 +160,7 @@ export class GymCharacter {
       this.artActor===null?key:CHARACTER_ART_KEY,
       this.artActor===null?0:this.artActor+'-0')
       .setOrigin(0.5,foot/frameSize);
-    if(this.artActor!==null)this.image.setDisplaySize(frameSize,frameSize);
+    if(this.artActor!==null)this.image.setDisplaySize(31,35);
     const shadow=scene.add.ellipse(0,0,19,6,0x202930,0.36);
     this.body=scene.add.container(x,y,[shadow,this.image]);
     this.place(x,y);
@@ -194,7 +194,7 @@ export class GymCharacter {
         DEFAULT_COACH[k as keyof CoachAppearance]);
     if(source){
       this.artActor=0;
-      this.image.setTexture(CHARACTER_ART_KEY,'0-0').setDisplaySize(frameSize,frameSize);
+      this.image.setTexture(CHARACTER_ART_KEY,'0-0').setDisplaySize(31,35);
     }else{
       this.artActor=null;
       const key=coachTextureId(normalized);
