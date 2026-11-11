@@ -11,7 +11,9 @@ rgb=a[:,:,:3].astype(np.int16)
 alpha=a[:,:,3]
 h,w=alpha.shape
 # Near-neutral, nearly white matte; leave colored mop strands and shaded handle alone.
-white=(rgb.min(axis=2)>=205)&((rgb.max(axis=2)-rgb.min(axis=2))<=40)&(alpha>=160)
+print("Alpha distribution:", [(int(v),int((alpha==v).sum())) for v in [0,64,128,255]])
+print("Bright neutral pixel counts:",[(threshold,int(((rgb.min(axis=2)>=threshold)&((rgb.max(axis=2)-rgb.min(axis=2))<=50)&(alpha>0)).sum())) for threshold in [130,160,190,220]])
+white=(rgb.min(axis=2)>=160)&((rgb.max(axis=2)-rgb.min(axis=2))<=50)&(alpha>=120)
 seen=np.zeros((h,w),dtype=bool)
 removed=0
 for y in range(h):
@@ -29,6 +31,7 @@ for y in range(h):
         # Matte patches adjacent to clear background, including interior openings.
         # Ignore tiny white glints to avoid destroying genuine highlights.
         if touches_clear and len(component)>=3:
+            print("Removing white patch:",len(component),"bbox",(min(x for y,x in component),min(y for y,x in component),max(x for y,x in component),max(y for y,x in component)))
             for cy,cx in component:a[cy,cx,3]=0
             removed+=len(component)
 Image.fromarray(a,"RGBA").save(path,optimize=True)
