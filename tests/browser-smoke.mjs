@@ -1314,7 +1314,7 @@ try{
       const s=window.__combatGym.scene.getScene('Gym');
       s.selectFurniture(1);
       const furniture={...s.placementCursor};
-      const furnitureValid=s.validPlacement(furniture.x,furniture.y,12,11,-1,1);
+      const furnitureValid=s.validPlacement(furniture.x,furniture.y,9,9,-1,1);
       s.cancelPlacement();
       s.beginDecorPlacement(2);
       const plant={...s.placementCursor};
