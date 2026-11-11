@@ -336,6 +336,23 @@ class GymScene extends Phaser.Scene {
           .setVisible(true);
       });
       student.actor.body.on('pointerout',()=>this.studentCard.setVisible(false));
+      // The actor is an interactive Phaser Container. Without a handler its
+      // hit area swallows the scene's pointerdown event, so students cannot
+      // actually be tapped when the sprite is under the pointer.
+      student.actor.body.on('pointerdown',(
+        _pointer:Phaser.Input.Pointer,_localX:number,_localY:number,
+        event:Phaser.Types.Input.EventData
+      )=>{
+        event.stopPropagation();
+        if(!this.activeStudents().includes(student)||this.buildMode||
+          this.isPlacing()||this.furniturePanel.visible||this.rosterPanel.visible)return;
+        if(distance(this.player,student)<NEAR)this.interact(student);
+        else{
+          this.targetStudent=student;
+          this.targetRefresh=0;
+          this.followStudent();
+        }
+      });
       student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
       this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
       this.speechUntil[i]=0;
