@@ -1,8 +1,11 @@
 name: Build check
 on:
   push:
-    branches: [main, feat/living-gym-ai]
+    branches: [main, feat/living-gym-ai, release/levels-1-2]
   pull_request:
+concurrency:
+  group: hub-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,4 +15,21 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - run: npm test
       - run: npm run build
+      - name: Install Chromium for headless hub tests
+        timeout-minutes: 5
+        run: npx playwright install chromium
+      - name: Exercise full five-level progression in Chromium
+        if: github.head_ref != 'release/levels-1-2' && github.ref_name != 'release/levels-1-2'
+        run: npm run test:browser
+      - name: Verify the two-level release build
+        if: github.head_ref == 'release/levels-1-2' || github.ref_name == 'release/levels-1-2'
+        run: node tests/release-smoke.mjs
+      - name: Upload QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garage-browser-qa
+          path: browser-artifacts/
+          if-no-files-found: ignore

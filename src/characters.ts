@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
+  normalizeCoachAppearance,coachTextureId,DEFAULT_COACH,type CoachAppearance} from './coachStyle';
+import {CHARACTER_ART_KEY,actorArtAvailable,actorArtIndex,actorPoseFrame,
+  studentArtKey,studentArtAvailable,studentArtFrame,COACH_APPROVED_KEY} from './characterArt';
 
 export type Facing = 'down' | 'up' | 'side';
 export type Pose = 'idle' | 'walk' | 'shadow' | 'bag' | 'lift' | 'stretch' | 'rest' | 'talk' | 'drink';
@@ -10,6 +14,16 @@ const looks = [
   { skin:'#9d6549', shade:'#713e38', hair:'#262934', light:'#4b4656', top:'#a695c0', dark:'#625b87', trim:'#dfb978', pants:'#383d56', cut:3 },
   { skin:'#e2bc8c', shade:'#a77a57', hair:'#79543d', light:'#af7849', top:'#e4bc69', dark:'#a77d45', trim:'#f6e2af', pants:'#566358', cut:4 },
 ];
+type CharacterLook=typeof looks[number]&{gloves?:string|null};
+function customizedLook(appearance:CoachAppearance):CharacterLook {
+  const a=normalizeCoachAppearance(appearance);
+  const skin=COACH_SKINS[a.skin],hair=COACH_HAIR[a.hair],top=COACH_SHIRTS[a.top];
+  return {
+    skin:skin.skin,shade:skin.shade,hair:hair.hair,light:hair.light,
+    top:top.top,dark:top.dark,trim:top.trim,pants:COACH_SHORTS[a.shorts],
+    cut:a.cut,gloves:COACH_GLOVES[a.gloves]
+  };
+}
 const directions: Facing[] = ['down','up','side'];
 const poses: Pose[] = ['idle','walk','shadow','bag','lift','stretch','rest','talk','drink'];
 const frameSize = 40;
@@ -17,7 +31,7 @@ const foot = 36;
 const ink = '#282934';
 const linen = '#e8dac3';
 
-function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], facing: Facing, pose: Pose, frame: number): void {
+function drawFrame(ctx: CanvasRenderingContext2D, look: CharacterLook, facing: Facing, pose: Pose, frame: number): void {
   const pixel = (color: string, x: number, y: number, w: number, h: number) => {
     ctx.fillStyle=color;
     ctx.fillRect(x,y,w,h);
@@ -40,7 +54,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], fa
   const arm=(x:number,y:number,length:number,far=false) => {
     silhouette(far?look.dark:look.top,x,y,5,length);
     pixel(look.shade,x+1,y+length-5,3,3);
-    pixel(pose==='bag'||pose==='shadow'?look.trim:look.skin,x+1,y+length-4,3,2);
+    pixel(look.gloves||(pose==='bag'||pose==='shadow'?look.trim:look.skin),x+1,y+length-4,3,2);
   };
   if(pose==='rest'){
     // Seated pose: folded legs and lowered torso, with feet resting on the floor.
@@ -91,7 +105,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, look: typeof looks[number], fa
     if(side){
       const extension=[5,14,6,12][frame];
       silhouette(look.top,19,20+bob,extension,5);
-      silhouette(look.trim,16+extension,19+bob,6,6);
+      silhouette(look.gloves||look.trim,16+extension,19+bob,6,6);
       pixel(linen,18+extension,20+bob,2,1);
     }else{
       arm(10,frame%2===0?14+bob:20+bob,10);
@@ -132,31 +146,78 @@ export class GymCharacter {
   private pose: Pose='idle';
   private elapsed=0;
   private frame=-1;
+  private artActor:number|null=null;
+  private studentArt:string|null=null;
+  private approvedCoach=false;
 
-  constructor(scene: Phaser.Scene, x:number, y:number, look:number) {
-    const key='gym-character-'+look;
-    if(!scene.textures.exists(key)){
-      const texture=scene.textures.createCanvas(key,frameSize*4,frameSize*directions.length*poses.length)!;
-      const ctx=texture.context;
-      for(const [direction,facing] of directions.entries()){
-        for(const [index,pose] of poses.entries()){
-          const row=direction*poses.length+index;
-          for(let frame=0;frame<4;frame++){
-            ctx.save();
-            ctx.translate(frame*frameSize,row*frameSize);
-            drawFrame(ctx,looks[look],facing,pose,frame);
-            ctx.restore();
-            texture.add(row*4+frame,0,frame*frameSize,row*frameSize,frameSize,frameSize);
-          }
-        }
-      }
-      texture.refresh();
-    }
-    this.image=scene.add.image(0,0,key,0).setOrigin(0.5,foot/frameSize);
+  constructor(scene: Phaser.Scene,x:number,y:number,look:number|CoachAppearance,studentIndex?:number) {
+    const key=typeof look==='number'?'gym-character-'+look:coachTextureId(look);
+    const colors=typeof look==='number'?looks[look]:customizedLook(look);
+    const isDefault=typeof look!=='number'&&
+      Object.keys(DEFAULT_COACH).every(k=>look[k as keyof CoachAppearance]===
+        DEFAULT_COACH[k as keyof CoachAppearance]);
+    const idx=typeof look==='number'?actorArtIndex(look):isDefault?0:null;
+    this.studentArt=studentIndex!==undefined&&studentArtAvailable(scene,studentIndex)
+      ?studentArtKey(studentIndex):null;
+    this.approvedCoach=this.studentArt===null&&isDefault&&scene.textures.exists(COACH_APPROVED_KEY);
+    this.artActor=this.approvedCoach?null:this.studentArt===null&&actorArtAvailable(scene)?idx:null;
+    if(this.artActor===null&&this.studentArt===null&&!this.approvedCoach)GymCharacter.ensureTexture(scene,key,colors);
+    this.image=scene.add.image(0,0,
+      this.studentArt|| (this.approvedCoach?COACH_APPROVED_KEY:this.artActor===null?key:CHARACTER_ART_KEY),
+      this.studentArt||this.approvedCoach?'idle-down-0':this.artActor===null?0:this.artActor+'-0')
+      .setOrigin(0.5,this.studentArt?1:foot/frameSize);
+    if(this.studentArt||this.approvedCoach)this.image.setDisplaySize(43,57);
+    else if(this.artActor!==null)this.image.setDisplaySize(43,52);
     const shadow=scene.add.ellipse(0,0,19,6,0x202930,0.36);
     this.body=scene.add.container(x,y,[shadow,this.image]);
     this.place(x,y);
   }
+
+  private static ensureTexture(scene:Phaser.Scene,key:string,look:CharacterLook):void {
+    if(scene.textures.exists(key))return;
+    const texture=scene.textures.createCanvas(key,frameSize*4,
+      frameSize*directions.length*poses.length)!;
+    const ctx=texture.context;
+    for(const [direction,facing] of directions.entries()){
+      for(const [index,pose] of poses.entries()){
+        const row=direction*poses.length+index;
+        for(let frame=0;frame<4;frame++){
+          ctx.save();
+          ctx.translate(frame*frameSize,row*frameSize);
+          drawFrame(ctx,look,facing,pose,frame);
+          ctx.restore();
+          texture.add(row*4+frame,0,frame*frameSize,row*frameSize,frameSize,frameSize);
+        }
+      }
+    }
+    texture.refresh();
+  }
+
+  /** Swaps only the coach atlas. NPC palettes and all animation frames stay intact. */
+  setAppearance(appearance:CoachAppearance):void {
+    const normalized=normalizeCoachAppearance(appearance);
+    const source=actorArtAvailable(this.image.scene)&&
+      Object.keys(DEFAULT_COACH).every(k=>normalized[k as keyof CoachAppearance]===
+        DEFAULT_COACH[k as keyof CoachAppearance]);
+    this.studentArt=null;
+    if(source){
+      this.approvedCoach=this.image.scene.textures.exists(COACH_APPROVED_KEY);
+      this.artActor=this.approvedCoach?null:0;
+      this.image.setTexture(this.approvedCoach?COACH_APPROVED_KEY:CHARACTER_ART_KEY,this.approvedCoach?'idle-down-0':'0-0')
+        .setDisplaySize(this.approvedCoach?43:43,this.approvedCoach?57:52);
+    }else{
+      this.approvedCoach=false;
+      this.artActor=null;
+      const key=coachTextureId(normalized);
+      GymCharacter.ensureTexture(this.image.scene,key,customizedLook(normalized));
+      this.image.setTexture(key,0).setDisplaySize(53,53);
+    }
+    this.frame=-1;
+    this.animate(this.pose,0);
+  }
+
+  getTextureKey():string {return this.image.texture.key;}
+  getTextureFrame():string|number {return this.studentArt||this.approvedCoach?'idle-down-0':this.artActor!==null?this.artActor+'-0':0;}
 
   place(x:number,y:number):void {
     this.body.setPosition(x,y).setDepth(10+y/100);
@@ -174,8 +235,30 @@ export class GymCharacter {
     this.elapsed+=dt;
     const phase=pose==='idle'?[0,0,0,0,0,0,0,3][Math.floor(this.elapsed*5)%8]:
       Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:2,talk:3,drink:2}[pose]))%4;
-    const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
-    if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
-    this.image.setFlipX(this.left);
+    if(this.studentArt||this.approvedCoach){
+      const name=studentArtFrame(this.facing,this.left,pose,phase);
+      if(this.image.frame.name!==name)this.image.setFrame(name);
+      this.image.setPosition(Math.round(this.body.x)-this.body.x,
+        Math.round(this.body.y)-this.body.y);
+    }else if(this.artActor!==null){
+      const sourceFrame=actorPoseFrame(this.facing,pose,phase);
+      if(sourceFrame!==this.frame){
+        this.image.setFrame(this.artActor+'-'+sourceFrame);
+        this.frame=sourceFrame;
+      }
+      // The original sprite sheet has seven illustrated poses rather than
+      // four frames per action. Add restrained, pixel-aligned movement to
+      // preserve the lively hub without stretching or blurring its artwork.
+      const bob=pose==='walk'?phase%2===1?-1:0:
+        pose==='shadow'||pose==='bag'?phase%2===1?-1:0:
+        pose==='lift'||pose==='stretch'?phase===2?-2:0:0;
+      const lean=pose==='shadow'||pose==='bag'?phase%2===1?1:0:0;
+      this.image.setPosition(Math.round(this.body.x)-this.body.x+lean,
+        Math.round(this.body.y)-this.body.y+bob);
+    }else{
+      const frame=(directions.indexOf(this.facing)*poses.length+poses.indexOf(pose))*4+phase;
+      if(frame!==this.frame){this.image.setFrame(frame);this.frame=frame;}
+    }
+    this.image.setFlipX(this.studentArt||this.approvedCoach?false:this.left);
   }
 }

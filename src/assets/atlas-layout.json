@@ -1,0 +1,36 @@
+{
+  "format": "combat-culture-gym-npc-atlas-v1",
+  "frame_width": 48,
+  "frame_height": 64,
+  "columns": 12,
+  "rows": 3,
+  "direction_columns": {
+    "down": [
+      0,
+      1,
+      2
+    ],
+    "left": [
+      3,
+      4,
+      5
+    ],
+    "right": [
+      6,
+      7,
+      8
+    ],
+    "up": [
+      9,
+      10,
+      11
+    ]
+  },
+  "pose_rows": {
+    "idle": 0,
+    "walk": 1,
+    "run": 2
+  },
+  "frames": "row-major, index = pose_row * 12 + direction_index * 3 + animation_frame",
+  "note": "Derived from approved concept sheets; inspect in Phaser before production deployment."
+}
