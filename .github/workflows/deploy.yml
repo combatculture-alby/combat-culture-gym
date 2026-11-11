@@ -71,6 +71,7 @@ jobs:
         env:
           VITE_ISOLATE_SAVE: '1'
           VITE_GARAGE_PREVIEW: '1'
+          VITE_LEVELS_PLAYTEST: '1'
         run: |
           npm install --no-audit --no-fund
           npm run build -- --base=/combat-culture-gym/garage/
