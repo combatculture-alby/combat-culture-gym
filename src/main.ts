@@ -65,10 +65,13 @@ const initialXP=()=>STUDENT_NAMES.map(()=>[0,0,0,0]);
 const initialGoals=()=>STUDENT_NAMES.map((_,i)=>[[20,0],[25,2],[20,3],[25,1]][i%4].slice());
 const PLAYTEST = import.meta.env.VITE_ISOLATE_SAVE === '1';
 const GARAGE_PREVIEW = import.meta.env.VITE_GARAGE_PREVIEW === '1';
-const GYM_LEVEL_LIMIT = GARAGE_PREVIEW || import.meta.env.VITE_FULL_GYM_QA === '1' ? GYM_LEVELS.length : 2;
+const LEVELS_PLAYTEST = import.meta.env.VITE_LEVELS_PLAYTEST === '1';
+const GYM_LEVEL_LIMIT = !LEVELS_PLAYTEST && (GARAGE_PREVIEW || import.meta.env.VITE_FULL_GYM_QA === '1')
+  ? GYM_LEVELS.length : 2;
 const nextGymLevel = (level:number) => level<GYM_LEVEL_LIMIT ? GYM_LEVELS[level] : undefined;
-const SAVE_KEY = GARAGE_PREVIEW
-  ? 'combat-culture-gym-garage-preview-v1'
+const SAVE_KEY = LEVELS_PLAYTEST
+  ? 'combat-culture-gym-levels-1-2-playtest-v1'
+  : GARAGE_PREVIEW ? 'combat-culture-gym-garage-preview-v1'
   : PLAYTEST ? 'combat-culture-gym-living-preview-v1' : 'combat-culture-gym-v1';
 const walkable = (x:number,y:number,level:number):boolean => {
   const {room,board,desk}=gymServiceLayout(level);
