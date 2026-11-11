@@ -2048,6 +2048,72 @@ try{
     },null,{timeout:10000});
   });
 
+  // Exercise the entire opening -> arrivals -> class -> closing -> next day
+  // lifecycle, including carryover maintenance and overnight deliveries.
+  await openScenario('full-day-lifecycle-and-carryover',sampleSave({
+    gymLevel:1,gymPhase:'opening',arrivedCount:0,day:4,
+    money:350,reputation:12,classesToday:0,classesTaught:2,
+    supplies:[2,1,0,0],pendingSupplies:[3,2,1,0],
+    waterLevel:18,towelLevel:22,paperLevel:17,matCleanliness:26,
+    trashSpawnedToday:5,gatheredToday:[0,1],
+    ownedGear:[true,false,false,false,false,false,false,false],
+    gearStored:[true,false,false,false,false,false,false,false]
+  }),async page=>{
+    const before=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const initial={phase:s.dayPhase(),present:s.activeStudents().length};
+      s.advanceGymPhase();
+      const opened=s.dayPhase();
+      s.updateArrivals(1000);
+      s.updateArrivals(1000);
+      const present=s.activeStudents().length;
+      s.simulateClass(0,0.7,false);
+      const taught=s.saveData.classesToday;
+      s.advanceGymPhase();
+      const closing=s.dayPhase();
+      s.updateArrivals(1000);
+      s.updateArrivals(1000);
+      const departed=s.activeStudents().length;
+      const carry={
+        water:s.saveData.waterLevel,towels:s.saveData.towelLevel,
+        paper:s.saveData.paperLevel,mat:s.saveData.matCleanliness,
+        trash:s.saveData.trashSpawnedToday-(s.saveData.gatheredToday?.length||0),
+        supplies:[...s.saveData.supplies],pending:[...s.saveData.pendingSupplies]
+      };
+      s.advanceGymPhase();
+      return {initial,opened,present,taught,closing,departed,carry};
+    });
+    assert.deepEqual(before.initial,{phase:'opening',present:0});
+    assert.equal(before.opened,'open');
+    assert.equal(before.present,2,'Students arrive one at a time');
+    assert.equal(before.taught,1,'Class completes in open phase');
+    assert.equal(before.closing,'closing');
+    assert.equal(before.departed,0,'Students leave before next day');
+    await page.waitForFunction(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.sys.isActive()&&s.saveData.day===5;
+    },null,{timeout:15000});
+    const after=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {day:s.saveData.day,phase:s.dayPhase(),present:s.activeStudents().length,
+        classes:s.saveData.classesToday,water:s.saveData.waterLevel,
+        towels:s.saveData.towelLevel,paper:s.saveData.paperLevel,
+        mat:s.saveData.matCleanliness,trash:s.saveData.trashSpawnedToday,
+        gathered:s.saveData.gatheredToday.length,
+        supplies:s.saveData.supplies,pending:s.saveData.pendingSupplies};
+    });
+    assert.equal(after.phase,'opening');
+    assert.equal(after.present,0);
+    assert.equal(after.classes,0);
+    for(const key of ['water','towels','paper','mat'])
+      assert.equal(after[key],before.carry[key],key+' maintenance must persist overnight');
+    assert.equal(after.trash,before.carry.trash,'Uncollected trash must carry over');
+    assert.equal(after.gathered,0,'Daily trash tracking resets');
+    assert.deepEqual(after.pending,[0,0,0,0],'Overnight delivery queue clears');
+    assert.deepEqual(after.supplies,before.carry.supplies.map((n,i)=>n+before.carry.pending[i]),
+      'Ordered supplies arrive next morning');
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
