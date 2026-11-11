@@ -83,6 +83,11 @@ async function finishScheduledClass(page){
   await page.evaluate(()=>{
     const s=window.__combatGym.scene.getScene('Gym');
     window.__classTapDebug={};
+    const canvas=document.querySelector('#game canvas');
+    canvas?.addEventListener('pointerdown',event=>{
+      window.__classTapDebug.dom={x:event.clientX,y:event.clientY,
+        target:event.target?.tagName};
+    },{once:true,capture:true});
     s.input.once('pointerdown',(p,targets)=>{
       window.__classTapDebug.pointer={x:p.worldX,y:p.worldY,
         targets:targets.map(o=>o.type)};
@@ -100,7 +105,16 @@ async function finishScheduledClass(page){
       student:student&&{x:student.x,y:student.y},
       hitArea:input?.hitArea&&{x:input.hitArea.x,y:input.hitArea.y,
         width:input.hitArea.width,height:input.hitArea.height},
-      actorSize:student?.actor&&{w:student.actor.body.width,h:student.actor.body.height}};
+      actorSize:student?.actor&&{w:student.actor.body.width,h:student.actor.body.height},
+      targetAtClick:(()=>{
+        const canvas=document.querySelector('#game canvas');
+        const box=canvas?.getBoundingClientRect();
+        if(!box)return null;
+        const x=box.left+(student?.x||94)/480*box.width;
+        const y=box.top+((student?.y||139)-10)/330*box.height;
+        const el=document.elementFromPoint(x,y);
+        return {tag:el?.tagName,id:el?.id,className:typeof el?.className==='string'?el.className:'',x,y};
+      })()};
   });
   assert.equal(first.helped,1,'Tapping a student should fulfill a live class request: '+JSON.stringify(first));
   return page.evaluate(()=>{
