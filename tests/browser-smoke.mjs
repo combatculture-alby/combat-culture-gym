@@ -2201,6 +2201,41 @@ try{
       assert.ok(passed,'Water station state failed: '+condition);
   });
 
+  // Graphics must be the actual cropped sprite atlas, not more hand-drawn
+  // stand-ins. These tests also catch missing Vite asset URLs on GitHub Pages.
+  await openScenario('level-one-imported-hub-art',sampleSave({
+    gymLevel:1
+  }),async page=>{
+    const art=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return {
+        loaded:s.textures.exists('combat-culture-hub-art'),
+        frames:s.textures.get('combat-culture-hub-art').getFrameNames(),
+        placed:s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
+          .map(object=>object.frame?.name)
+      };
+    });
+    assert.ok(art.loaded,'Approved hub art atlas failed to load');
+    for(const name of ['garage-door','training-mat','gym-banner','water-cooler','supply-shelf'])
+      assert.ok(art.placed.includes(name),'Missing Level 1 imported art: '+name);
+    assert.ok(art.frames.includes('heavy-bag'),'Gear artwork was not registered');
+  });
+  await openScenario('level-two-purchased-gear-art',sampleSave({
+    gymLevel:2,ownedGear:[true,false,false,false,true,true],
+    gearStored:[false,false,false,false,false,false],
+    gearPositions:[{x:85,y:115},null,null,null,{x:85,y:175},{x:135,y:175}]
+  }),async page=>{
+    const frames=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      return s.children.list.filter(object=>object.texture?.key==='combat-culture-hub-art')
+        .map(object=>object.frame?.name);
+    });
+    for(const name of ['heavy-bag','weight-bench','kettlebell-rack','water-cooler','supply-shelf','gym-banner'])
+      assert.ok(frames.includes(name),'Missing Level 2 equipment art: '+name);
+    assert.equal(frames.filter(name=>name==='training-mat').length,2,
+      'Level 2 uses two independent training mat zones');
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
