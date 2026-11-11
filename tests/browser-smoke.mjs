@@ -2172,6 +2172,24 @@ try{
       assert.ok(passed,'Equipment activity condition failed: '+condition);
   });
 
+  await openScenario('water-cooler-runs-out-during-activity',sampleSave({
+    gymLevel:1,waterLevel:50
+  }),async page=>{
+    const state=await page.evaluate(()=>{
+      const s=window.__combatGym.scene.getScene('Gym');
+      const cooler=s.stations.find(station=>station.id==='water-cooler');
+      if(!cooler)throw Error('Water cooler station not present');
+      const full=s.stationUsable(cooler);
+      s.saveData.waterLevel=0;
+      const empty=!s.stationUsable(cooler);
+      s.saveData.waterLevel=60;
+      const refilled=s.stationUsable(cooler);
+      return {full,empty,refilled};
+    });
+    for(const [condition,passed] of Object.entries(state))
+      assert.ok(passed,'Water station state failed: '+condition);
+  });
+
   // Real mobile touch input, not a mouse click masquerading as a tap.
   const mobile=await browser.newContext({
     viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true
