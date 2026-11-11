@@ -8,7 +8,7 @@ export const GYM_LEVELS = [
 
 export const STUDENT_NAMES=[
   'Frank','Radish','Marshall','Pudge',
-  'Maya','Alex','Jules','Nico','Sam','Robin',
+  'Holly','Gao','Jules','Nico','Sam','Robin',
   'Kai','Lena','Drew','Inez','Tariq','June',
   'Ash','Bea','Casey','Emil','Tess','Noel','Ari','Val',
 ] as const;
