@@ -26,6 +26,7 @@ import {COACH_SKINS,COACH_HAIR,COACH_SHIRTS,COACH_SHORTS,COACH_GLOVES,
   normalizeUnlockedAppearance,hasClothing,type CoachAppearance,type ClothingSlot
 } from './coachStyle';
 import { drawGym } from './gymWorld';
+import {preloadHubArt,registerHubArt,hasHubArt,placeHubArt} from './hubArt';
 import {defaultRoomState,normalizeRoomState,itemRoom,type RoomState} from './roomState';
 import {GymRoomScene} from './gymRoomScene';
 import {makeRoomGateway} from './roomGateways';
@@ -36,7 +37,7 @@ import { GymNavigation, clearSegment, type Footprint, type Point } from './navig
 
 const W = 480, H = 270;
 const UI_FONT = 'Trebuchet MS, Arial, sans-serif';
-type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'|'drink'; fixture?:Phaser.GameObjects.Graphics };
+type Station = Footprint & { id:string; pose:'bag'|'lift'|'rest'|'drink'; fixture?:Phaser.GameObjects.Graphics; sprite?:Phaser.GameObjects.Image };
 type Routine = { pose:Pose; goal:Point; route:Point[]; remaining:number; station?:Station; partner?:Student; elapsed:number };
 type Student = Point & { name:string; friendship:number; skill:number; actor?:GymCharacter; indicator?:Phaser.GameObjects.Text; routine?:Routine; chatCooldown:number };
 const STUDENT_HOMES:Point[]=[{x:90,y:90},{x:245,y:104},{x:105,y:183},{x:275,y:183},{x:164,y:111},{x:220,y:185},{x:164,y:188},{x:78,y:151}];
@@ -261,7 +262,9 @@ class GymScene extends Phaser.Scene {
     this.speechTimers[index]=this.time.delayedCall(duration,()=>this.hideSpeech(student));
   }
   constructor() { super('Gym'); }
+  preload():void {preloadHubArt(this);}
   create(data?:{trainingBoard?:boolean;notice?:string}): void {
+    registerHubArt(this);
     this.saveData=loadSave();
     this.saveData.roomState=normalizeRoomState(this.saveData.roomState,this.gymLevel());
     // Re-enter the room the coach was actually using after a browser reload.
