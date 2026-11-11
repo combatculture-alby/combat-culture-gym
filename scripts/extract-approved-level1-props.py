@@ -13,8 +13,9 @@ source=root/"art-source/approved-originals/Level 1 Garage Gym Asset Sheet(2).png
 target=root/"art-source/extracted/level1"
 target.mkdir(parents=True,exist_ok=True)
 # Normalized coordinates from the approved 1536x1024 source board.
-# All objects are isolated from their neighbors; remove only connected
-# white background, preserving internal white highlights and lettering.
+# All objects are isolated from their neighbors. Only remove near-pure white
+# connected to the crop boundary; the previous permissive 229/22 threshold
+# erased light-colored parts of furniture and made fixtures look fragmented.
 regions={
 "reception-desk":(0.005,0.055,0.298,0.270),
 "supply-shelf":(0.300,0.040,0.478,0.300),
@@ -55,7 +56,7 @@ for name,(l,t,r,b) in regions.items():
         if seen[i]:continue
         seen[i]=1
         red,green,blue,alpha=p[x,y]
-        if min(red,green,blue)<229 or max(red,green,blue)-min(red,green,blue)>22:continue
+        if min(red,green,blue)<250 or max(red,green,blue)-min(red,green,blue)>8:continue
         p[x,y]=(0,0,0,0)
         q.extend(((x-1,y),(x+1,y),(x,y-1),(x,y+1)))
     bbox=crop.getbbox()
