@@ -101,7 +101,7 @@ async function finishScheduledClass(page){
     const s=window.__combatGym.scene.getScene('Gym');
     const student=s.students[s.requests[0]];
     const input=student?.actor?.body?.input;
-    return {helped:s.classHelped,debug:window.__classTapDebug,
+    return {helped:s.classHelped,debug:window.__classTapDebug,handler:s.studentTapDebug,
       student:student&&{x:student.x,y:student.y},
       hitArea:input?.hitArea&&{x:input.hitArea.x,y:input.hitArea.y,
         width:input.hitArea.width,height:input.hitArea.height},
