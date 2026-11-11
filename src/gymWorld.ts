@@ -339,17 +339,10 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   // placement authority, and no unpurchased equipment appears in the room.
   const customArt=level<=2&&hasHubArt(scene);
   if(customArt){
-    const mat=trainingBounds(level);
     if(level===1){
       if(!approved)placeHubArt(scene,'garage-door',47,25,242,63,0.25,0,0);
       placeHubArt(scene,'gym-banner',299,29,91,30,0.4,0,0);
     }else{
-      for(const area of [
-        {top:mat.top,bottom:140},
-        {top:153,bottom:mat.bottom}
-      ]){
-        // The approved room image already contains its correctly sized mats.
-      }
       placeHubArt(scene,'gym-banner',140,29,121,32,0.4,0,0);
     }
   }
