@@ -7,7 +7,7 @@ const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8');
 const lines=source.split('\n');
 assert.ok(source.length>170000&&source.length<240000,
   'Main scene size is unexpected; inspect for truncation or duplicate content');
-assert.ok(lines.length>3000&&lines.length<4000,
+assert.ok(lines.length>3000&&lines.length<4250,
   'Main scene line count is unexpected; inspect for malformed edits');
 for(const anchor of [
   'private nextDay():void',

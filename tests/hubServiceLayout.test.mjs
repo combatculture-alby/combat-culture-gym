@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {serviceFixtureLayout} from '../src/hubServiceLayout.ts';
+import {BLOCK_SIZE,GARAGE_ASSET_BLOCKS,garageFixture,garageEntrance,garageFixtures,garageBoardApproach,garageRoom} from '../src/garageLayout.ts';
+import {GymNavigation} from '../src/navigation.ts';
 import {gymServiceLayout,trainingBounds} from '../src/gymProgression.ts';
 
 test('the phone always sits directly on the real reception desk',()=>{
@@ -15,8 +17,8 @@ test('the phone always sits directly on the real reception desk',()=>{
   assert.ok(seen.size>=4,'Phone should move with the changing desk');
 });
 
-test('cooler, supply closet and mop stay in the utility corridor at all five levels',()=>{
-  for(let level=1;level<=5;level++){
+test('cooler, supply closet and mop stay in the utility corridor at levels two through five',()=>{
+  for(let level=2;level<=5;level++){
     const props=serviceFixtureLayout(level),mat=trainingBounds(level);
     const room=gymServiceLayout(level).room;
     assert.ok(props.water.x>mat.right,'Water fixture must not fill training mat');
@@ -38,5 +40,47 @@ test('level 5 keeps the flagship cabinet on the edge and leaves reception center
   const p=serviceFixtureLayout(5),desk=gymServiceLayout(5).desk;
   assert.ok(p.stock.x>desk.x+desk.w*.7);
   assert.ok(p.phone.x<desk.x+desk.w*.5);
-  assert.ok(p.mop.y>p.water.y);
+  assert.ok(p.mop.approach.y>p.water.approach.y);
+});
+
+test('garage fixtures clear the mat and admit exact routes to each station',()=>{
+  const fixtures=Object.values(garageFixtures);
+  const mat=trainingBounds(1);
+  const canStand=(x,y)=>x>=garageRoom.left&&x<=garageRoom.right&&
+    y>=garageRoom.top&&y<=garageRoom.bottom&&
+    !fixtures.some(({footprint:p})=>Math.abs(x-p.x)<p.rx+6&&Math.abs(y-p.y)<p.ry+4);
+  const nav=new GymNavigation(canStand);
+  nav.rebuild();
+
+  for(const [i,{art,footprint,approach}] of fixtures.entries()){
+    assert.ok(art.x>=garageRoom.left-10&&art.x+art.w<=garageRoom.right+10,'fixture stays within the painted walls');
+    assert.ok(art.y+art.h<=mat.top||art.x>=mat.right,'fixture stays off the mat');
+    assert.ok(!canStand(footprint.x,footprint.y),'fixture blocks its floor base');
+    assert.ok(canStand(approach.x,approach.y),'station approach is walkable');
+    for(const {art:other} of fixtures.slice(i+1)){
+      assert.ok(art.x+art.w<=other.x||other.x+other.w<=art.x||
+        art.y+art.h<=other.y||other.y+other.h<=art.y,'fixture artwork has its own space');
+    }
+  }
+  const approaches=[garageEntrance,{x:172,y:156},garageBoardApproach,...fixtures.map(f=>f.approach)];
+  for(const start of approaches){
+    for(const goal of approaches){
+      assert.deepEqual(nav.route(start,goal,undefined,true).at(-1),goal);
+    }
+  }
+});
+
+test('garage fixture visuals, collision and station targets follow saved positions',()=>{
+  const positions=JSON.parse(JSON.stringify({water:{x:240,y:108},desk:{x:366,y:186}}));
+  const cooler=garageFixture('water',positions);
+  const desk=garageFixture('desk',positions);
+  const layout=gymServiceLayout(1,positions);
+  const service=serviceFixtureLayout(1,positions);
+  assert.equal(cooler.art.h,BLOCK_SIZE*GARAGE_ASSET_BLOCKS.water[1]);
+  assert.equal(cooler.footprint.x,240);
+  assert.equal(service.water.x,240);
+  assert.deepEqual(service.water.approach,cooler.approach);
+  assert.deepEqual(layout.desk,desk.art);
+  assert.deepEqual(service.phone.approach,desk.approach);
+  assert.deepEqual(gymServiceLayout(2,positions),gymServiceLayout(2));
 });

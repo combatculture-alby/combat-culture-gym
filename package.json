@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node tests/main-scene-integrity.mjs && node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser-smoke.mjs"
+    "test:browser": "node tests/browser-smoke.mjs",
+    "dev:garage": "VITE_ISOLATE_SAVE=1 vite --host 127.0.0.1"
   },
   "dependencies": {
     "phaser": "^3.90.0"
