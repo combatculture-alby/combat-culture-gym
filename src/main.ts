@@ -364,7 +364,7 @@ class GymScene extends Phaser.Scene {
           this.followStudent();
         }
       });
-      student.indicator=this.add.text(student.x,student.y-38,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
+      student.indicator=this.add.text(student.x,student.y-56,'!',{fontFamily:UI_FONT,fontSize:'12px',fontStyle:'bold',color:'#ffffff',backgroundColor:'#a53d34',padding:{x:4,y:1}}).setOrigin(0.5).setVisible(false).setDepth(31);
       this.speechBubbles[i]=this.add.text(student.x,student.y-48,'',{fontFamily:UI_FONT,fontSize:'9px',color:'#20343a',backgroundColor:'#fff0d6',padding:{x:5,y:3},align:'center'}).setOrigin(.5,1).setDepth(33).setVisible(false);
       this.speechUntil[i]=0;
     });
@@ -3065,7 +3065,7 @@ class GymScene extends Phaser.Scene {
       student.actor?.place(student.x,student.y);
       const bubble=this.speechBubbles[this.students.indexOf(student)];
       bubble?.setPosition(student.x,student.y-48);
-      student.indicator?.setPosition(student.x,student.y-38);
+      student.indicator?.setPosition(student.x,student.y-56);
     }
   }
   private actorPosition(point:Point):[number,number] {
@@ -3250,7 +3250,7 @@ class GymScene extends Phaser.Scene {
         }
       }
       actor.place(student.x,student.y);
-      student.indicator?.setPosition(student.x,student.y-38);
+      student.indicator?.setPosition(student.x,student.y-56);
     }
   }
   private moveCoach(dt:number):void {
