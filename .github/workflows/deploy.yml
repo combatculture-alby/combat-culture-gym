@@ -111,6 +111,15 @@ jobs:
         run: |
           mkdir -p dist/levels-1-2
           cp -R levels-source/dist/. dist/levels-1-2/
+      # Publish the approved self-contained offline build unchanged.
+      # This does not replace production or the existing preview builds.
+      - name: Publish approved offline Level 1 build
+        run: |
+          test -s combat-culture-gym-level-1-wear-arrivals-dev.html
+          grep -qi '<html' combat-culture-gym-level-1-wear-arrivals-dev.html
+          mkdir -p dist/offline
+          cp combat-culture-gym-level-1-wear-arrivals-dev.html dist/offline/index.html
+          test -s dist/offline/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
