@@ -236,7 +236,10 @@ export class GymCharacter {
     const phase=pose==='idle'?[0,0,0,0,0,0,0,3][Math.floor(this.elapsed*5)%8]:
       Math.floor(this.elapsed*({walk:9,shadow:7,bag:7,lift:4,stretch:2,rest:2,talk:3,drink:2}[pose]))%4;
     if(this.studentArt||this.approvedCoach){
-      const name=studentArtFrame(this.facing,this.left,pose,phase);
+      // Approved atlases have three frames per direction. Keep the walking
+      // cycle continuous and use the third idle frame for the idle variation.
+      const atlasPhase=pose==='walk'?Math.floor(this.elapsed*9)%3:pose==='idle'?(phase===3?2:0):phase;
+      const name=studentArtFrame(this.facing,this.left,pose,atlasPhase);
       if(this.image.frame.name!==name)this.image.setFrame(name);
       this.image.setPosition(Math.round(this.body.x)-this.body.x,
         Math.round(this.body.y)-this.body.y);

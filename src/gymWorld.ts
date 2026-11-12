@@ -1,3 +1,4 @@
+import {type GaragePositions} from './garageLayout';
 import Phaser from 'phaser';
 import {normalizeGymLevel,trainingBounds,equipmentPlacementZone,gymServiceLayout} from './gymProgression';
 import {hasHubArt,placeHubArt,approvedRoomKey,garagePropKey} from './hubArt';
@@ -327,7 +328,7 @@ function bakeRoom(scene:Phaser.Scene,requestedLevel:number):void {
   g.destroy();
 }
 
-export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
+export function drawGym(scene:Phaser.Scene,requestedLevel=1,positions?:GaragePositions):void {
   const level=normalizeGymLevel(requestedLevel);
   const key='gym-room-'+level;
   const approvedKey=approvedRoomKey(level);
@@ -393,7 +394,7 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
   // the legacy procedural desk and bulletin board. Keep hitboxes anchored
   // to gymServiceLayout so existing interactions continue to work.
   if(level<=2){
-    const layout=gymServiceLayout(level);
+    const layout=gymServiceLayout(level,positions);
     const boardKey=garagePropKey('bulletin-board');
     const deskKey=garagePropKey('reception-desk');
     const addFitted=(key:string,x:number,y:number,w:number,h:number,depth:number)=>{
@@ -404,16 +405,16 @@ export function drawGym(scene:Phaser.Scene,requestedLevel=1):void {
       image.setScale(scale);
       return true;
     };
-    // Keep the board entirely above the walking lane and the desk within
-    // the right-hand service bay. Neither overlaps the training mat.
-    // Level 1: both fixtures must sit inside their assigned service hitboxes.
-    // Center the art in the hitbox rather than anchoring it at the left edge.
-    addFitted(boardKey,layout.board.x+6,layout.board.y,
-      Math.min(layout.board.w-12,level===1?53:65),
-      Math.min(layout.board.h,level===1?34:39),11.2);
-    addFitted(level===1?'approved-level1-folding-desk':deskKey,layout.desk.x+(level===1?-10:3),layout.desk.y-(level===1?14:0),
-      level===1?112:Math.min(layout.desk.w-6,55),
-      level===1?60:Math.min(layout.desk.h,28),12.2);
+    if(level===1){
+      const {board,desk}=layout;
+      addFitted(boardKey,board.x,board.y,board.w,board.h,2);
+      addFitted('approved-level1-folding-desk',desk.x,desk.y,desk.w,desk.h,10+(desk.y+desk.h)/100);
+    }else{
+      addFitted(boardKey,layout.board.x+6,layout.board.y,
+        Math.min(layout.board.w-12,65),Math.min(layout.board.h,39),11.2);
+      addFitted(deskKey,layout.desk.x+3,layout.desk.y,
+        Math.min(layout.desk.w-6,55),Math.min(layout.desk.h,28),12.2);
+    }
     return;
   }
   const {board:b,desk:d}=gymServiceLayout(level);

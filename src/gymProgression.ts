@@ -1,3 +1,4 @@
+import {garageMat,garageServiceGeometry,type GaragePositions} from './garageLayout.ts';
 export const GYM_LEVELS = [
   {name:'Garage Gym',capacity:4,active:4,cost:0,reputation:0,classesTaught:0,gearOwned:0},
   {name:'Neighborhood Gym',capacity:6,active:5,cost:400,reputation:12,classesTaught:8,gearOwned:2},
@@ -77,7 +78,7 @@ export function normalizeClassPlan(value:unknown):number[] {
 /** Visible training area, also enforced for equipment footprint placement.
  * The right-hand board and reception corridor stay accessible at every level. */
 export const GYM_TRAINING_BOUNDS=[
-  {left:59,right:315,top:99,bottom:202}, // compact garage: matches approved mat texture
+  garageMat, // compact garage: matches approved mat texture
   {left:55,right:294,top:93,bottom:200},  // neighborhood
   {left:55,right:294,top:93,bottom:200},  // level 3: new outdoor area, main room unchanged
   {left:55,right:294,top:93,bottom:200},  // level 4: upstairs unlocked, main room unchanged
@@ -95,9 +96,7 @@ export type GymPoint={x:number;y:number};
  * Keep physical station interaction aligned with the artwork at every level.
  * A tiny check-in desk grows into a staffed luxury reception on Level 5. */
 export const GYM_SERVICE_LAYOUTS=[
-  {room:{left:44,right:450,top:84,bottom:213},
-   board:{x:380,y:37,w:66,h:39},desk:{x:330,y:166,w:100,h:42},
-   boardApproach:{x:363,y:144},deskApproach:{x:352,y:212}},
+  garageServiceGeometry(),
   {room:{left:27,right:460,top:79,bottom:215},
    board:{x:377,y:65,w:83,h:49},desk:{x:395,y:185,w:65,h:30},
    boardApproach:{x:351,y:144},deskApproach:{x:382,y:200}},
@@ -114,7 +113,8 @@ export const GYM_SERVICE_LAYOUTS=[
    boardApproach:{x:327,y:146},deskApproach:{x:346,y:198}},
 ] as const;
 
-export function gymServiceLayout(level:number){
+export function gymServiceLayout(level:number,positions?:GaragePositions){
+  if(level===1&&positions)return garageServiceGeometry(positions);
   return GYM_SERVICE_LAYOUTS[normalizeGymLevel(level)-1];
 }
 
