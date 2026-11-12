@@ -2,17 +2,17 @@
 export const BLOCK_SIZE=24;
 export const GARAGE_ASSET_BLOCKS={
   coach:[1.2,2.2],door:[1.5,3],shutter:[5,3.25],
-  desk:[4.4,2.5],stock:[3.75,3.75],water:[.95,2.5],mop:[1.45,2.5],
-  board:[2.8,1.9],closet:[2.2,3.15],dumbbellRack:[2.5,1.6],
+  desk:[4.4,2.5],stock:[3.5,3.5],water:[.95,2.5],mop:[1.22,2.1],
+  board:[2.8,1.9],closet:[2.2,3.15],dumbbellRack:[2.5,1.6],heavyBag:[1.5,2.5],weightBench:[2.25,1.25],focusMitts:[1.12,1.12],wallPads:[1.12,1.12],speedBag:[1.12,1.12],
   kettlebells:[1.9,.8],fan:[1.05,2.2],trashCan:[.95,1.25],
   tile:[1,1],clock:[1.05,.65],toolbox:[.95,.75],dustpan:[.95,.95],
   cleaner:[.65,.95],paperRoll:[.65,.95],jumpRope:[.7,1.25],bands:[.95,1.25]
 } as const;
 
-export const garageWall={left:26,right:434,top:23,bottom:95};
-export const garageFloor={left:26,right:434,top:96,bottom:225};
-export const garageRoom={left:36,right:424,top:101,bottom:215};
-export const garageMat={left:59,right:315,top:114,bottom:202};
+export const garageWall={left:0,right:480,top:23,bottom:95};
+export const garageFloor={left:0,right:480,top:96,bottom:257};
+export const garageRoom={left:10,right:470,top:101,bottom:247};
+export const garageMat={left:59,right:315,top:138,bottom:226};
 export const garageEntrance={x:313,y:101};
 export const garageDoors=[
   {x:122,y:30,w:77,h:65},
