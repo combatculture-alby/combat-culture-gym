@@ -111,15 +111,16 @@ jobs:
         run: |
           mkdir -p dist/levels-1-2
           cp -R levels-source/dist/. dist/levels-1-2/
-      # Publish the approved self-contained offline build unchanged.
-      # This does not replace production or the existing preview builds.
-      - name: Publish approved offline Level 1 build
+      # Publish the approved self-contained Level 1 playtest separately from production.
+      # Upload parts are concatenated byte-for-byte to avoid upload transport limits.
+      - name: Publish approved Level 1 playtest
         run: |
-          test -s combat-culture-gym-level-1-wear-arrivals-dev.html
-          grep -qi '<html' combat-culture-gym-level-1-wear-arrivals-dev.html
+          test "$(find approved-level1-parts -name 'part-*.txt' | wc -l)" -eq 15
           mkdir -p dist/offline
-          cp combat-culture-gym-level-1-wear-arrivals-dev.html dist/offline/index.html
-          test -s dist/offline/index.html
+          cat approved-level1-parts/part-*.txt > dist/offline/index.html
+          test "$(wc -c < dist/offline/index.html)" -gt 11000000
+          grep -qi '<html' dist/offline/index.html
+          grep -q 'window.CC_GAME' dist/offline/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
