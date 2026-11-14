@@ -55,78 +55,53 @@
     g.fillStyle(0x92878b).fillRect(0, 88, 480, 1);
     return g;
   }
+  function nativeImage(sc, key, x, y, w, h, depth) {
+    const texture = "cc-l1-independent-" + key;
+    if (!sc.textures.exists(texture)) return null;
+    return sc.add.image(x, y, texture).setOrigin(0, 0).setDisplaySize(w, h).setDepth(depth);
+  }
   function makeGarageDoor(sc) {
-    const g = sc.add.graphics().setDepth(0.32);
+    // The original independent garage door is 79 x 68 at 121,27.
+    // Reuse those approved sprites at their authored coordinates; do not
+    // stretch the garage entrance or change its collision geometry.
+    const exterior = nativeImage(sc, "exterior-garage", 124, 36, 77, 62, .34);
+    const closed = nativeImage(sc, "garage", 121, 27, 79, 68, .35);
+    const frame = nativeImage(sc, "garage-frame", 121, 27, 79, 68, .36);
     const update = phase => {
-      g.clear();
       const open = phase === "open";
-      // Framing and track (open and closed share exactly the same bounds).
-      g.fillStyle(0x1c2328).fillRect(65, 17, 185, 70);
-      g.fillStyle(0x4a535b).fillRect(69, 20, 177, 64);
-      if (open) {
-        g.fillStyle(0x121e23).fillRect(71, 25, 173, 57);
-        g.fillStyle(0x283439).fillRect(75, 28, 165, 2);
-        g.fillStyle(0x11191f).fillRect(75, 36, 165, 46);
-        // Raised shutter is contained inside the door opening.
-        for (let y = 20; y < 35; y += 5) {
-          g.fillStyle(0xa8a5a5).fillRect(71, y, 173, 4);
-          g.fillStyle(0x635e62).fillRect(71, y + 4, 173, 1);
-        }
-      } else {
-        for (let y = 21; y < 82; y += 7) {
-          g.fillStyle((Math.floor(y / 7) % 2) ? 0xb4aeb0 : 0xaaa5a8).fillRect(71, y, 173, 6);
-          g.fillStyle(0x646167).fillRect(71, y + 6, 173, 1);
-          g.fillStyle(0xd5cdd0, .55).fillRect(74, y + 1, 167, 1);
-        }
-      }
-      g.fillStyle(0x1b242a).fillRect(65, 17, 5, 70).fillRect(245, 17, 5, 70);
-      g.fillStyle(0x7d878b).fillRect(67, 19, 1, 64).fillRect(247, 19, 1, 64);
-      g.fillStyle(0x171e23).fillRect(63, 84, 189, 4);
-      g.fillStyle(0xb3a7a8).fillRect(69, 85, 177, 1);
+      exterior?.setVisible(open);
+      closed?.setVisible(!open);
     };
-    return { sprite: g, update };
+    return {sprites:[exterior, closed, frame].filter(Boolean), update};
   }
   function makeSideDoor(sc) {
-    const frame = sc.add.graphics().setDepth(0.29);
-    frame.fillStyle(0x28262d).fillRect(293, 16, 46, 73);
-    frame.fillStyle(0x897d84).fillRect(295, 18, 42, 70);
-    frame.fillStyle(0x201f25).fillRect(298, 20, 36, 65);
-    let door;
-    if (sc.textures.exists(ROOT + "side-door-approved")) {
-      door = sc.add.image(316, 52, ROOT + "side-door-approved")
-        .setDisplaySize(33, 65).setDepth(0.33);
-    } else {
-      door = sc.add.graphics().setDepth(0.33);
-      door.fillStyle(0xb1a5aa).fillRect(300, 21, 32, 64);
-      door.fillStyle(0x494149).fillRect(302, 23, 28, 60);
-      door.fillStyle(0xaca0a5).fillCircle(325, 56, 2);
-    }
-    return [frame, door];
+    // The side-door opening remains 33 x 65 at 297,30.
+    const exterior = nativeImage(sc, "exterior-side", 301, 36, 27, 59, .34);
+    const closed = nativeImage(sc, "side", 297, 30, 33, 65, .35);
+    const frame = nativeImage(sc, "side-frame", 297, 30, 33, 65, .36);
+    const update = phase => {
+      const open = phase === "open";
+      exterior?.setVisible(open);
+      closed?.setVisible(!open);
+    };
+    return {sprites:[exterior, closed, frame].filter(Boolean), update};
   }
   function makeLights(sc) {
-    const lights = [];
-    for (const x of [33, 450]) {
-      if (sc.textures.exists(ROOT + "ceiling-strip-light")) {
-        lights.push(sc.add.image(x, 12, ROOT + "ceiling-strip-light")
-          .setDisplaySize(55, 15).setDepth(0.44));
-      } else {
-        const g = sc.add.graphics().setDepth(0.44);
-        g.fillStyle(0x1d2830).fillRect(x - 28, 6, 56, 12);
-        g.fillStyle(0xe9d6a5).fillRect(x - 24, 9, 48, 5);
-        lights.push(g);
-      }
-    }
-    return lights;
+    // Original independent lamp positions and native 44 x 19 proportions.
+    return [48, 212, 418].map(x =>
+      nativeImage(sc, "lamp", x, 0, 44, 19, .44)
+    ).filter(Boolean);
   }
   function attach(sc) {
-    if (sc.gymLevel() !== 1) return;
+    if (sc.gymLevel() !== 1 || !sc.__ccL1Objects) return;
     const phase = sc.dayPhase?.() || "opening";
     const wall = makeWall(sc);
     const shutter = makeGarageDoor(sc);
-    const doors = makeSideDoor(sc);
+    const side = makeSideDoor(sc);
     const lights = makeLights(sc);
     shutter.update(phase);
-    const visuals = [wall, shutter.sprite, ...doors, ...lights];
+    side.update(phase);
+    const visuals = [wall, ...shutter.sprites, ...side.sprites, ...lights];
     installed.set(sc, {visuals, shutter, phase});
     const onUpdate = () => {
       const state = installed.get(sc);
@@ -138,6 +113,7 @@
       if (state.phase !== nextPhase) {
         state.phase = nextPhase;
         state.shutter.update(nextPhase);
+        side.update(nextPhase);
       }
     };
     sc.events.on("update", onUpdate);
