@@ -7,7 +7,13 @@
   const ROOT = "approved-garage-";
   const installed = new WeakMap();
   const sourceAliases = [
+    // The flat standalone bench is the approved asset. Both the floor
+    // furniture and equipment paths must point to the same image.
     [ROOT + "garage-weight-bench", ROOT + "weight-bench"],
+    [ROOT + "garage-weight-bench-worn", ROOT + "weight-bench"],
+    // Both the original wall item and the shop/extra-gear item previously
+    // referenced a pegboard-style sprite instead of the actual jump rope.
+    [ROOT + "garage-jump-rope", ROOT + "jump-rope"],
     [ROOT + "garage-mounted-jump-rope", ROOT + "jump-rope"],
     ["garage-mounted-jump-rope", ROOT + "jump-rope"]
   ];
@@ -30,11 +36,19 @@
       changed = true;
     }
     if (changed) sc.drawEquipment();
+    // The shop/inventory can hold an existing Image after a texture is
+    // replaced. Rebind those images as well as newly drawn floor props.
+    for (const child of sc.children.list) {
+      const key = child.texture?.key;
+      const match = sourceAliases.find(([wrong]) => wrong === key);
+      if (match && sc.textures.exists(match[1]) && typeof child.setTexture === "function")
+        child.setTexture(match[1]);
+    }
   }
   function makeWall(sc) {
     const g = sc.add.graphics().setDepth(0.12);
     // Opaque continuous wall hides all inconsistent original wall and door pixels.
-    g.fillStyle(0x353137, 1).fillRect(0, 0, 480, 94);
+    g.fillStyle(0x353137, 1).fillRect(0, 0, 480, 101);
     g.fillStyle(0x26252b, 1).fillRect(0, 0, 480, 9);
     g.fillStyle(0x655f64, 1).fillRect(0, 9, 480, 78);
     // Individual small bricks: same offsets, dimensions and mortar for the full width.
@@ -51,7 +65,7 @@
       }
     }
     // Continuous footing: no exposed strips of the underlying asset.
-    g.fillStyle(0x28282d).fillRect(0, 88, 480, 6);
+    g.fillStyle(0x28282d).fillRect(0, 88, 480, 13);
     g.fillStyle(0x92878b).fillRect(0, 88, 480, 1);
     return g;
   }
@@ -67,10 +81,11 @@
     const exterior = nativeImage(sc, "exterior-garage", 124, 36, 77, 62, .34);
     const closed = nativeImage(sc, "garage", 121, 27, 79, 68, .35);
     const frame = nativeImage(sc, "garage-frame", 121, 27, 79, 68, .36);
-    const update = phase => {
+    const update = (phase, visible) => {
       const open = phase === "open";
-      exterior?.setVisible(open);
-      closed?.setVisible(!open);
+      exterior?.setVisible(visible && open);
+      closed?.setVisible(visible && !open);
+      frame?.setVisible(visible);
     };
     return {sprites:[exterior, closed, frame].filter(Boolean), update};
   }
@@ -79,10 +94,11 @@
     const exterior = nativeImage(sc, "exterior-side", 301, 36, 27, 59, .34);
     const closed = nativeImage(sc, "side", 297, 30, 33, 65, .35);
     const frame = nativeImage(sc, "side-frame", 297, 30, 33, 65, .36);
-    const update = phase => {
+    const update = (phase, visible) => {
       const open = phase === "open";
-      exterior?.setVisible(open);
-      closed?.setVisible(!open);
+      exterior?.setVisible(visible && open);
+      closed?.setVisible(visible && !open);
+      frame?.setVisible(visible);
     };
     return {sprites:[exterior, closed, frame].filter(Boolean), update};
   }
@@ -94,28 +110,41 @@
   }
   function attach(sc) {
     if (sc.gymLevel() !== 1 || !sc.__ccL1Objects) return;
-    const phase = sc.dayPhase?.() || "opening";
+    const native = sc.__ccL1Objects;
     const wall = makeWall(sc);
     const shutter = makeGarageDoor(sc);
     const side = makeSideDoor(sc);
     const lights = makeLights(sc);
-    shutter.update(phase);
-    side.update(phase);
     const visuals = [wall, ...shutter.sprites, ...side.sprites, ...lights];
-    installed.set(sc, {visuals, shutter, phase});
-    const onUpdate = () => {
-      const state = installed.get(sc);
-      if (!state) return;
-      const main = sc.gymLevel() === 1 && (sc.saveData?.roomState?.currentRoom || "main") === "main";
-      for (const v of state.visuals) v.setVisible(main);
-      if (!main) return;
-      const nextPhase = sc.dayPhase?.() || "opening";
-      if (state.phase !== nextPhase) {
-        state.phase = nextPhase;
-        state.shutter.update(nextPhase);
-        side.update(nextPhase);
+    installed.set(sc, {visuals, shutter, side});
+
+    // Retire the old independent architecture; keep all of its collision
+    // geometry and phase logic. Previously the old sprites were layered
+    // underneath the new ones, leaving trim and lamp fragments visible.
+    sc.events.off("update", sc.__ccSyncDoors);
+    const hideOldArchitecture = () => {
+      for (const item of Object.values(native)) {
+        if (Array.isArray(item)) item.forEach(sprite => sprite?.setVisible(false));
+        else item?.setVisible?.(false);
+      }
+      for (const child of sc.children.list) {
+        if (child.texture?.key === "cc-approved-brick-row")
+          child.setVisible(false);
       }
     };
+    const onUpdate = () => {
+      const main = sc.gymLevel() === 1 &&
+        (sc.saveData?.roomState?.currentRoom || "main") === "main";
+      hideOldArchitecture();
+      wall.setVisible(main);
+      lights.forEach(light => light.setVisible(main));
+      const phase = sc.dayPhase?.() || "opening";
+      // Never blanket-show both door states: it previously made the
+      // exterior AND closed shutter/side door visible on every frame.
+      shutter.update(phase, main);
+      side.update(phase, main);
+    };
+    onUpdate();
     sc.events.on("update", onUpdate);
     sc.events.once("shutdown", () => {
       sc.events.off("update", onUpdate);
