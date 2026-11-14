@@ -121,6 +121,17 @@ jobs:
           test "$(wc -c < dist/offline/index.html)" -gt 11000000
           grep -qi '<html' dist/offline/index.html
           grep -q 'window.CC_GAME' dist/offline/index.html
+          node --check level1-visual-fixes.js
+          cp level1-visual-fixes.js dist/offline/level1-visual-fixes.js
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path("dist/offline/index.html")
+          html = page.read_text(encoding="utf-8")
+          assert html.count("</body>") == 1, "Unexpected offline HTML layout"
+          page.write_text(html.replace("</body>", '<script src="./level1-visual-fixes.js"></script></body>', 1), encoding="utf-8")
+          PY
+          grep -q 'level1-visual-fixes.js' dist/offline/index.html
+          test -s dist/offline/level1-visual-fixes.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
