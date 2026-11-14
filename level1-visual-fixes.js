@@ -46,7 +46,7 @@
     }
   }
   function makeWall(sc) {
-    const g = sc.add.graphics().setDepth(0.12);
+    const g = sc.add.graphics().setDepth(0.28);
     // Opaque continuous wall hides all inconsistent original wall and door pixels.
     g.fillStyle(0x353137, 1).fillRect(0, 0, 480, 101);
     g.fillStyle(0x26252b, 1).fillRect(0, 0, 480, 9);
@@ -69,10 +69,82 @@
     g.fillStyle(0x92878b).fillRect(0, 88, 480, 1);
     return g;
   }
+  // The approved door and light crops include a few pixels from the *old*
+  // brick wall along their edges. Mask those pixels in a separate canvas
+  // texture, using the original wall as a pixel-for-pixel reference.
+  // Keep all actual door and lamp art, native proportions and hit targets.
+  function cleanNativeTexture(sc, key, x, y) {
+    const sourceKey = "cc-l1-independent-" + key;
+    const cleanKey = "cc-l1-edge-clean-v1-" + key;
+    if (sc.textures.exists(cleanKey)) return cleanKey;
+    const wallKey = "cc-l1-independent-wall";
+    if (!sc.textures.exists(sourceKey) || !sc.textures.exists(wallKey)) return sourceKey;
+
+    const source = sc.textures.get(sourceKey).getSourceImage();
+    const wall = sc.textures.get(wallKey).getSourceImage();
+    if (!source?.width || !source?.height || !wall?.width) return sourceKey;
+    const canvas = document.createElement("canvas");
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = canvas.getContext("2d", {willReadFrequently:true});
+    if (!context) return sourceKey;
+    context.drawImage(source, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    const wallCanvas = document.createElement("canvas");
+    wallCanvas.width = wall.width;
+    wallCanvas.height = wall.height;
+    const wallContext = wallCanvas.getContext("2d", {willReadFrequently:true});
+    if (!wallContext) return sourceKey;
+    wallContext.drawImage(wall, 0, 0);
+    const oldWall = wallContext.getImageData(0, 0, wall.width, wall.height).data;
+
+    // The lamp is reused at three x positions. Pick the source-wall alignment
+    // with the most matching border pixels rather than changing the lamp art.
+    const positions = key === "lamp" ? [48, 212, 418] : [x];
+    let bestX = positions[0], bestMatches = -1;
+    const matchesAt = (left, countOnly) => {
+      let matches = 0;
+      for (let row = 0; row < canvas.height; row++) {
+        const wy = y + row;
+        if (wy < 0 || wy >= wall.height) continue;
+        for (let col = 0; col < canvas.width; col++) {
+          const wx = left + col;
+          if (wx < 0 || wx >= wall.width) continue;
+          const pixel = (row * canvas.width + col) * 4;
+          const background = (wy * wall.width + wx) * 4;
+          if (pixels.data[pixel + 3] < 16 || oldWall[background + 3] < 240) continue;
+          // Transparent/fringe pixels were copied from this exact earlier
+          // wall image. Allow small RGB differences from edge antialiasing.
+          const dr = Math.abs(pixels.data[pixel] - oldWall[background]);
+          const dg = Math.abs(pixels.data[pixel + 1] - oldWall[background + 1]);
+          const db = Math.abs(pixels.data[pixel + 2] - oldWall[background + 2]);
+          const nearEdge = Math.min(col, row, canvas.width - 1 - col,
+                                    canvas.height - 1 - row) <= 6;
+          if (dr <= (nearEdge ? 16 : 5) &&
+              dg <= (nearEdge ? 16 : 5) &&
+              db <= (nearEdge ? 16 : 5)) {
+            matches++;
+            if (!countOnly) pixels.data[pixel + 3] = 0;
+          }
+        }
+      }
+      return matches;
+    };
+    for (const candidate of positions) {
+      const count = matchesAt(candidate, true);
+      if (count > bestMatches) { bestMatches = count; bestX = candidate; }
+    }
+    if (bestMatches <= 0) return sourceKey;
+    matchesAt(bestX, false);
+    context.putImageData(pixels, 0, 0);
+    sc.textures.addCanvas(cleanKey, canvas);
+    return cleanKey;
+  }
   function nativeImage(sc, key, x, y, w, h, depth) {
     const texture = "cc-l1-independent-" + key;
     if (!sc.textures.exists(texture)) return null;
-    return sc.add.image(x, y, texture).setOrigin(0, 0).setDisplaySize(w, h).setDepth(depth);
+    const clean = cleanNativeTexture(sc, key, x, y);
+    return sc.add.image(x, y, clean).setOrigin(0, 0).setDisplaySize(w, h).setDepth(depth);
   }
   function makeGarageDoor(sc) {
     // The original independent garage door is 79 x 68 at 121,27.
