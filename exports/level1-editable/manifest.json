@@ -1,0 +1,66 @@
+[
+  {
+    "key": "garage",
+    "name": "garage_closed",
+    "original_size": [
+      79,
+      68
+    ]
+  },
+  {
+    "key": "exterior-garage",
+    "name": "garage_open",
+    "original_size": [
+      73,
+      57
+    ]
+  },
+  {
+    "key": "garage-frame",
+    "name": "garage_frame",
+    "original_size": [
+      79,
+      68
+    ]
+  },
+  {
+    "key": "side",
+    "name": "side_door_closed",
+    "original_size": [
+      33,
+      65
+    ]
+  },
+  {
+    "key": "exterior-side",
+    "name": "side_door_open",
+    "original_size": [
+      24,
+      56
+    ]
+  },
+  {
+    "key": "side-frame",
+    "name": "side_door_frame",
+    "original_size": [
+      33,
+      65
+    ]
+  },
+  {
+    "key": "lamp",
+    "name": "ceiling_light",
+    "original_size": [
+      44,
+      19
+    ]
+  },
+  {
+    "key": "wall",
+    "name": "wall_reference",
+    "original_size": [
+      480,
+      96
+    ]
+  }
+]
