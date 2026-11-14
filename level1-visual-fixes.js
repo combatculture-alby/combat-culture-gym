@@ -154,7 +154,7 @@
   }
   const poll = () => {
     const sc = currentScene();
-    if (!sc) return;
+    if (!sc || sc.gymLevel() !== 1) return;
     repairProps(sc);
     if (!installed.has(sc)) attach(sc);
   };
