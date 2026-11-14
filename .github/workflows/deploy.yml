@@ -129,7 +129,7 @@ jobs:
           html = page.read_text(encoding="utf-8")
           pos = html.rfind("</body>")
           assert pos >= 0, "Missing closing body tag"
-          page.write_text(html[:pos] + '<script src="./level1-visual-fixes.js"></script>' + html[pos:], encoding="utf-8")
+          page.write_text(html[:pos] + '<script src="./level1-visual-fixes.js?v=edge-clean-20261114"></script>' + html[pos:], encoding="utf-8")
           PY
           grep -q 'level1-visual-fixes.js' dist/offline/index.html
           test -s dist/offline/level1-visual-fixes.js
