@@ -33,6 +33,7 @@
      if(!sc.textures.exists(k))sc.textures.addImage(k,loaded[key]);return k;};
    const add=(key,x,y,depth=0.05)=>sc.add.image(x,y,get(key)).setOrigin(0,0).setDepth(depth);
    // The floor at depth 0 and the entire wall at depth .01 are separate native Phaser layers.
+   const oldWallMask=sc.add.rectangle(0,0,480,96,0x344047).setOrigin(0,0).setDepth(.005);
    const wall=add('wall',0,0,.01);
    const openGarage=add('exterior-garage',124,36,.04);
    const openSide=add('exterior-side',301,36,.04);
@@ -41,7 +42,7 @@
    const garageDoor=add('garage',121,27,.09);
    const sideDoor=add('side',297,30,.09);
    const lamps=[48,212,418].map(x=>add('lamp',x,0,.1));
-   sc.__ccL1Objects={wall,openGarage,openSide,garageFrame,sideFrame,garageDoor,sideDoor,lamps};
+   sc.__ccL1Objects={oldWallMask,wall,openGarage,openSide,garageFrame,sideFrame,garageDoor,sideDoor,lamps};
    sc.__ccL1SceneBuilt=true;
    sc.__ccSyncDoors=function(){
      const open=sc.dayPhase&&sc.dayPhase()==='open';
