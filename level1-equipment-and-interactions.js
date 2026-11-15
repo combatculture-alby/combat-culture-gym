@@ -17,7 +17,7 @@
   };
   const EXTRA = {...ART,3:'garage-mounted-jump-rope'};
   const WALL = new Set([1,3,8,14]);
-  const BUY_MENU = /SHOP|TRAINING GEAR|ORDER GYM SUPPLIES|UPGRADE|DECORATION|EXPANSION|SEMINAR|ITEM PURCHASED|PURCHASE|BUILD MODE/i;
+  const BUY_MENU = /SHOP|TRAINING GEAR|ORDER|SUPPL|UPGRADE|DECORATION|EXPANSION|SEMINAR|PURCHASE|BUILD|INVENTORY|FURNITURE|CLOTHING/i;
   const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
   function activeScene() {
     return window.CC_GAME?.scene?.scenes?.find(s =>
@@ -110,16 +110,91 @@
   function attach(sc) {
     if (bound.has(sc)) return;
     bound.add(sc);
-    const menu=sc.menuShell.bind(sc);
-    sc.menuShell=function(title,...args) {
-      const result=menu(title,...args);
-      if (BUY_MENU.test(String(title))) {
-        sc.furniturePanel.add(sc.add.text(395,45,'BALANCE: $'+sc.saveData.money,{
-          fontFamily:'Arial',fontSize:'11px',fontStyle:'bold',
-          color:'#ffe1a1',backgroundColor:'#29474b',padding:{x:4,y:2}
-        }).setOrigin(1,.5));
+    // Show money inside the existing menu header subtitle. The previous
+    // separately drawn text floated above the close/back controls.
+    const originalMenuShell = sc.menuShell.bind(sc);
+    sc.menuShell = function(title, ...args) {
+      const result = originalMenuShell(title, ...args);
+      const panel = args[2] || sc.furniturePanel;
+      if (panel !== sc.furniturePanel || !BUY_MENU.test(String(title))) return result;
+      const subtitle = sc.furniturePanel.list.find(obj =>
+        typeof obj.setText === 'function' &&
+        Math.abs(obj.x - 83) < 0.5 && Math.abs(obj.y - 52) < 0.5);
+      if (subtitle) {
+        const money = 'CASH 
+    const draw=sc.drawEquipment.bind(sc);
+    sc.drawEquipment=function(...args) {
+      const result=draw(...args);
+      normalizeCopies(sc);
+      attachInteractionZones(sc);
+      preserveNewWall(sc);
+      return result;
+    };
+    sc.drawEquipment();
+    const onUpdate=(_time,delta)=>{
+      attachInteractionZones(sc);
+      preserveNewWall(sc);
+      const pending=sc.__ccPendingObject;
+      if (!pending) return;
+      pending.elapsed+=Math.min(delta||16,250)/1000;
+      if (distance(sc.player,pending.dest)<18) {
+        sc.__ccPendingObject=null;
+        sc.route=[];
+        pending.action();
+      } else if (pending.elapsed>10 || (pending.elapsed>.6 && !sc.route?.length)) {
+        sc.__ccPendingObject=null;
+        sc.say('Cannot reach '+pending.label+'.');
+      }
+    };
+    sc.events.on('update',onUpdate);
+    sc.events.once('shutdown',()=>{
+      sc.events.off('update',onUpdate);
+      sc.__ccPendingObject=null;
+    });
+  }
+  setInterval(()=>{
+    const sc=activeScene();
+    if (sc && sc.gymLevel()===1) attach(sc);
+  },150);
+})(); + sc.saveData.money;
+        const source = String(args[0] || '').trim();
+        let left = source, suffix = left ? '  |  ' : '';
+        subtitle.setText(left + suffix + money);
+        while (subtitle.width > 230 && left.length) {
+          left = left.slice(0, -1);
+          subtitle.setText(left.trimEnd() + '…' + suffix + money);
+        }
       }
       return result;
+    };
+
+    // The root Build Inventory menu is created by the wall-decor module.
+    // Its FURNITURE button calls openInventoryCategory('furniture'), but
+    // that native method silently returns when any old placement flag is
+    // still set. Clear that orphan state before opening the inventory.
+    const originalOpenInventory = sc.openInventoryCategory.bind(sc);
+    sc.openInventoryCategory = function(kind, ...args) {
+      if (kind === 'furniture' && !sc.running) {
+        if (sc.isPlacing()) sc.cancelPlacement();
+        sc.buildPage = Math.max(0, sc.buildPage || 0);
+      }
+      const result = originalOpenInventory(kind, ...args);
+      if (kind === 'furniture' && !sc.running) {
+        // Do not leave the inventory hidden behind an older panel.
+        sc.rosterPanel.setVisible(false);
+        sc.furniturePanel.setVisible(true);
+        window.CC_L1_FURNITURE_INVENTORY_OPEN = sc.furniturePanel.list.some(
+          obj => typeof obj.text === 'string' &&
+            obj.text.includes('FURNITURE  /  MOVE'));
+      }
+      return result;
+    };
+    // Clear stuck placement when entering the inventory root, too, so
+    // opening either furniture or training gear is reliable.
+    const originalOpenFurniture = sc.openFurniture.bind(sc);
+    sc.openFurniture = function(which, ...args) {
+      if (which === 'inventory' && sc.isPlacing()) sc.cancelPlacement();
+      return originalOpenFurniture(which, ...args);
     };
     const draw=sc.drawEquipment.bind(sc);
     sc.drawEquipment=function(...args) {
