@@ -14,4 +14,14 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: node --check level1-user-edited-images.js
       - run: node --check level1-visual-fixes.js
+      - run: node --check level1-user-updated-equipment.js
+      - name: Verify user equipment atlas
+        run: |
+          python3 - <<'PY'
+          import struct
+          from pathlib import Path
+          b = Path("level1-updated-equipment-atlas.png").read_bytes()
+          assert b[:8] == b"\x89PNG\r\n\x1a\n"
+          assert struct.unpack(">II", b[16:24]) == (390, 200)
+          PY
       - run: npm run build

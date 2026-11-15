@@ -9,8 +9,7 @@
   const sourceAliases = [
     // The flat standalone bench is the approved asset. Both the floor
     // furniture and equipment paths must point to the same image.
-    [ROOT + "garage-weight-bench", ROOT + "weight-bench"],
-    [ROOT + "garage-weight-bench-worn", ROOT + "weight-bench"],
+    [ROOT + "weight-bench", ROOT + "garage-weight-bench"],
     // Both the original wall item and the shop/extra-gear item previously
     // referenced a pegboard-style sprite instead of the actual jump rope.
     [ROOT + "garage-jump-rope", ROOT + "jump-rope"],
@@ -137,8 +136,12 @@
       document.documentElement.classList.add("cc-l1-ready");
       document.documentElement.classList.remove("cc-l1-loading");
     };
-    if (sc.game?.events?.once) sc.game.events.once("postrender", reveal);
-    else requestAnimationFrame(() => requestAnimationFrame(reveal));
+    const revealAfterEquipment = () => {
+      if (sc.game?.events?.once) sc.game.events.once("postrender", reveal);
+      else requestAnimationFrame(() => requestAnimationFrame(reveal));
+    };
+    if (window.CC_L1_EQUIPMENT_READY === true) revealAfterEquipment();
+    else window.addEventListener("cc-l1-equipment-ready", revealAfterEquipment, {once:true});
     sc.events.once("shutdown", () => {
       sc.events.off("update", onUpdate);
       for (const v of visuals) if (v.active) v.destroy();
