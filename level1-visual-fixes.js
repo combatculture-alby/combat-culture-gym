@@ -47,26 +47,44 @@
 
   // These six user-edited originals replace every previous Level 1 overlay,
   // sprite frame, and color-matching crop. Images are rendered at native size.
-  const userSources = window.CC_L1_USER_IMAGES || {};
+  // Load the actual 2048 x 682 image supplied by the user. Do not
+  // substitute the old 480 x 96 embedded/cropped wall PNG.
+  const ORIGINAL_WALL = "./level1-original-wall.png?v=exact-original-wall-20261115";
+  const userSources = { ...(window.CC_L1_USER_IMAGES || {}), wall: ORIGINAL_WALL };
   const userImages = {};
   for (const [key, source] of Object.entries(userSources)) {
     const image = new Image();
+    image.decoding = "async";
     image.src = source;
     userImages[key] = image;
   }
   const ready = () =>
     ["wall","lamp","garage_closed","garage_open","side_closed","side_open"]
-      .every(key => userImages[key]?.complete && userImages[key]?.naturalWidth > 0);
+      .every(key => userImages[key]?.complete && userImages[key]?.naturalWidth > 0) &&
+    userImages.wall.naturalWidth === 2048 && userImages.wall.naturalHeight === 682;
 
   function place(sc, key, x, y, w, h, depth) {
-    const texture = "cc-l1-user-edited-v1-" + key;
+    const texture = key === "wall" ? "cc-l1-exact-original-wall-2048x682" : "cc-l1-user-edited-v1-" + key;
     if (!sc.textures.exists(texture))
       sc.textures.addImage(texture, userImages[key]);
     return sc.add.image(x,y,texture).setOrigin(0,0)
       .setDisplaySize(w,h).setDepth(depth);
   }
   function makeWall(sc) {
-    return place(sc, "wall", 0, 0, 480, 96, 0.28);
+    // One full-width background image from the user's exact PNG, not
+    // a procedural brick fill, 480px derivative, repeating tile or crop.
+    const wall = place(sc, "wall", 0, 0, 480, 96, 0.34);
+    wall.setName("cc-user-supplied-original-wall");
+    window.CC_L1_WALL_DIAGNOSTICS = {
+      filename: "New wall.png",
+      source: ORIGINAL_WALL,
+      naturalWidth: userImages.wall.naturalWidth,
+      naturalHeight: userImages.wall.naturalHeight,
+      textureKey: wall.texture.key,
+      renderedWidth: wall.displayWidth,
+      renderedHeight: wall.displayHeight
+    };
+    return wall;
   }
   function makeGarageDoor(sc) {
     const closed = place(sc,"garage_closed",121,27,79,68,0.35);
@@ -110,8 +128,15 @@
         if (Array.isArray(item)) item.forEach(sprite => sprite?.setVisible(false));
         else item?.setVisible?.(false);
       }
+      // Some legacy previews also render independently created brick
+      // strips. Retire all known old wall keys, even if added later.
+      const oldWalls = new Set([
+        "cc-approved-brick-row",
+        "cc-l1-independent-wall",
+        "cc-l1-user-edited-v1-wall"
+      ]);
       for (const child of sc.children.list) {
-        if (child.texture?.key === "cc-approved-brick-row")
+        if (child !== wall && oldWalls.has(child.texture?.key))
           child.setVisible(false);
       }
     };

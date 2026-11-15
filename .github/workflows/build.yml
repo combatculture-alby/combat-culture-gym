@@ -14,6 +14,19 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: node --check level1-user-edited-images.js
       - run: node --check level1-visual-fixes.js
+      - name: Verify exact user-supplied wall PNG
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,struct
+          wall=Path("level1-original-wall.png").read_bytes()
+          assert wall[:8] == bytes.fromhex("89504e470d0a1a0a")
+          assert struct.unpack(">II",wall[16:24]) == (2048,682)
+          assert hashlib.sha256(wall).hexdigest() == "874d8631068a7000ea67e7429aaa1687cef0ad4daeb11dc1197639646bd0619d"
+          fixes=Path("level1-visual-fixes.js").read_text()
+          assert 'cc-l1-exact-original-wall-2048x682' in fixes
+          assert 'wall: ORIGINAL_WALL' in fixes
+          PY
       - run: node --check level1-user-updated-equipment.js
       - name: Verify user equipment atlas
         run: |
