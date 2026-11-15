@@ -71,15 +71,37 @@
       .setDisplaySize(w,h).setDepth(depth);
   }
   function makeWall(sc) {
-    // One full-width background image from the user's exact PNG, not
-    // a procedural brick fill, 480px derivative, repeating tile or crop.
-    const wall = place(sc, "wall", 0, 0, 480, 96, 0.34);
+    // The original is 2048x682 (3:1); Level 1's wall area is 480x96 (5:1).
+    // Stretching the whole PNG into 480x96 made the bricks unnaturally flat.
+    // Crop vertically using an aspect-preserving cover fit so brick dimensions
+    // match the user's artwork. No synthesized, repeating or replacement bricks.
+    const img = userImages.wall;
+    const targetWidth = 480, targetHeight = 96;
+    const cropHeight = Math.round(img.naturalWidth * targetHeight / targetWidth);
+    const cropTop = Math.round((img.naturalHeight - cropHeight) / 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Wall canvas is unavailable");
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, cropTop, img.naturalWidth, cropHeight,
+      0, 0, targetWidth, targetHeight);
+    const textureKey = "cc-l1-exact-original-wall-2048x682";
+    // Phaser textures persist across scene restarts. Replace the previously
+    // stretched wall texture as well as any new scene's stale texture key.
+    if (sc.textures.exists(textureKey)) sc.textures.remove(textureKey);
+    sc.textures.addImage(textureKey, canvas);
+    const wall = sc.add.image(0, 0, textureKey)
+      .setOrigin(0, 0).setDisplaySize(targetWidth, targetHeight).setDepth(0.34);
     wall.setName("cc-user-supplied-original-wall");
     window.CC_L1_WALL_DIAGNOSTICS = {
       filename: "New wall.png",
       source: ORIGINAL_WALL,
-      naturalWidth: userImages.wall.naturalWidth,
-      naturalHeight: userImages.wall.naturalHeight,
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+      cropTop, cropHeight,
+      fit: "aspect-preserving vertical center crop",
       textureKey: wall.texture.key,
       renderedWidth: wall.displayWidth,
       renderedHeight: wall.displayHeight
