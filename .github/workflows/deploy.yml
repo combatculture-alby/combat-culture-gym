@@ -133,6 +133,7 @@ jobs:
           node --check level1-visual-fixes.js
           node --check level1-user-updated-equipment.js
           node --check level1-equipment-and-interactions.js
+          node --check level1-training-equipment-behavior.js
           python3 - <<'PY'
           from pathlib import Path
           import struct
@@ -146,6 +147,7 @@ jobs:
           cp level1-user-updated-equipment.js dist/offline/level1-user-updated-equipment.js
           cp level1-updated-equipment-atlas.png dist/offline/level1-updated-equipment-atlas.png
           cp level1-equipment-and-interactions.js dist/offline/level1-equipment-and-interactions.js
+          cp level1-training-equipment-behavior.js dist/offline/level1-training-equipment-behavior.js
           python3 - <<'PY'
           from pathlib import Path
           page = Path("dist/offline/index.html")
@@ -160,7 +162,7 @@ jobs:
           html = html.replace("</head>", gate + "</head>", 1)
           pos = html.rfind("</body>")
           assert pos >= 0, "Missing closing body tag"
-          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=native-only-user-png-20261115"></script><script src="./level1-equipment-and-interactions.js?v=furniture-inventory-cash-header-20261115"></script>' + html[pos:], encoding="utf-8")
+          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=native-only-user-png-20261115"></script><script src="./level1-equipment-and-interactions.js?v=furniture-inventory-cash-header-20261115"></script><script src="./level1-training-equipment-behavior.js?v=passive-wall-active-floor-20261115"></script>' + html[pos:], encoding="utf-8")
           PY
           grep -q 'level1-user-edited-images.js' dist/offline/index.html
           grep -q 'level1-visual-fixes.js' dist/offline/index.html
@@ -168,6 +170,7 @@ jobs:
           test -s dist/offline/level1-visual-fixes.js
           test -s dist/offline/level1-original-wall.png
           test -s dist/offline/level1-equipment-and-interactions.js
+          test -s dist/offline/level1-training-equipment-behavior.js
           test -s dist/offline/level1-user-updated-equipment.js
           test -s dist/offline/level1-updated-equipment-atlas.png
           grep -q 'level1-user-updated-equipment.js' dist/offline/index.html
