@@ -49,7 +49,7 @@
   // sprite frame, and color-matching crop. Images are rendered at native size.
   // Load the actual 2048 x 682 image supplied by the user. Do not
   // substitute the old 480 x 96 embedded/cropped wall PNG.
-  const ORIGINAL_WALL = "./level1-original-wall.png?v=exact-original-wall-20261115";
+  const ORIGINAL_WALL = "./level1-original-wall.png?v=native-single-wall-20261115";
   const userSources = { ...(window.CC_L1_USER_IMAGES || {}), wall: ORIGINAL_WALL };
   const userImages = {};
   for (const [key, source] of Object.entries(userSources)) {
@@ -71,40 +71,46 @@
       .setDisplaySize(w,h).setDepth(depth);
   }
   function makeWall(sc) {
-    // The original is 2048x682 (3:1); Level 1's wall area is 480x96 (5:1).
-    // Stretching the whole PNG into 480x96 made the bricks unnaturally flat.
-    // Crop vertically using an aspect-preserving cover fit so brick dimensions
-    // match the user's artwork. No synthesized, repeating or replacement bricks.
+    // Replace the game's ORIGINAL wall sprite in place. Earlier versions
+    // stacked a second wall image on top of the old sprite, which led to
+    // mismatched brick layers and hard-to-debug render order.
+    const wall = sc.__ccL1Objects?.wall;
     const img = userImages.wall;
+    if (!wall || img.naturalWidth !== 2048 || img.naturalHeight !== 682)
+      throw new Error("Level 1 native wall or the exact user image is missing");
     const targetWidth = 480, targetHeight = 96;
-    const cropHeight = Math.round(img.naturalWidth * targetHeight / targetWidth);
-    const cropTop = Math.round((img.naturalHeight - cropHeight) / 2);
+    // Keep original brick proportions; the supplied image has more vertical
+    // artwork than the fixed 480x96 game wall can show. Show its TOP 410
+    // source rows at uniform scale rather than squeezing 682 rows into 96.
+    // This retains the actual first brick row and full 2048px source width.
+    const visibleSourceHeight = Math.round(img.naturalWidth * targetHeight / targetWidth);
     const canvas = document.createElement("canvas");
     canvas.width = targetWidth;
     canvas.height = targetHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Wall canvas is unavailable");
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, cropTop, img.naturalWidth, cropHeight,
+    ctx.drawImage(img, 0, 0, img.naturalWidth, visibleSourceHeight,
       0, 0, targetWidth, targetHeight);
-    const textureKey = "cc-l1-exact-original-wall-2048x682";
-    // Phaser textures persist across scene restarts. Replace the previously
-    // stretched wall texture as well as any new scene's stale texture key.
+    const textureKey = "cc-l1-native-user-wall-20261115";
     if (sc.textures.exists(textureKey)) sc.textures.remove(textureKey);
     sc.textures.addImage(textureKey, canvas);
-    const wall = sc.add.image(0, 0, textureKey)
-      .setOrigin(0, 0).setDisplaySize(targetWidth, targetHeight).setDepth(0.34);
-    wall.setName("cc-user-supplied-original-wall");
+    wall.setTexture(textureKey).setOrigin(0,0).setPosition(0,0)
+      .setDisplaySize(targetWidth,targetHeight).setDepth(0.34).setVisible(true);
+    wall.setName("cc-original-wall-replaced-with-user-png");
+
     window.CC_L1_WALL_DIAGNOSTICS = {
       filename: "New wall.png",
       source: ORIGINAL_WALL,
-      naturalWidth: img.naturalWidth,
-      naturalHeight: img.naturalHeight,
-      cropTop, cropHeight,
-      fit: "aspect-preserving vertical center crop",
+      sourceWidth: img.naturalWidth, sourceHeight: img.naturalHeight,
+      visibleSourceRect: [0,0,img.naturalWidth,visibleSourceHeight],
+      sourceSpriteReplaced: true,
+      spriteIdentityPreserved: sc.__ccL1Objects.wall === wall,
       textureKey: wall.texture.key,
-      renderedWidth: wall.displayWidth,
-      renderedHeight: wall.displayHeight
+      renderWidth: wall.displayWidth, renderHeight: wall.displayHeight,
+      activeWallSprites: sc.children.list.filter(obj =>
+        obj.visible && obj.texture &&
+        /(?:independent-wall|original-wall|user-wall|approved-brick-row)/.test(obj.texture.key)).length
     };
     return wall;
   }
@@ -138,7 +144,8 @@
     const shutter = makeGarageDoor(sc);
     const side = makeSideDoor(sc);
     const lights = makeLights(sc);
-    const visuals = [wall, ...shutter.sprites, ...side.sprites, ...lights];
+    // Native wall remains scene-owned and is not a disposable overlay.
+    const visuals = [...shutter.sprites, ...side.sprites, ...lights];
     installed.set(sc, {visuals, shutter, side});
 
     // Retire the old independent architecture; keep all of its collision
@@ -147,6 +154,7 @@
     sc.events.off("update", sc.__ccSyncDoors);
     const hideOldArchitecture = () => {
       for (const item of Object.values(native)) {
+        if (item === wall) continue;
         if (Array.isArray(item)) item.forEach(sprite => sprite?.setVisible(false));
         else item?.setVisible?.(false);
       }
@@ -155,7 +163,8 @@
       const oldWalls = new Set([
         "cc-approved-brick-row",
         "cc-l1-independent-wall",
-        "cc-l1-user-edited-v1-wall"
+        "cc-l1-user-edited-v1-wall",
+        "cc-l1-exact-original-wall-2048x682"
       ]);
       for (const child of sc.children.list) {
         if (child !== wall && oldWalls.has(child.texture?.key))

@@ -25,10 +25,14 @@ jobs:
           assert struct.unpack(">II",wall[16:24]) == (2048,682)
           assert hashlib.sha256(wall).hexdigest() == "874d8631068a7000ea67e7429aaa1687cef0ad4daeb11dc1197639646bd0619d"
           fixes=Path("level1-visual-fixes.js").read_text()
-          assert 'cc-l1-exact-original-wall-2048x682' in fixes
+          assert 'cc-l1-native-user-wall-20261115' in fixes
           assert 'wall: ORIGINAL_WALL' in fixes
-          assert 'cropHeight = Math.round(img.naturalWidth * targetHeight / targetWidth)' in fixes
-          assert 'ctx.drawImage(img, 0, cropTop, img.naturalWidth, cropHeight' in fixes
+          assert 'sc.__ccL1Objects?.wall' in fixes
+          assert 'wall.setTexture(textureKey)' in fixes
+          assert 'ctx.drawImage(img, 0, 0, img.naturalWidth, visibleSourceHeight' in fixes
+          assert 'const visuals = [...shutter.sprites' in fixes
+          assert 'if (item === wall) continue;' in fixes
+          assert 'sc.add.image(0, 0, textureKey)' not in fixes
           menu=Path("level1-equipment-and-interactions.js").read_text()
           assert "sc.openInventoryCategory = function(kind, ...args)" in menu
           assert "if (sc.isPlacing()) sc.cancelPlacement();" in menu
