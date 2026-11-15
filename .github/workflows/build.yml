@@ -12,5 +12,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - run: node --check level1-user-edited-images.js
       - run: node --check level1-visual-fixes.js
       - run: npm run build
