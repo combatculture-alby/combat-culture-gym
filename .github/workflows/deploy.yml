@@ -134,6 +134,19 @@ jobs:
           node --check level1-user-updated-equipment.js
           node --check level1-equipment-and-interactions.js
           node --check level1-training-equipment-behavior.js
+          node --check level1-approved-coaches.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,struct
+          for gender,sha in [
+            ("male","ea0e0d22d2ea2b9a9d908a691363658b359f8e4796eca2a1138795c704dd7e74"),
+            ("female","090d320e404c107795bb36756bd6131aa72f2afc716120984b46b1d8ad8f6bb9")
+          ]:
+            b=Path(f"level1-approved-coach-{gender}.png").read_bytes()
+            assert b[:8] == bytes.fromhex("89504e470d0a1a0a")
+            assert struct.unpack(">II",b[16:24]) == (576,192)
+            assert hashlib.sha256(b).hexdigest() == sha
+          PY
           python3 - <<'PY'
           from pathlib import Path
           import struct
@@ -148,6 +161,9 @@ jobs:
           cp level1-updated-equipment-atlas.png dist/offline/level1-updated-equipment-atlas.png
           cp level1-equipment-and-interactions.js dist/offline/level1-equipment-and-interactions.js
           cp level1-training-equipment-behavior.js dist/offline/level1-training-equipment-behavior.js
+          cp level1-approved-coaches.js dist/offline/level1-approved-coaches.js
+          cp level1-approved-coach-male.png dist/offline/level1-approved-coach-male.png
+          cp level1-approved-coach-female.png dist/offline/level1-approved-coach-female.png
           python3 - <<'PY'
           from pathlib import Path
           page = Path("dist/offline/index.html")
@@ -162,7 +178,7 @@ jobs:
           html = html.replace("</head>", gate + "</head>", 1)
           pos = html.rfind("</body>")
           assert pos >= 0, "Missing closing body tag"
-          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=native-only-user-png-20261115"></script><script src="./level1-equipment-and-interactions.js?v=furniture-inventory-cash-header-20261115"></script><script src="./level1-training-equipment-behavior.js?v=passive-wall-active-floor-20261115"></script>' + html[pos:], encoding="utf-8")
+          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=native-only-user-png-20261115"></script><script src="./level1-equipment-and-interactions.js?v=furniture-inventory-cash-header-20261115"></script><script src="./level1-training-equipment-behavior.js?v=passive-wall-active-floor-20261115"></script><script src="./level1-approved-coaches.js?v=original-chibi-coach-sheets-20261114"></script>' + html[pos:], encoding="utf-8")
           PY
           grep -q 'level1-user-edited-images.js' dist/offline/index.html
           grep -q 'level1-visual-fixes.js' dist/offline/index.html
@@ -171,6 +187,10 @@ jobs:
           test -s dist/offline/level1-original-wall.png
           test -s dist/offline/level1-equipment-and-interactions.js
           test -s dist/offline/level1-training-equipment-behavior.js
+          test -s dist/offline/level1-approved-coaches.js
+          test -s dist/offline/level1-approved-coach-male.png
+          test -s dist/offline/level1-approved-coach-female.png
+          grep -q 'level1-approved-coaches.js' dist/offline/index.html
           test -s dist/offline/level1-user-updated-equipment.js
           test -s dist/offline/level1-updated-equipment-atlas.png
           grep -q 'level1-user-updated-equipment.js' dist/offline/index.html
