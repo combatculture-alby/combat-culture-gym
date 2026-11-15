@@ -160,7 +160,7 @@ jobs:
           html = html.replace("</head>", gate + "</head>", 1)
           pos = html.rfind("</body>")
           assert pos >= 0, "Missing closing body tag"
-          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=exact-original-wall-2048-682-20261115"></script><script src="./level1-equipment-and-interactions.js?v=consistent-gear-walk-cash-1"></script>' + html[pos:], encoding="utf-8")
+          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=new-wall-confirm-20261115"></script><script src="./level1-user-updated-equipment.js?v=clean-equipment-20261115"></script><script src="./level1-visual-fixes.js?v=wall-proportional-cover-20261115"></script><script src="./level1-equipment-and-interactions.js?v=furniture-inventory-cash-header-20261115"></script>' + html[pos:], encoding="utf-8")
           PY
           grep -q 'level1-user-edited-images.js' dist/offline/index.html
           grep -q 'level1-visual-fixes.js' dist/offline/index.html
