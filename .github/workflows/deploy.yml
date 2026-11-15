@@ -125,7 +125,7 @@ jobs:
           from pathlib import Path
           import hashlib,struct
           wall = Path("level1-original-wall.png").read_bytes()
-          assert wall[:8] == b"\\x89PNG\\r\\n\\x1a\\n"
+          assert wall[:8] == bytes.fromhex("89504e470d0a1a0a")
           assert struct.unpack(">II",wall[16:24]) == (2048,682)
           assert hashlib.sha256(wall).hexdigest() == "874d8631068a7000ea67e7429aaa1687cef0ad4daeb11dc1197639646bd0619d"
           PY
