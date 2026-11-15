@@ -130,6 +130,15 @@
     };
     onUpdate();
     sc.events.on("update", onUpdate);
+    // Keep the game's canvas hidden until Phaser has drawn an entire frame
+    // containing the replacement wall/doors/lights. CSS is injected in <head>
+    // by the isolated preview build, before any original game code runs.
+    const reveal = () => {
+      document.documentElement.classList.add("cc-l1-ready");
+      document.documentElement.classList.remove("cc-l1-loading");
+    };
+    if (sc.game?.events?.once) sc.game.events.once("postrender", reveal);
+    else requestAnimationFrame(() => requestAnimationFrame(reveal));
     sc.events.once("shutdown", () => {
       sc.events.off("update", onUpdate);
       for (const v of visuals) if (v.active) v.destroy();
@@ -143,6 +152,6 @@
     if (!ready()) return;
     if (!installed.has(sc)) attach(sc);
   };
-  setInterval(poll, 450);
+  setInterval(poll, 100);
   poll();
 })();
