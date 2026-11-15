@@ -14,6 +14,7 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: node --check level1-user-edited-images.js
       - run: node --check level1-visual-fixes.js
+      - run: node --check level1-equipment-and-interactions.js
       - name: Verify exact user-supplied wall PNG
         run: |
           python3 - <<'PY'
@@ -26,6 +27,13 @@ jobs:
           fixes=Path("level1-visual-fixes.js").read_text()
           assert 'cc-l1-exact-original-wall-2048x682' in fixes
           assert 'wall: ORIGINAL_WALL' in fixes
+          assert 'cropHeight = Math.round(img.naturalWidth * targetHeight / targetWidth)' in fixes
+          assert 'ctx.drawImage(img, 0, cropTop, img.naturalWidth, cropHeight' in fixes
+          menu=Path("level1-equipment-and-interactions.js").read_text()
+          assert "sc.openInventoryCategory = function(kind, ...args)" in menu
+          assert "if (sc.isPlacing()) sc.cancelPlacement();" in menu
+          assert "const subtitle = sc.furniturePanel.list.find" in menu
+          assert "BALANCE: $" not in menu
           PY
       - run: node --check level1-user-updated-equipment.js
       - name: Verify user equipment atlas
