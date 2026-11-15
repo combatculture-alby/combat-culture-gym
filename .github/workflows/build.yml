@@ -17,6 +17,7 @@ jobs:
       - run: node --check level1-equipment-and-interactions.js
       - run: node --check level1-training-equipment-behavior.js
       - run: node --check level1-approved-coaches.js
+      - run: node test/level1-approved-coaches.test.cjs
       - name: Verify approved male and female coach source atlases
         run: |
           python3 - <<'PY'
