@@ -132,7 +132,7 @@ jobs:
           # Hide the game before its original startup scripts can render.
           # Only the isolated Level 1 preview receives this CSS. Reveal after
           # the first Phaser post-render with user-approved artwork attached.
-          assert "</head>" in html and "<div id=\"game\">" in html
+          assert "</head>" in html and '<main id="game"' in html
           gate = ('<style id="cc-l1-startup-gate">'
                   'html:not(.cc-l1-ready) #game canvas { visibility:hidden !important; }'
                   '</style>')
