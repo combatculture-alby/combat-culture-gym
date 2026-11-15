@@ -15,6 +15,7 @@ jobs:
       - run: node --check level1-user-edited-images.js
       - run: node --check level1-visual-fixes.js
       - run: node --check level1-equipment-and-interactions.js
+      - run: node --check level1-training-equipment-behavior.js
       - name: Verify exact user-supplied wall PNG
         run: |
           python3 - <<'PY'
