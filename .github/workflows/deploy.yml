@@ -123,8 +123,10 @@ jobs:
           grep -q 'window.CC_GAME' dist/offline/index.html
           node --check level1-user-edited-images.js
           node --check level1-visual-fixes.js
+          node --check level1-equipment-and-interactions.js
           cp level1-user-edited-images.js dist/offline/level1-user-edited-images.js
           cp level1-visual-fixes.js dist/offline/level1-visual-fixes.js
+          cp level1-equipment-and-interactions.js dist/offline/level1-equipment-and-interactions.js
           python3 - <<'PY'
           from pathlib import Path
           page = Path("dist/offline/index.html")
@@ -139,12 +141,13 @@ jobs:
           html = html.replace("</head>", gate + "</head>", 1)
           pos = html.rfind("</body>")
           assert pos >= 0, "Missing closing body tag"
-          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=wall-swap-20261114"></script><script src="./level1-visual-fixes.js?v=no-startup-flash-1"></script>' + html[pos:], encoding="utf-8")
+          page.write_text(html[:pos] + '<script src="./level1-user-edited-images.js?v=wall-swap-20261114"></script><script src="./level1-visual-fixes.js?v=no-startup-flash-1"></script><script src="./level1-equipment-and-interactions.js?v=consistent-gear-walk-cash-1"></script>' + html[pos:], encoding="utf-8")
           PY
           grep -q 'level1-user-edited-images.js' dist/offline/index.html
           grep -q 'level1-visual-fixes.js' dist/offline/index.html
           grep -q 'cc-l1-startup-gate' dist/offline/index.html
           test -s dist/offline/level1-visual-fixes.js
+          test -s dist/offline/level1-equipment-and-interactions.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
