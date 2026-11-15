@@ -103,7 +103,7 @@
   function preserveNewWall(sc) {
     // Retire any still-visible obsolete brick strips. The new 480x96
     // image from the supplied "New wall.png" is installed by the user-art script.
-    if (!sc.textures.exists('cc-l1-user-edited-v1-wall')) return;
+    if (!sc.textures.exists('cc-l1-exact-original-wall-2048x682')) return;
     for (const v of sc.children.list)
       if (v.texture?.key==='cc-approved-brick-row') v.setVisible(false);
   }
