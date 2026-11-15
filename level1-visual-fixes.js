@@ -45,113 +45,52 @@
         child.setTexture(match[1]);
     }
   }
-  function makeWall(sc) {
-    const g = sc.add.graphics().setDepth(0.28);
-    // Opaque continuous wall hides all inconsistent original wall and door pixels.
-    g.fillStyle(0x353137, 1).fillRect(0, 0, 480, 96);
-    g.fillStyle(0x26252b, 1).fillRect(0, 0, 480, 9);
-    g.fillStyle(0x655f64, 1).fillRect(0, 9, 480, 78);
-    // Individual small bricks: same offsets, dimensions and mortar for the full width.
-    const brickW = 20, brickH = 8;
-    const tones = [0x696469, 0x746e73, 0x615d61, 0x7b7579];
-    for (let row = 0, y = 11; y < 88; row++, y += brickH) {
-      const offset = row % 2 ? -10 : 0;
-      for (let x = offset; x < 480; x += brickW) {
-        const tone = tones[(row * 7 + Math.floor((x + 10) / brickW) * 3 + 128) % tones.length];
-        g.fillStyle(0x302c32).fillRect(x, y, brickW, brickH);
-        g.fillStyle(tone).fillRect(x + 1, y + 1, brickW - 2, brickH - 2);
-        g.fillStyle(0xa29a9d, .28).fillRect(x + 2, y + 1, brickW - 4, 1);
-        g.fillStyle(0x27262b, .18).fillRect(x + 1, y + brickH - 2, brickW - 2, 1);
-      }
-    }
-    // Continuous footing: no exposed strips of the underlying asset.
-    g.fillStyle(0x28282d).fillRect(0, 88, 480, 8);
-    g.fillStyle(0x92878b).fillRect(0, 88, 480, 1);
-    return g;
-  }
-  // Level 1 sprite-edge cleanup. These are native 1:1 canvas textures:
-  // the baked-in old-wall remnants sit outside the artwork silhouette.
-  // Remove those specific pixels instead of drawing more masking rectangles.
-  // Never change the source asset or the collision/interaction geometry.
-  const spriteCuts = Object.freeze({
-    lamp: {bottom: 4},
-    "side-frame": {top: 5},
-    "exterior-garage": {right: 5},
-    "garage-frame": {right: 1},
-    "exterior-side": {top: 1}
-  });
-  function cleanNativeTexture(sc, key) {
-    const sourceKey = "cc-l1-independent-" + key;
-    const cuts = spriteCuts[key];
-    if (!cuts || !sc.textures.exists(sourceKey)) return sourceKey;
-    const cleanKey = "cc-l1-native-crop-v2-" + key;
-    if (sc.textures.exists(cleanKey)) return cleanKey;
 
-    const source = sc.textures.get(sourceKey).getSourceImage();
-    if (!source?.width || !source?.height) return sourceKey;
-    const canvas = document.createElement("canvas");
-    canvas.width = source.width;
-    canvas.height = source.height;
-    const ctx = canvas.getContext("2d", {willReadFrequently: true});
-    if (!ctx) return sourceKey;
-    ctx.drawImage(source, 0, 0);
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const {width, height} = canvas;
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        if (row >= height - (cuts.bottom || 0) ||
-            row < (cuts.top || 0) ||
-            col >= width - (cuts.right || 0) ||
-            col < (cuts.left || 0)) {
-          const i = (row * width + col) * 4;
-          data.data[i] = data.data[i + 1] = data.data[i + 2] = 0;
-          data.data[i + 3] = 0;
-        }
-      }
-    }
-    ctx.putImageData(data, 0, 0);
-    sc.textures.addCanvas(cleanKey, canvas);
-    return cleanKey;
+  // These six user-edited originals replace every previous Level 1 overlay,
+  // sprite frame, and color-matching crop. Images are rendered at native size.
+  const userSources = window.CC_L1_USER_IMAGES || {};
+  const userImages = {};
+  for (const [key, source] of Object.entries(userSources)) {
+    const image = new Image();
+    image.src = source;
+    userImages[key] = image;
   }
-  function nativeImage(sc, key, x, y, w, h, depth) {
-    const texture = "cc-l1-independent-" + key;
-    if (!sc.textures.exists(texture)) return null;
-    const clean = cleanNativeTexture(sc, key);
-    return sc.add.image(x, y, clean).setOrigin(0, 0).setDisplaySize(w, h).setDepth(depth);
+  const ready = () =>
+    ["wall","lamp","garage_closed","garage_open","side_closed","side_open"]
+      .every(key => userImages[key]?.complete && userImages[key]?.naturalWidth > 0);
+
+  function place(sc, key, x, y, w, h, depth) {
+    const texture = "cc-l1-user-edited-v1-" + key;
+    if (!sc.textures.exists(texture))
+      sc.textures.addImage(texture, userImages[key]);
+    return sc.add.image(x,y,texture).setOrigin(0,0)
+      .setDisplaySize(w,h).setDepth(depth);
+  }
+  function makeWall(sc) {
+    return place(sc, "wall", 0, 0, 480, 96, 0.28);
   }
   function makeGarageDoor(sc) {
-    // The original independent garage door is 79 x 68 at 121,27.
-    // Reuse those approved sprites at their authored coordinates; do not
-    // stretch the garage entrance or change its collision geometry.
-    const exterior = nativeImage(sc, "exterior-garage", 124, 36, 77, 62, .34);
-    const closed = nativeImage(sc, "garage", 121, 27, 79, 68, .35);
-    const frame = nativeImage(sc, "garage-frame", 121, 27, 79, 68, .36);
+    const closed = place(sc,"garage_closed",121,27,79,68,0.35);
+    const open = place(sc,"garage_open",121,27,79,68,0.35);
     const update = (phase, visible) => {
-      const open = phase === "open";
-      exterior?.setVisible(visible && open);
-      closed?.setVisible(visible && !open);
-      frame?.setVisible(visible);
+      const isOpen = phase === "open";
+      open.setVisible(visible && isOpen);
+      closed.setVisible(visible && !isOpen);
     };
-    return {sprites:[exterior, closed, frame].filter(Boolean), update};
+    return {sprites:[closed,open],update};
   }
   function makeSideDoor(sc) {
-    // The side-door opening remains 33 x 65 at 297,30.
-    const exterior = nativeImage(sc, "exterior-side", 301, 36, 27, 59, .34);
-    const closed = nativeImage(sc, "side", 297, 30, 33, 65, .35);
-    const frame = nativeImage(sc, "side-frame", 297, 30, 33, 65, .36);
-    const update = (phase, visible) => {
-      const open = phase === "open";
-      exterior?.setVisible(visible && open);
-      closed?.setVisible(visible && !open);
-      frame?.setVisible(visible);
+    const closed = place(sc,"side_closed",297,30,33,65,0.35);
+    const open = place(sc,"side_open",297,30,33,65,0.35);
+    const update = (phase,visible) => {
+      const isOpen = phase === "open";
+      open.setVisible(visible && isOpen);
+      closed.setVisible(visible && !isOpen);
     };
-    return {sprites:[exterior, closed, frame].filter(Boolean), update};
+    return {sprites:[closed,open],update};
   }
   function makeLights(sc) {
-    // Original independent lamp positions and native 44 x 19 proportions.
-    return [48, 212, 418].map(x =>
-      nativeImage(sc, "lamp", x, 0, 44, 19, .44)
-    ).filter(Boolean);
+    return [48,212,418].map(x=>place(sc,"lamp",x,0,44,19,0.44));
   }
   function attach(sc) {
     if (sc.gymLevel() !== 1 || !sc.__ccL1Objects) return;
@@ -201,6 +140,7 @@
     const sc = currentScene();
     if (!sc || sc.gymLevel() !== 1) return;
     repairProps(sc);
+    if (!ready()) return;
     if (!installed.has(sc)) attach(sc);
   };
   setInterval(poll, 450);
