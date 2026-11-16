@@ -137,7 +137,7 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
       }
       if(s.state==='resting'){s.restTime+=dt;if(s.restTime>=7){s.state='waiting';s.restTime=0;s.training=0;s.requestAt=8;this.served++;s.targetX=s.x;s.targetY=s.y;}}
       if(s.state==='needs-water'||s.state==='overheated'){s.patience-=dt*5;if(s.patience<=0){s.state='finished';this.missed++;if(s.bag!==null)this.bagOwners[s.bag]=null;}}
-      s.actor.place(s.x,s.y);s.actor.animate(s.state==='training'?'bag':s.state==='walking'?'walk':'idle',dt);
+      s.actor.place(s.x,s.y);s.actor.animate(s.state==='training'?'bag':s.state==='walking'||s.state==='walking-to-break'?'walk':'idle',dt);
       const label=this.overlays[i];
       label.setText(s.state==='needs-water'?'WATER '+Math.ceil(s.patience)+'%':s.state==='overheated'?'OVERHEATED '+Math.ceil(s.patience)+'%':s.state==='training'?'TRAINING':s.state.toUpperCase());
       label.setColor(s.state==='needs-water'||s.state==='overheated'?'#ffad91':'#fff1d5');
