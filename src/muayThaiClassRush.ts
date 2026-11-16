@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 import { GymCharacter } from './characters';
 
-type StudentState = 'waiting'|'walking'|'training'|'needs-water'|'resting'|'finished';
-type Trainee = {actor:GymCharacter; state:StudentState; bag:number|null; patience:number; training:number; x:number; y:number; targetX:number; targetY:number; requestAt:number};
+type StudentState = 'waiting'|'walking'|'training'|'needs-water'|'overheated'|'walking-to-break'|'resting'|'finished';
+type Trainee = {actor:GymCharacter; state:StudentState; bag:number|null; patience:number; training:number; x:number; y:number; targetX:number; targetY:number; requestAt:number;restTime:number};
 const BAG_X=[84,190,296,402];
-const BAG_Y=112;
 const DURATION=90;
 
 /** Isolated Class Rush prototype. No hub save data is changed. */
@@ -21,13 +20,15 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
   private hud!:Phaser.GameObjects.Text;
   private notice!:Phaser.GameObjects.Text;
   private overlays:Phaser.GameObjects.Text[]=[];
+  private selectedForBreak=-1;
+  private pendingAction:(()=>void)|null=null;
   private cursors!:Phaser.Types.Input.Keyboard.CursorKeys;
   private keys!:Record<'W'|'A'|'S'|'D',Phaser.Input.Keyboard.Key>;
   private destination:{x:number;y:number}|null=null;
   constructor(){super('MuayThaiClassRush');}
   create():void {
     this.students=[];this.selected=-1;this.bagOwners=[null,null,null,null];
-    this.elapsed=0;this.served=0;this.missed=0;this.carryingWater=false;this.active=true;
+    this.elapsed=0;this.served=0;this.missed=0;this.carryingWater=false;this.active=true;this.selectedForBreak=-1;this.pendingAction=null;this.overlays=[];this.destination=null;
     this.cameras.main.setBackgroundColor('#6c8278');
     this.add.rectangle(240,175,468,298,0x748a83).setStrokeStyle(7,0x6b5746);
     this.add.rectangle(240,30,468,38,0x8a6852);
@@ -44,8 +45,7 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
     this.add.text(55,232,'WATER\nCLICK TO PICK UP',{fontFamily:'Arial',fontSize:'10px',color:'#ffffff',align:'center'}).setOrigin(.5);
     this.add.zone(55,232,86,60).setInteractive({useHandCursor:true}).on('pointerdown',()=>{
       if(!this.active)return;
-      this.destination={x:100,y:210};
-      this.carryingWater=true;this.setNotice('Water collected. Click a thirsty student.');
+      this.walkTo(100,210,()=>{this.carryingWater=true;this.setNotice('Water collected. Click a thirsty student.');});
     });
     this.add.rectangle(425,232,86,53,0xb6a07d).setStrokeStyle(2,0x514e43);
     this.add.text(425,232,'BREAK\nSTATION',{fontFamily:'Arial',fontSize:'11px',color:'#25383b',align:'center'}).setOrigin(.5);
@@ -58,17 +58,28 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
       .setOrigin(1,.5).setDepth(50).setInteractive({useHandCursor:true}).on('pointerdown',()=>this.exit());
     this.input.on('pointerdown',(p:Phaser.Input.Pointer,targets:Phaser.GameObjects.GameObject[])=>{
       if(!this.active||targets.length)return;
-      this.destination={x:Phaser.Math.Clamp(p.x,20,460),y:Phaser.Math.Clamp(p.y,160,270)};
+      this.pendingAction=null;this.destination={x:Phaser.Math.Clamp(p.x,20,460),y:Phaser.Math.Clamp(p.y,160,270)};
     });
     this.spawnStudent();
   }
   private setNotice(s:string):void {this.notice.setText(s);}
+  private walkTo(x:number,y:number,action:()=>void):void {this.destination={x,y};this.pendingAction=action;}
+  private sendToBreak():void {
+    if(this.selectedForBreak<0){this.setNotice('Select an overheated student first.');return;}
+    const i=this.selectedForBreak,s=this.students[i];this.selectedForBreak=-1;
+    if(s.state!=='overheated')return;
+    this.walkTo(s.x,s.y,()=>{
+      s.state='walking-to-break';s.targetX=420;s.targetY=195;
+      if(s.bag!==null)this.bagOwners[s.bag]=null;s.bag=null;
+      this.setNotice('Escorting student to recovery area.');
+    });
+  }
   private spawnStudent():void {
     if(this.students.length>=4)return;
     const i=this.students.length;
     const x=155+i*55,y=267;
     const actor=new GymCharacter(this,x,y,(i%4)+1);
-    const student:Trainee={actor,state:'waiting',bag:null,patience:100,training:0,x,y,targetX:x,targetY:y,requestAt:8+i*3};
+    const student:Trainee={actor,state:'waiting',bag:null,patience:100,training:0,x,y,targetX:x,targetY:y,requestAt:8+i*3,restTime:0};
     this.students.push(student);
     const hit=this.add.zone(x,y-16,32,44).setInteractive({useHandCursor:true}).setDepth(32);
     const label=this.add.text(x,y-45,'WAITING',{fontFamily:'Arial',fontSize:'9px',color:'#fff1d5',backgroundColor:'#294447',padding:{x:3,y:2}}).setOrigin(.5).setDepth(33);
@@ -76,9 +87,13 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
     hit.on('pointerdown',()=>{
       if(!this.active)return;
       if(student.state==='needs-water'&&this.carryingWater){
-        this.carryingWater=false;student.state='training';student.patience=Math.min(100,student.patience+30);
-        student.requestAt=student.training+11;this.served++;this.setNotice('Water delivered!');return;
+        this.walkTo(student.x,student.y,()=>{
+          if(student.state!=='needs-water')return;
+          this.carryingWater=false;student.state='training';student.patience=Math.min(100,student.patience+30);
+          student.requestAt=student.training+12;this.served++;this.setNotice('Water delivered!');
+        });return;
       }
+      if(student.state==='overheated'){this.selectedForBreak=i;this.setNotice('Click the break station to escort this student.');return;}
       this.selected=i;this.setNotice(student.state==='waiting'?'Now click an empty bag.':'Student '+(i+1)+' selected.');
     });
     this.events.on('update',()=>{hit.setPosition(student.x,student.y-16);label.setPosition(student.x,student.y-45);});
@@ -104,27 +119,28 @@ export class MuayThaiClassRushScene extends Phaser.Scene {
     let vx=dx,vy=dy;
     if(!vx&&!vy&&this.destination){
       const x=this.destination.x-this.coach.body.x,y=this.destination.y-this.coach.body.y;
-      if(Math.hypot(x,y)<4)this.destination=null;
+      if(Math.hypot(x,y)<4){this.destination=null;const action=this.pendingAction;this.pendingAction=null;action?.();}
       else {const length=Math.hypot(x,y);vx=x/length;vy=y/length;}
-    }else if(vx||vy)this.destination=null;
+    }else if(vx||vy){this.destination=null;this.pendingAction=null;}
     if(vx||vy){const l=Math.hypot(vx,vy);this.coach.place(Phaser.Math.Clamp(this.coach.body.x+vx/l*115*dt,20,460),Phaser.Math.Clamp(this.coach.body.y+vy/l*115*dt,165,270));this.coach.face(vx,vy);}
     this.coach.animate(vx||vy?'walk':'idle',dt);
     this.students.forEach((s,i)=>{
-      if(s.state==='walking'){
+      if(s.state==='walking'||s.state==='walking-to-break'){
         const dx=s.targetX-s.x,dy=s.targetY-s.y,dist=Math.hypot(dx,dy);
-        if(dist<2){s.x=s.targetX;s.y=s.targetY;s.state='training';}
+        if(dist<2){s.x=s.targetX;s.y=s.targetY;s.state=s.state==='walking-to-break'?'resting':'training';}
         else{s.x+=dx/dist*Math.min(dist,70*dt);s.y+=dy/dist*Math.min(dist,70*dt);s.actor.face(dx,dy);}
       }
       if(s.state==='training'){
         s.training+=dt;
-        if(s.training>=s.requestAt){s.state='needs-water';}
+        if(s.training>=s.requestAt){s.state=s.training>=18?'overheated':'needs-water';}
         if(s.training>=35){s.state='finished';this.served++;if(s.bag!==null)this.bagOwners[s.bag]=null;}
       }
-      if(s.state==='needs-water'){s.patience-=dt*5;if(s.patience<=0){s.state='finished';this.missed++;if(s.bag!==null)this.bagOwners[s.bag]=null;}}
+      if(s.state==='resting'){s.restTime+=dt;if(s.restTime>=7){s.state='waiting';s.restTime=0;s.training=0;s.requestAt=8;this.served++;s.targetX=s.x;s.targetY=s.y;}}
+      if(s.state==='needs-water'||s.state==='overheated'){s.patience-=dt*5;if(s.patience<=0){s.state='finished';this.missed++;if(s.bag!==null)this.bagOwners[s.bag]=null;}}
       s.actor.place(s.x,s.y);s.actor.animate(s.state==='training'?'bag':s.state==='walking'?'walk':'idle',dt);
       const label=this.overlays[i];
-      label.setText(s.state==='needs-water'?'WATER '+Math.ceil(s.patience)+'%':s.state==='training'?'TRAINING':s.state.toUpperCase());
-      label.setColor(s.state==='needs-water'?'#ffad91':'#fff1d5');
+      label.setText(s.state==='needs-water'?'WATER '+Math.ceil(s.patience)+'%':s.state==='overheated'?'OVERHEATED '+Math.ceil(s.patience)+'%':s.state==='training'?'TRAINING':s.state.toUpperCase());
+      label.setColor(s.state==='needs-water'||s.state==='overheated'?'#ffad91':'#fff1d5');
     });
     this.hud.setText('TIME '+Math.max(0,Math.ceil(DURATION-this.elapsed))+'s    HELPED '+this.served+'    MISSED '+this.missed+(this.carryingWater?'    CARRYING WATER':''));
     if(this.elapsed>=DURATION)this.finish();
