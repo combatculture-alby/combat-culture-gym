@@ -184,6 +184,25 @@ jobs:
           test -s dist/offline/level1-updated-equipment-atlas.png
           grep -q 'level1-user-updated-equipment.js' dist/offline/index.html
           grep -q 'level1-male-coach-sprites.js' dist/offline/index.html
+      # Build Muay Thai Class Rush from its isolated development branch.
+      # Never replace the production root or Level 1 offline preview.
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/muay-thai-class-rush
+          path: class-rush-source
+      - name: Build isolated Muay Thai Class Rush
+        working-directory: class-rush-source
+        env:
+          VITE_ISOLATE_SAVE: '1'
+        run: |
+          npm install --no-audit --no-fund
+          npm run build -- --base=/combat-culture-gym/class-rush/
+      - name: Add Class Rush playtest alongside production
+        run: |
+          mkdir -p dist/class-rush
+          cp -R class-rush-source/dist/. dist/class-rush/
+          test -f dist/class-rush/index.html
+          grep -q '/combat-culture-gym/class-rush/assets/' dist/class-rush/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
